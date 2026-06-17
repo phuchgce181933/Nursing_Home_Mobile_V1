@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { StyleSheet, View, TextInput, Pressable } from 'react-native';
+import { useRef, useState } from 'react';
+import { StyleSheet, TextInput, Pressable } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { Spacing } from '@/constants/theme';
@@ -13,6 +13,7 @@ export function LoginForm({ onSubmit }: Props) {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const passwordRef = useRef<TextInput>(null);
 
   const handlePress = async () => {
     setError(null);
@@ -39,14 +40,20 @@ export function LoginForm({ onSubmit }: Props) {
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
+        returnKeyType="next"
+        onSubmitEditing={() => passwordRef.current?.focus()}
+        blurOnSubmit={false}
       />
       <TextInput
+        ref={passwordRef}
         style={styles.input}
         placeholder="Mật khẩu"
         placeholderTextColor="#888"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
+        returnKeyType="go"
+        onSubmitEditing={handlePress}
       />
       {error ? <ThemedText type="smallBold" style={styles.error}>{error}</ThemedText> : null}
       <Pressable onPress={handlePress} style={[styles.button, busy && styles.buttonDisabled]} disabled={busy}>
