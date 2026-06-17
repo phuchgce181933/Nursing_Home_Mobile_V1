@@ -1,0 +1,65 @@
+import { MD3LightTheme } from 'react-native-paper';
+
+export const ROLE_COLORS = {
+  manager: '#1B3A6B',
+  nurse: '#0F5040',
+  caregiver: '#6B4200',
+} as const;
+
+export const STATUS_COLORS = {
+  stable:    { bg: '#D1FAE5', text: '#065F46' },
+  done:      { bg: '#D1FAE5', text: '#065F46' },
+  completed: { bg: '#D1FAE5', text: '#065F46' },
+  clean:     { bg: '#D1FAE5', text: '#065F46' },
+  TAKEN:     { bg: '#D1FAE5', text: '#065F46' },
+  full:      { bg: '#D1FAE5', text: '#065F46' },
+  confirmed: { bg: '#D1FAE5', text: '#065F46' },
+  resolved:  { bg: '#D1FAE5', text: '#065F46' },
+  published: { bg: '#DBEAFE', text: '#1E40AF' },
+
+  monitoring:  { bg: '#FFEDD5', text: '#92400E' },
+  pending:     { bg: '#FFEDD5', text: '#92400E' },
+  in_progress: { bg: '#FFEDD5', text: '#92400E' },
+  PENDING:     { bg: '#FFEDD5', text: '#92400E' },
+  OVERDUE:     { bg: '#FFEDD5', text: '#92400E' },
+  partial:     { bg: '#FFEDD5', text: '#92400E' },
+  draft:       { bg: '#FFEDD5', text: '#92400E' },
+  open:        { bg: '#FFEDD5', text: '#92400E' },
+  investigating: { bg: '#FFEDD5', text: '#92400E' },
+
+  critical: { bg: '#FEE2E2', text: '#991B1B' },
+  missed:   { bg: '#FEE2E2', text: '#991B1B' },
+  skipped:  { bg: '#FEE2E2', text: '#991B1B' },
+  refused:  { bg: '#FEE2E2', text: '#991B1B' },
+  MISSED:   { bg: '#FEE2E2', text: '#991B1B' },
+  SKIPPED:  { bg: '#FEE2E2', text: '#991B1B' },
+  cancelled:{ bg: '#FEE2E2', text: '#991B1B' },
+  closed:   { bg: '#FEE2E2', text: '#991B1B' },
+
+  upcoming:    { bg: '#DBEAFE', text: '#1E40AF' },
+  LATE_TAKEN:  { bg: '#DBEAFE', text: '#1E40AF' },
+  assisted:    { bg: '#DBEAFE', text: '#1E40AF' },
+  available:   { bg: '#DBEAFE', text: '#1E40AF' },
+} as const;
+
+export const paperTheme = {
+  ...MD3LightTheme,
+  colors: {
+    ...MD3LightTheme.colors,
+    primary: '#1B3A6B',
+    secondary: '#0F5040',
+    tertiary: '#6B4200',
+    error: '#991B1B',
+    background: '#F5F5F5',
+    surface: '#FFFFFF',
+    surfaceVariant: '#F0F0F0',
+  },
+};
+
+export const getRoleColor = (role?: string): string => {
+  if (role === 'manager' || role === 'admin') return ROLE_COLORS.manager;
+  if (role === 'nurse' || role === 'doctor') return ROLE_COLORS.nurse;
+  if (role === 'caregiver') return ROLE_COLORS.caregiver;
+  if (role === 'family') return '#2E7D32';
+  return ROLE_COLORS.manager;
+};
