@@ -1,0 +1,24 @@
+- generic [ref=e26]:
+  - generic [ref=e27]:
+    - generic [ref=e28]: Hóa Đơn Thanh Toán
+    - generic [ref=e29]: Xin chào, Gia đình Nguyễn
+  - generic [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]: 💰 Ví Tiền
+      - generic [ref=e35] [cursor=pointer]: Làm mới
+    - generic [ref=e36]: 0₫
+    - generic [ref=e37]:
+      - generic [ref=e38]:
+        - generic [ref=e39]: "Đã nạp:"
+        - generic [ref=e40]: 0₫
+      - generic [ref=e41]:
+        - generic [ref=e42]: "Đã dùng:"
+        - generic [ref=e43]: 0₫
+    - generic [ref=e45] [cursor=pointer]: + Nạp Tiền
+  - generic [ref=e46]:
+    - generic [ref=e47]: Chọn người thân
+    - generic [ref=e51] [cursor=pointer]: Cụ Nguyễn Thị Dung
+  - generic [ref=e52]:
+    - generic [ref=e53]: Danh sách hóa đơn (0)
+    - generic [ref=e55]: Không có hóa đơn để hiển thị.
+  - generic [ref=e57] [cursor=pointer]: Đăng xuất
