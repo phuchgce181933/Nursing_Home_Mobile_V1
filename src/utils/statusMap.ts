@@ -72,11 +72,32 @@ const map: Record<string, StatusEntry> = {
   refused:  { label: 'Từ chối',  bgColor: '#FEE2E2', textColor: '#991B1B', icon: 'hand-back-left' },
   assisted: { label: 'Hỗ trợ',   bgColor: '#DBEAFE', textColor: '#1E40AF', icon: 'handshake-outline' },
 
-  // Meal intake statuses
-  // full already covered by Room 'full' above, will use fallback
+  // Leave request statuses
+  approved:  { label: 'Đã duyệt',  bgColor: '#D1FAE5', textColor: '#065F46', icon: 'check-circle-outline' },
+  rejected:  { label: 'Từ chối',   bgColor: '#FEE2E2', textColor: '#991B1B', icon: 'close-circle-outline' },
 
-  // Care levels
-  // low/medium/high already covered by incident severity
+  // Invoice statuses
+  issued:         { label: 'Chưa thanh toán', bgColor: '#FFEDD5', textColor: '#92400E', icon: 'receipt' },
+  paid:           { label: 'Đã thanh toán',   bgColor: '#D1FAE5', textColor: '#065F46', icon: 'check-circle' },
+  partially_paid: { label: 'Thanh toán một phần', bgColor: '#FFEDD5', textColor: '#92400E', icon: 'circle-half-full' },
+  overdue:        { label: 'Quá hạn',         bgColor: '#FEE2E2', textColor: '#991B1B', icon: 'alert-circle' },
+
+  // Admission statuses
+  new_request:  { label: 'Yêu cầu mới',  bgColor: '#DBEAFE', textColor: '#1E40AF', icon: 'file-document-outline' },
+  consulting:   { label: 'Đang tư vấn',   bgColor: '#FFEDD5', textColor: '#92400E', icon: 'account-voice' },
+  assessing:    { label: 'Đang đánh giá',  bgColor: '#FFEDD5', textColor: '#92400E', icon: 'clipboard-check-outline' },
+  contracting:  { label: 'Ký hợp đồng',   bgColor: '#DBEAFE', textColor: '#1E40AF', icon: 'file-sign' },
+  checked_in:   { label: 'Đã nhận',       bgColor: '#D1FAE5', textColor: '#065F46', icon: 'account-check' },
+
+  // Activity statuses
+  scheduled: { label: 'Sắp tới',       bgColor: '#DBEAFE', textColor: '#1E40AF', icon: 'calendar-clock' },
+  ongoing:   { label: 'Đang diễn ra',  bgColor: '#FFEDD5', textColor: '#92400E', icon: 'play-circle-outline' },
+
+  // Prescription statuses
+  active:  { label: 'Đang dùng', bgColor: '#D1FAE5', textColor: '#065F46', icon: 'pill' },
+
+  // Care appointment statuses
+  in_progress_appointment: { label: 'Đang khám', bgColor: '#FFEDD5', textColor: '#92400E', icon: 'stethoscope' }
 };
 
 const fallback: StatusEntry = {

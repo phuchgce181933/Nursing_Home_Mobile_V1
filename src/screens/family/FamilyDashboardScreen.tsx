@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ScrollView, View, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import { ScrollView, View, StyleSheet, RefreshControl, Pressable, TouchableOpacity } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
@@ -16,6 +17,7 @@ const COLOR = '#2E7D32';
 
 export const FamilyDashboardScreen: React.FC = () => {
   const { user } = useAuth();
+  const nav = useNavigation<any>();
   const [selectedResident, setSelectedResident] = useState<string | null>(null);
 
   const residentsQ = useQuery({
@@ -25,7 +27,7 @@ export const FamilyDashboardScreen: React.FC = () => {
 
   const walletQ = useQuery({
     queryKey: ['familyWallet'],
-    queryFn: async () => { const r = await api.get(FAMILY.WALLET_BALANCE); return r.data; },
+    queryFn: async () => { const r = await api.get(FAMILY.WALLET_BALANCE); return r.data?.data ?? r.data; },
   });
 
   const residents = residentsQ.data?.data ?? residentsQ.data ?? [];
@@ -40,14 +42,24 @@ export const FamilyDashboardScreen: React.FC = () => {
 
   const loading = residentsQ.isLoading;
   const refetch = () => { residentsQ.refetch(); walletQ.refetch(); vitalsQ.refetch(); };
-
   const vitals = vitalsQ.data;
+
+  const quickActions = [
+    { icon: 'heart-pulse', label: 'Sức khỏe', color: '#DC2626', bg: '#FEE2E2', onPress: () => nav.navigate('Health') },
+    { icon: 'pill', label: 'Thuốc', color: '#065F46', bg: '#D1FAE5', onPress: () => nav.navigate('Health', { screen: 'Medications' }) },
+    { icon: 'stethoscope', label: 'Lịch hẹn', color: '#1E40AF', bg: '#DBEAFE', onPress: () => nav.navigate('Home', { screen: 'Appointments' }) },
+    { icon: 'run', label: 'Hoạt động', color: '#92400E', bg: '#FFEDD5', onPress: () => nav.navigate('Home', { screen: 'Activities' }) },
+    { icon: 'file-document-edit-outline', label: 'Nhập viện', color: '#7C3AED', bg: '#EDE9FE', onPress: () => nav.navigate('Home', { screen: 'Admissions' }) },
+    { icon: 'calendar-check', label: 'Tham quan', color: '#0F766E', bg: '#CCFBF1', onPress: () => nav.navigate('Home', { screen: 'Tours' }) },
+    { icon: 'lifebuoy', label: 'Hỗ trợ', color: '#BE185D', bg: '#FCE7F3', onPress: () => nav.navigate('Home', { screen: 'Support' }) },
+    { icon: 'wallet-outline', label: 'Ví tiền', color: '#2E7D32', bg: '#E8F5E9', onPress: () => nav.navigate('Wallet') },
+  ];
 
   return (
     <View style={styles.flex}>
       <RoleHeader
-        title={`Xin chào, ${user?.fullName ?? ''}`}
-        subtitle="Gia đình · Family Portal"
+        title={`Xin chào, ${user?.fullName?.split(' ').pop() ?? ''}`}
+        subtitle={new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long' })}
         stats={[
           { value: residents.length, label: 'Người thân' },
           { value: wallet?.balance != null ? `${(wallet.balance / 1000).toFixed(0)}k` : '--', label: 'Số dư ví' },
@@ -95,6 +107,18 @@ export const FamilyDashboardScreen: React.FC = () => {
             </Card>
           ) : null}
 
+          <SectionHeader title="Thao tác nhanh" roleColor={COLOR} />
+          <View style={styles.actionGrid}>
+            {quickActions.map((a) => (
+              <TouchableOpacity key={a.label} style={styles.actionItem} onPress={a.onPress} activeOpacity={0.7}>
+                <View style={[styles.actionIcon, { backgroundColor: a.bg }]}>
+                  <MaterialCommunityIcons name={a.icon as any} size={22} color={a.color} />
+                </View>
+                <Text style={styles.actionLabel}>{a.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
           {vitals ? (
             <>
               <SectionHeader title="Sinh hiệu gần nhất" roleColor={COLOR} />
@@ -119,7 +143,7 @@ export const FamilyDashboardScreen: React.FC = () => {
           ) : null}
 
           <SectionHeader title="Ví điện tử" roleColor={COLOR} />
-          <Card style={styles.card} mode="elevated">
+          <Card style={styles.card} mode="elevated" onPress={() => nav.navigate('Wallet')}>
             <Card.Content>
               <Text style={styles.walletBalance}>
                 {wallet?.balance != null ? wallet.balance.toLocaleString('vi-VN') : '--'} ₫
@@ -148,6 +172,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#E8F5E9', marginRight: 8,
   },
   residentChipText: { fontSize: 13, fontWeight: '500', color: '#2E7D32' },
+  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
+  actionItem: { width: '22%', alignItems: 'center', gap: 6 },
+  actionIcon: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  actionLabel: { fontSize: 10, fontWeight: '600', color: '#374151', textAlign: 'center' },
   vitalsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   vitalCard: { width: '48%', borderRadius: 12 },
   vitalContent: { alignItems: 'center', paddingVertical: 10 },

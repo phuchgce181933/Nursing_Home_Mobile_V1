@@ -143,6 +143,13 @@ export const LEAVE_REQUESTS = {
   REPLACEMENT_CANDIDATES: (id: string) => `/api/leave-requests/${id}/replacement-candidates`,
 } as const;
 
+export const MEAL_PLANS = {
+  LIST: '/api/nurse/meal-plans',
+  DETAIL: (id: string) => `/api/nurse/meal-plans/${id}`,
+  TEMPLATES: '/api/nurse/meal-plans/templates',
+  RESIDENTS: '/api/nurse/meal-plans/residents',
+} as const;
+
 export const PRESCRIPTIONS = {
   LIST: '/api/prescriptions',
   CREATE: '/api/prescriptions',
@@ -163,6 +170,8 @@ export const FAMILY = {
   RESIDENTS: '/api/family/residents',
   RESIDENT_DETAIL: (id: string) => `/api/family/residents/${id}`,
   INVOICES: (residentId: string) => `/api/family/residents/${residentId}/invoices`,
+  INVOICE_DETAIL: (residentId: string, invoiceId: string) => `/api/family/residents/${residentId}/invoices/${invoiceId}`,
+  INVOICE_PAY: (residentId: string, invoiceId: string) => `/api/family/residents/${residentId}/invoices/${invoiceId}/pay`,
   PAYMENT_URL: (residentId: string, invoiceId: string) => `/api/family/residents/${residentId}/invoices/${invoiceId}/payment-url`,
   BILLING_SUMMARY: (residentId: string) => `/api/family/residents/${residentId}/billing-summary`,
   WALLET_BALANCE: '/api/family/wallet/balance',
