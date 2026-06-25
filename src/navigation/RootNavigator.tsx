@@ -6,9 +6,8 @@ import { Text, ActivityIndicator, Button } from 'react-native-paper';
 import { useAuth } from '../auth/useAuth';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { NurseNavigator } from './NurseNavigator';
-import { StaffNavigator } from './StaffNavigator';
-import { AssistantNavigator } from './AssistantNavigator';
 import { FamilyNavigator } from './FamilyNavigator';
+import { AssistantNavigator } from './AssistantNavigator';
 
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
@@ -39,16 +38,15 @@ const UnknownRoleView: React.FC = () => {
 
 const getRoleNavigator = (role?: string) => {
   switch (role) {
+    case 'nurse':
+    case 'doctor':
     case 'manager':
     case 'admin':
       return { name: 'NurseNav', component: NurseNavigator };
-    case 'nurse':
-    case 'doctor':
-      return { name: 'StaffNav', component: StaffNavigator };
-    case 'caregiver':
-      return { name: 'AssistantNav', component: AssistantNavigator };
     case 'family':
       return { name: 'FamilyNav', component: FamilyNavigator };
+    case 'caregiver':
+      return { name: 'AssistantNav', component: AssistantNavigator };
     default:
       return { name: 'UnknownRole', component: UnknownRoleView };
   }

@@ -168,7 +168,7 @@ export const FamilyWalletScreen: React.FC = () => {
 
   const openPaymentApp = async (method: PaymentMethod) => {
     if (!method.scheme) {
-      toast('Mở ứng dụng ngân hàng và quét mã QR', 'info' as any);
+      toast('Mở ứng dụng ngân hàng và quét mã QR', 'warning');
       return;
     }
     try {

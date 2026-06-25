@@ -26,7 +26,12 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       await login(token, user);
     } catch (err: any) {
       const status = err.response?.status;
-      if (status === 401) setError('Sai tên đăng nhập hoặc mật khẩu');
+      const msg = err.response?.data?.message ?? '';
+      if (status === 401) {
+        if (msg.toLowerCase().includes('inactive')) setError('Tài khoản đã bị vô hiệu hóa');
+        else if (msg.toLowerCase().includes('banned')) setError('Tài khoản đã bị khóa');
+        else setError('Sai tên đăng nhập hoặc mật khẩu');
+      }
       else if (status === 403) setError('Tài khoản không có quyền truy cập');
       else setError('Không thể kết nối. Kiểm tra mạng.');
     } finally {
@@ -70,6 +75,7 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 onPress={() => setShowPassword((v) => !v)}
               />
             }
+
             style={styles.input}
           />
 

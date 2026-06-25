@@ -51,7 +51,7 @@ export const CareAppointmentsScreen: React.FC = () => {
     <View style={[styles.flex, { paddingTop: insets.top }]}>
       <View style={styles.topBar}><Text style={styles.topTitle}>Cuộc hẹn chăm sóc</Text></View>
       <View style={styles.filterRow}>
-        {STATUS_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: COLOR } : undefined} textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>)}
+        {STATUS_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: COLOR } : { backgroundColor: '#E5E7EB' }} textStyle={filter === f.value ? { color: '#fff', fontWeight: '600' } : { color: '#111827' }} compact>{f.label}</Chip>)}
       </View>
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage="Không có cuộc hẹn nào">
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}

@@ -12,6 +12,7 @@ const ROLE_LABELS: Record<string, string> = {
   nurse: 'Y tá',
   doctor: 'Bác sĩ',
   caregiver: 'Hộ lý',
+  pharmacist: 'Dược sĩ',
   family: 'Gia đình',
 };
 

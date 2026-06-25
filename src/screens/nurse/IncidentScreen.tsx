@@ -24,7 +24,7 @@ export const IncidentScreen: React.FC = () => {
   const [form, setForm] = useState({ incidentType: '', description: '', severity: 'medium', location: '' });
 
   const listQ = useQuery({ queryKey: ['incidents', filter], queryFn: async () => (await api.get(INCIDENTS.LIST, { params: { severity: filter || undefined } })).data });
-  const items = listQ.data?.data ?? listQ.data ?? [];
+  const items = listQ.data?.items ?? [];
 
   const createMut = useMutation({
     mutationFn: async () => (await api.post(INCIDENTS.CREATE, { ...form, incidentAt: new Date().toISOString() })).data,

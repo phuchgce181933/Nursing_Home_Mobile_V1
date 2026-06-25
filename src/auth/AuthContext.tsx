@@ -73,10 +73,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     })();
   }, []);
 
-  const login = useCallback(async (newToken: string, newUser: AppUser) => {
+  const login = useCallback(async (newToken: string, _newUser: AppUser) => {
     await AsyncStorage.setItem('token', newToken);
     setToken(newToken);
-    setUser(newUser);
+    try {
+      const res = await api.get(AUTH.ME, {
+        headers: { Authorization: `Bearer ${newToken}` },
+      });
+      setUser(res.data);
+    } catch {
+      setUser(_newUser);
+    }
   }, []);
 
   return (

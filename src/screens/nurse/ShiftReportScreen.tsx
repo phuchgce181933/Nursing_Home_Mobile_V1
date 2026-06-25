@@ -1,6 +1,6 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, Dialog, Portal } from 'react-native-paper';
+import { Text, Card } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useShifts } from '../../hooks/useShifts';
@@ -9,23 +9,19 @@ import { useIncidents } from '../../hooks/useIncidents';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
-import { useToast } from '../../utils/toast';
 
 const COLOR = '#1B3A6B';
 const today = () => new Date().toISOString().split('T')[0];
 
 export const ShiftReportScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
-  const toast = useToast();
-  const [confirmVisible, setConfirmVisible] = React.useState(false);
-
   const shiftsQ = useShifts({ fromDate: today(), toDate: today() });
   const tasksQ = useManagerTasks({ workDate: today() });
   const incidentsQ = useIncidents({ status: 'open' });
 
-  const shifts = shiftsQ.data?.data ?? [];
+  const shifts = shiftsQ.data?.data?.data ?? [];
   const tasks = tasksQ.data?.data ?? [];
-  const incidents = incidentsQ.data?.data ?? [];
+  const incidents = incidentsQ.data?.items ?? [];
 
   const completedTasks = tasks.filter((t: any) => t.status === 'completed').length;
   const totalTasks = tasks.length;
@@ -38,11 +34,6 @@ export const ShiftReportScreen: React.FC = () => {
     shiftsQ.refetch();
     tasksQ.refetch();
     incidentsQ.refetch();
-  };
-
-  const handleSubmit = () => {
-    setConfirmVisible(false);
-    toast('Báo cáo đã được gửi', 'success');
   };
 
   const stats = [
@@ -93,30 +84,8 @@ export const ShiftReportScreen: React.FC = () => {
           {tasks.length === 0 ? (
             <Text style={styles.emptyText}>Chưa có sự kiện nào</Text>
           ) : null}
-
-          <Button
-            mode="contained"
-            buttonColor={COLOR}
-            style={styles.submitBtn}
-            onPress={() => setConfirmVisible(true)}
-          >
-            Gửi báo cáo ca
-          </Button>
         </ScreenLayout>
       </ScrollView>
-
-      <Portal>
-        <Dialog visible={confirmVisible} onDismiss={() => setConfirmVisible(false)}>
-          <Dialog.Title>Gửi báo cáo ca?</Dialog.Title>
-          <Dialog.Content>
-            <Text>Báo cáo sẽ được gửi đến quản lý.</Text>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setConfirmVisible(false)}>Hủy</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit}>Gửi</Button>
-          </Dialog.Actions>
-        </Dialog>
-      </Portal>
     </View>
   );
 };
@@ -137,5 +106,4 @@ const styles = StyleSheet.create({
   eventTitle: { fontSize: 13, color: '#111827' },
   eventTime: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
   emptyText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
-  submitBtn: { marginTop: 24, borderRadius: 8 },
 });
