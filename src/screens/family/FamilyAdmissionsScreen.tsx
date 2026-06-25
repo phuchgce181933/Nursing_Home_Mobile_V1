@@ -12,7 +12,7 @@ import { useToast } from '../../utils/toast';
 const COLOR = '#2E7D32';
 const STATUS_LABELS: Record<string, string> = { new_request: 'Mới', consulting: 'Tư vấn', assessing: 'Đánh giá', contracting: 'Hợp đồng', checked_in: 'Đã nhận', cancelled: 'Đã hủy' };
 
-export const FamilyAdmissionsScreen: React.FC = () => {
+export const FamilyAdmissionsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
@@ -45,7 +45,7 @@ export const FamilyAdmissionsScreen: React.FC = () => {
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage="Chưa có yêu cầu nào">
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
-            <Card style={styles.card} mode="outlined">
+            <Card style={styles.card} mode="outlined" onPress={() => navigation?.navigate('AdmissionDetail', { admissionId: item._id })}>
               <Card.Content>
                 <View style={styles.row}><View style={{ flex: 1 }}><Text style={styles.name}>{item.applicant?.fullName ?? '--'}</Text><Text style={styles.sub}>{item.applicant?.relationshipToRequester ?? ''} · {item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : ''}</Text>{item.reasonForAdmission ? <Text style={styles.reason} numberOfLines={2}>{item.reasonForAdmission}</Text> : null}</View><StatusBadge status={item.status} size="sm" /></View>
               </Card.Content>

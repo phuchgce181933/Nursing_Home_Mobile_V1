@@ -1,17 +1,26 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Chip, Card, Button, Dialog, Portal, TextInput } from 'react-native-paper';
+import { Text, Chip, Card, Button, Dialog, Portal, TextInput, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useDailyMedSchedule, useMarkTaken, useMarkMissed } from '../../hooks/useMedications';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { AlertBanner } from '../../components/shared/AlertBanner';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { getStatusEntry } from '../../utils/statusMap';
 
 const COLOR = '#0F5040';
-const today = () => new Date().toISOString().split('T')[0];
+const toDateStr = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = () => toDateStr(new Date());
+
+const shiftDay = (dateStr: string, delta: number) => {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const date = new Date(y, m - 1, d + delta);
+  return toDateStr(date);
+};
 
 const STATUS_FILTERS = [
   { value: '', label: 'Tất cả' },
@@ -32,18 +41,21 @@ const MISSED_REASONS = [
 export const MedicationScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const [selectedDate, setSelectedDate] = useState(today());
   const [filter, setFilter] = useState('');
   const [missedDialog, setMissedDialog] = useState<string | null>(null);
   const [missedReason, setMissedReason] = useState('refused');
   const [missedNotes, setMissedNotes] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<string | null>(null);
 
-  const params = { date: today(), status: filter || undefined };
+  const isToday = selectedDate === today();
+
+  const params = { date: selectedDate, status: filter || undefined };
   const scheduleQ = useDailyMedSchedule(params);
   const markTaken = useMarkTaken();
   const markMissed = useMarkMissed();
 
-  const groups = scheduleQ.data ?? [];
+  const groups = scheduleQ.data?.data ?? [];
   const allSchedules = Array.isArray(groups) ? groups.flatMap((g: any) => g.schedules ?? []) : [];
   const overdueCount = allSchedules.filter((s: any) => s.status === 'OVERDUE').length;
 
@@ -74,8 +86,23 @@ export const MedicationScreen: React.FC = () => {
     <View style={[styles.flex, { paddingTop: insets.top }]}>
       <View style={styles.topBar}>
         <Text style={styles.topTitle}>Lịch phát thuốc</Text>
-        <Text style={styles.topSub}>{today()}</Text>
       </View>
+
+      <View style={styles.dateBar}>
+        <IconButton icon="chevron-left" size={22} iconColor={COLOR} onPress={() => setSelectedDate(d => shiftDay(d, -1))} style={styles.dateArrow} />
+        <View style={styles.dateLabelWrap}>
+          <CalendarPicker label="Ngày xem" value={selectedDate} onChange={setSelectedDate} color={COLOR} />
+        </View>
+        <IconButton icon="chevron-right" size={22} iconColor={COLOR} onPress={() => setSelectedDate(d => shiftDay(d, 1))} style={styles.dateArrow} />
+      </View>
+
+      {!isToday && (
+        <View style={styles.todayBtnRow}>
+          <Button compact mode="text" textColor={COLOR} icon="calendar-today" onPress={() => setSelectedDate(today())}>
+            Về hôm nay
+          </Button>
+        </View>
+      )}
 
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map((f) => (
@@ -106,36 +133,44 @@ export const MedicationScreen: React.FC = () => {
         emptyMessage="Không có thuốc nào cần phát"
       >
         <FlatList
-          data={allSchedules}
-          keyExtractor={(item: any) => item._id}
+          data={groups}
+          keyExtractor={(item: any) => item.residentId}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={scheduleQ.refetch} tintColor={COLOR} />}
-          renderItem={({ item }) => {
-            const entry = getStatusEntry(item.status);
-            const time = item.scheduledTime ? new Date(item.scheduledTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
-            const isPending = item.status === 'PENDING' || item.status === 'OVERDUE';
+          renderItem={({ item: group }) => (
+            <View style={styles.groupSection}>
+              <View style={styles.groupHeader}>
+                <MaterialCommunityIcons name="account" size={18} color={COLOR} />
+                <Text style={styles.groupName}>{group.residentName}</Text>
+                {group.room ? <Text style={styles.groupRoom}>Phòng {group.room}</Text> : null}
+              </View>
+              {(group.schedules ?? []).map((item: any) => {
+                const entry = getStatusEntry(item.status);
+                const time = item.scheduledTime ? new Date(item.scheduledTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
+                const isPending = item.status === 'PENDING' || item.status === 'OVERDUE';
 
-            return (
-              <Card style={styles.medCard} mode="outlined">
-                <Card.Content style={styles.medRow}>
-                  <View style={[styles.iconBox, { backgroundColor: entry.bgColor }]}>
-                    <MaterialCommunityIcons name="pill" size={20} color={entry.textColor} />
-                  </View>
-                  <View style={styles.medInfo}>
-                    <Text style={styles.medName} numberOfLines={1}>{item.medicationName}</Text>
-                    <Text style={styles.medDosage}>{item.dosage} · {time}</Text>
-                  </View>
-                  <StatusBadge status={item.status} size="sm" />
-                </Card.Content>
-                {isPending ? (
-                  <Card.Actions>
-                    <Button compact textColor={COLOR} onPress={() => setConfirmDialog(item._id)}>Đã cho</Button>
-                    <Button compact textColor="#991B1B" onPress={() => setMissedDialog(item._id)}>Bỏ qua</Button>
-                  </Card.Actions>
-                ) : null}
-              </Card>
-            );
-          }}
+                return (
+                  <Card key={item.id} style={[styles.medCard, { borderLeftWidth: 4, borderLeftColor: entry.textColor }]} mode="outlined">
+                    <Card.Content style={styles.medRow}>
+                      <View style={styles.medInfo}>
+                        <Text style={styles.medName} numberOfLines={1}>{item.medicationName}</Text>
+                        <Text style={styles.medDosage}>{item.dosage} · {item.route} · {time}</Text>
+                      </View>
+                      <StatusBadge status={item.status} size="sm" />
+                    </Card.Content>
+                    {isPending ? (
+                      <View style={styles.actionRow}>
+                        <Button mode="outlined" compact style={styles.actionBtn} textColor={COLOR}
+                          onPress={() => setConfirmDialog(item.id)}>Đã cho</Button>
+                        <Button mode="outlined" compact style={[styles.actionBtn, styles.actionBtnDanger]} textColor="#991B1B"
+                          onPress={() => setMissedDialog(item.id)}>Bỏ qua</Button>
+                      </View>
+                    ) : null}
+                  </Card>
+                );
+              })}
+            </View>
+          )}
         />
       </ScreenLayout>
 
@@ -186,17 +221,26 @@ export const MedicationScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
+  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
-  topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
+  dateBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingTop: 8 },
+  dateArrow: { margin: 0 },
+  dateLabelWrap: { flex: 1 },
+  todayBtnRow: { alignItems: 'center', paddingBottom: 2 },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, paddingBottom: 4, flexWrap: 'wrap' },
   chip: { borderRadius: 20 },
   list: { padding: 16, paddingBottom: 32 },
-  medCard: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
-  medRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBox: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  medCard: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff', overflow: 'hidden' },
+  medRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   medInfo: { flex: 1 },
-  medName: { fontSize: 14, fontWeight: '500', color: '#111827' },
+  medName: { fontSize: 14, fontWeight: '600', color: '#111827' },
   medDosage: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  actionRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  actionBtn: { flex: 1, borderRadius: 8, borderColor: COLOR },
+  actionBtnDanger: { borderColor: '#991B1B' },
   reasonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  groupSection: { marginBottom: 16 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+  groupName: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  groupRoom: { fontSize: 12, color: '#6B7280', marginLeft: 'auto' },
 });

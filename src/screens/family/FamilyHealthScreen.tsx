@@ -24,13 +24,13 @@ export const FamilyHealthScreen: React.FC = () => {
 
   const historyQ = useQuery({
     queryKey: ['familyHealth', activeId],
-    queryFn: async () => { const r = await api.get(FAMILY.HEALTH_HISTORY(activeId)); return r.data; },
+    queryFn: async () => { const r = await api.get(FAMILY.HEALTH_HISTORY(activeId!)); return r.data; },
     enabled: !!activeId,
   });
 
   const careNotesQ = useQuery({
     queryKey: ['familyCareNotes', activeId],
-    queryFn: async () => { const r = await api.get(FAMILY.CARE_NOTES(activeId)); return r.data; },
+    queryFn: async () => { const r = await api.get(FAMILY.CARE_NOTES(activeId!)); return r.data; },
     enabled: !!activeId,
   });
 

@@ -25,7 +25,7 @@ export const FamilyDashboardScreen: React.FC = () => {
 
   const walletQ = useQuery({
     queryKey: ['familyWallet'],
-    queryFn: async () => { const r = await api.get(FAMILY.WALLET_BALANCE); return r.data; },
+    queryFn: async () => { const r = await api.get(FAMILY.WALLET_BALANCE); return r.data?.data ?? r.data; },
   });
 
   const residents = residentsQ.data?.data ?? residentsQ.data ?? [];
@@ -34,7 +34,7 @@ export const FamilyDashboardScreen: React.FC = () => {
 
   const vitalsQ = useQuery({
     queryKey: ['familyVitals', activeResident?._id],
-    queryFn: async () => { const r = await api.get(FAMILY.VITALS(activeResident._id)); return r.data; },
+    queryFn: async () => { const r = await api.get(FAMILY.VITALS(activeResident!._id)); return r.data; },
     enabled: !!activeResident?._id,
   });
 

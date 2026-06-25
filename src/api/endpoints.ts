@@ -112,6 +112,11 @@ export const CARE_NOTES = {
   HISTORY: (residentId: string) => `/api/care-notes/history/${residentId}`,
 } as const;
 
+export const INVOICES = {
+  PAY: (residentId: string, invoiceId: string) => `/api/residents/${residentId}/invoices/${invoiceId}/pay`,
+  BATCH_PAY: (residentId: string) => `/api/residents/${residentId}/invoices/batch-pay`,
+} as const;
+
 export const INCIDENTS = {
   LIST: '/api/incidents',
   CREATE: '/api/incidents',
@@ -184,9 +189,37 @@ export const FAMILY = {
   ADMISSIONS: '/api/family/admission-requests',
   ADMISSION_DETAIL: (id: string) => `/api/family/admission-requests/${id}`,
   ADMISSION_CANCEL: (id: string) => `/api/family/admission-requests/${id}/cancel`,
+  PAY_INVOICE: (residentId: string, invoiceId: string) => `/api/residents/${residentId}/invoices/${invoiceId}/pay`,
   TOURS: '/api/family/tours',
   TOUR_CANCEL: (id: string) => `/api/family/tours/${id}/cancel`,
   SUPPORT_REQUESTS: '/api/family/support-requests',
   SUPPORT_DETAIL: (id: string) => `/api/family/support-requests/${id}`,
   SUPPORT_CLOSE: (id: string) => `/api/family/support-requests/${id}/close`,
+} as const;
+
+export const ACTIVITIES = {
+  LIST: '/api/admin/activities',
+  DETAIL: (id: string) => `/api/admin/activities/${id}`,
+} as const;
+
+export const MEAL_PLANS = {
+  TEMPLATES: '/api/nurse/meal-plans/templates',
+  RESIDENTS: '/api/nurse/meal-plans/residents',
+  LIST: '/api/nurse/meal-plans',
+  DETAIL: (id: string) => `/api/nurse/meal-plans/${id}`,
+  CREATE_DRAFT: '/api/nurse/meal-plans/drafts',
+  UPDATE: (id: string) => `/api/nurse/meal-plans/${id}`,
+  DELETE: (id: string) => `/api/nurse/meal-plans/${id}`,
+  PUBLISH: (id: string) => `/api/nurse/meal-plans/${id}/publish`,
+} as const;
+
+export const NUTRITION_REPORTS = {
+  SUMMARY: '/api/nurse/nutrition-reports/summary',
+  RESIDENTS: '/api/nurse/nutrition-reports/residents',
+  RESIDENT_DETAIL: (id: string) => `/api/nurse/nutrition-reports/residents/${id}`,
+} as const;
+
+export const ADMIN_ADMISSIONS = {
+  LIST: '/api/admin/admission-requests',
+  DETAIL: (id: string) => `/api/admin/admission-requests/${id}`,
 } as const;

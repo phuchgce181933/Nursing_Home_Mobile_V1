@@ -2,6 +2,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
+// Emulator Android: 10.0.2.2 | iOS Simulator: localhost
+// Physical device: đổi thành IP máy tính (vd: 'http://192.168.1.x:3000')
 const BASE_URL = Platform.OS === 'android'
   ? 'http://10.0.2.2:3000'
   : 'http://localhost:3000';
