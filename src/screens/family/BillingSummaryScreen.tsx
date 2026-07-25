@@ -4,6 +4,7 @@ import { Text, Card, Button, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -11,9 +12,11 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 
 const COLOR = '#2E7D32';
+const NS = 'family.billingSummary';
 
 export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const residentId = route.params?.residentId;
   const residentName = route.params?.residentName ?? '';
 
@@ -40,11 +43,11 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const refetch = () => { billingQ.refetch(); walletQ.refetch(); };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Tổng quan tài chính</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -59,7 +62,7 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
                 <Text style={styles.residentName}>{residentName}</Text>
                 {data?.resident?.servicePackagePrice != null && (
                   <Text style={styles.packageInfo}>
-                    Gói dịch vụ: {data.resident.servicePackagePrice.toLocaleString('vi-VN')} ₫/tháng
+                    {t(`${NS}.packageInfo`, { price: data.resident.servicePackagePrice.toLocaleString('vi-VN') })}
                   </Text>
                 )}
               </View>
@@ -71,21 +74,21 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
               <Card.Content style={styles.statContent}>
                 <MaterialCommunityIcons name="receipt" size={24} color="#1565C0" />
                 <Text style={styles.statValue}>{data?.invoiceCount ?? 0}</Text>
-                <Text style={styles.statLabel}>Hóa đơn</Text>
+                <Text style={styles.statLabel}>{t(`${NS}.invoiceCount`)}</Text>
               </Card.Content>
             </Card>
             <Card style={styles.statCard}>
               <Card.Content style={styles.statContent}>
                 <MaterialCommunityIcons name="wallet-outline" size={24} color={COLOR} />
                 <Text style={styles.statValue}>{wallet?.balance != null ? `${(wallet.balance / 1000).toFixed(0)}k` : '--'}</Text>
-                <Text style={styles.statLabel}>Số dư ví</Text>
+                <Text style={styles.statLabel}>{t(`${NS}.walletBalance`)}</Text>
               </Card.Content>
             </Card>
           </View>
 
           {latestInvoice && (
             <>
-              <SectionHeader title="Hóa đơn gần nhất" roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.latestInvoiceTitle`)} roleColor={COLOR} />
               <Card style={styles.card} mode="outlined"
                 onPress={() => navigation.navigate('InvoiceDetail', { invoice: latestInvoice, residentId })}>
                 <Card.Content>
@@ -106,19 +109,19 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
             </>
           )}
 
-          <SectionHeader title="Thao tác nhanh" roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.quickActionsTitle`)} roleColor={COLOR} />
           <View style={styles.actionGrid}>
             <Button mode="outlined" icon="receipt" style={styles.actionBtn} textColor={COLOR}
               onPress={() => navigation.navigate('Invoices')}>
-              Xem tất cả hóa đơn
+              {t(`${NS}.viewAllInvoices`)}
             </Button>
             <Button mode="outlined" icon="history" style={styles.actionBtn} textColor={COLOR}
               onPress={() => navigation.navigate('PaymentHistory')}>
-              Lịch sử thanh toán
+              {t(`${NS}.paymentHistory`)}
             </Button>
             <Button mode="outlined" icon="wallet-plus-outline" style={styles.actionBtn} textColor={COLOR}
               onPress={() => navigation.navigate('Wallet')}>
-              Nạp tiền ví
+              {t(`${NS}.topUpWallet`)}
             </Button>
           </View>
         </ScreenLayout>

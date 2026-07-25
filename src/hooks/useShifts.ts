@@ -47,6 +47,34 @@ export const useConfirmShift = () => {
   });
 };
 
+export const useCheckInShift = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.put(SHIFTS.CHECK_IN(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myShifts'] });
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+    },
+  });
+};
+
+export const useCheckOutShift = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.put(SHIFTS.CHECK_OUT(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myShifts'] });
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+    },
+  });
+};
+
 export const useCreateShift = () => {
   const qc = useQueryClient();
   return useMutation({

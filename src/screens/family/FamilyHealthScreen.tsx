@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { ScrollView, View, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { ScrollView, View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Card, Chip } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
@@ -10,9 +12,18 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 
 const COLOR = '#2E7D32';
+const NS = 'family.health';
 
-export const FamilyHealthScreen: React.FC = () => {
+export const FamilyHealthScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+
+  const SHORTCUTS = [
+    { route: 'Medications', label: t(`${NS}.shortcutMedications`), icon: 'pill' },
+    { route: 'DailyCare', label: t(`${NS}.shortcutDailyCare`), icon: 'calendar-heart' },
+    { route: 'Activities', label: t(`${NS}.shortcutActivities`), icon: 'run' },
+    { route: 'Photos', label: t(`${NS}.shortcutPhotos`), icon: 'image-multiple-outline' },
+  ] as const;
 
   const residentsQ = useQuery({
     queryKey: ['familyResidents'],
@@ -40,9 +51,9 @@ export const FamilyHealthScreen: React.FC = () => {
   const refetch = () => { historyQ.refetch(); careNotesQ.refetch(); };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <Text style={styles.topTitle}>Sức khỏe</Text>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
       </View>
 
       {residents.length > 1 ? (
@@ -57,9 +68,20 @@ export const FamilyHealthScreen: React.FC = () => {
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
+        <View style={styles.shortcutRow}>
+          {SHORTCUTS.map((s) => (
+            <Pressable key={s.route} style={styles.shortcutItem} onPress={() => navigation.navigate(s.route)}>
+              <View style={[styles.shortcutIcon, { backgroundColor: COLOR }]}>
+                <MaterialCommunityIcons name={s.icon as any} size={22} color="#fff" />
+              </View>
+              <Text style={styles.shortcutLabel}>{s.label}</Text>
+            </Pressable>
+          ))}
+        </View>
+
         <ScreenLayout loading={loading} error={historyQ.error ? (historyQ.error as Error).message : null} onRetry={refetch}>
-          <SectionHeader title="Lịch sử khám" roleColor={COLOR} />
-          {records.length === 0 ? <Text style={styles.empty}>Chưa có dữ liệu</Text> : null}
+          <SectionHeader title={t(`${NS}.historyTitle`)} roleColor={COLOR} />
+          {records.length === 0 ? <Text style={styles.empty}>{t(`${NS}.noData`)}</Text> : null}
           {records.slice(0, 10).map((rec: any) => (
             <Card key={rec._id} style={styles.card} mode="outlined">
               <Card.Content>
@@ -74,8 +96,8 @@ export const FamilyHealthScreen: React.FC = () => {
             </Card>
           ))}
 
-          <SectionHeader title="Ghi chú chăm sóc" roleColor={COLOR} />
-          {careNotes.length === 0 ? <Text style={styles.empty}>Chưa có ghi chú</Text> : null}
+          <SectionHeader title={t(`${NS}.careNotesTitle`)} roleColor={COLOR} />
+          {careNotes.length === 0 ? <Text style={styles.empty}>{t(`${NS}.noCareNotes`)}</Text> : null}
           {careNotes.slice(0, 10).map((note: any) => (
             <Card key={note._id} style={styles.card} mode="outlined">
               <Card.Content>
@@ -108,4 +130,8 @@ const styles = StyleSheet.create({
   noteDate: { fontSize: 11, color: '#9CA3AF' },
   noteContent: { fontSize: 13, color: '#374151', marginTop: 6 },
   empty: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 },
+  shortcutRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
+  shortcutItem: { alignItems: 'center', flex: 1, gap: 6 },
+  shortcutIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
+  shortcutLabel: { fontSize: 11, color: '#374151', textAlign: 'center' },
 });

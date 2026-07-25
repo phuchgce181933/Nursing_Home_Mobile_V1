@@ -1,5 +1,7 @@
 export const AUTH = {
   LOGIN: '/api/auth/login',
+  REGISTER_OTP: '/api/auth/register-otp',
+  REGISTER_VERIFY: '/api/auth/register-verify',
   ME: '/api/auth/me',
   CHANGE_PASSWORD: '/api/auth/change-password',
   FORGOT_PASSWORD: '/api/auth/forgot-password',
@@ -28,6 +30,8 @@ export const SHIFTS = {
   DELETE: (id: string) => `/api/shifts/${id}`,
   PUBLISH: (id: string) => `/api/shifts/${id}/publish`,
   CONFIRM: (id: string) => `/api/shifts/${id}/confirm`,
+  CHECK_IN: (id: string) => `/api/shifts/${id}/check-in`,
+  CHECK_OUT: (id: string) => `/api/shifts/${id}/check-out`,
   CANCEL: (id: string) => `/api/shifts/${id}/cancel`,
   SCHEDULE: '/api/shifts/schedule',
   CHECK_CONFLICTS: '/api/shifts/check-conflicts',
@@ -74,6 +78,8 @@ export const CAREGIVER = {
   CARE_TASK_STATUS: (id: string) => `/api/caregiver/care-tasks/${id}/status`,
   RESIDENTS: '/api/caregiver/residents',
   RESIDENT_DETAIL: (id: string) => `/api/caregiver/residents/${id}`,
+  RESIDENT_PHOTOS: (residentId: string) => `/api/caregiver/residents/${residentId}/photos`,
+  RESIDENT_PHOTO_DELETE: (residentId: string, photoId: string) => `/api/caregiver/residents/${residentId}/photos/${photoId}`,
   HYGIENE: '/api/caregiver/hygiene-activities',
   HYGIENE_DETAIL: (id: string) => `/api/caregiver/hygiene-activities/${id}`,
   HYGIENE_CONTEXT: '/api/caregiver/hygiene-activities/context',
@@ -102,6 +108,13 @@ export const MEDICATIONS = {
   CURRENT: '/api/medications/current',
 } as const;
 
+export const NOTIFICATIONS = {
+  LIST: '/api/notifications',
+  CATEGORIES: '/api/notifications/categories',
+  READ: (id: string) => `/api/notifications/${id}/read`,
+  PUSH_TOKEN: '/api/notifications/push-token',
+} as const;
+
 export const CARE_NOTES = {
   LIST: '/api/care-notes',
   MY_NOTES: '/api/care-notes/my-notes',
@@ -110,11 +123,6 @@ export const CARE_NOTES = {
   UPDATE: (id: string) => `/api/care-notes/${id}`,
   DELETE: (id: string) => `/api/care-notes/${id}`,
   HISTORY: (residentId: string) => `/api/care-notes/history/${residentId}`,
-} as const;
-
-export const INVOICES = {
-  PAY: (residentId: string, invoiceId: string) => `/api/residents/${residentId}/invoices/${invoiceId}/pay`,
-  BATCH_PAY: (residentId: string) => `/api/residents/${residentId}/invoices/batch-pay`,
 } as const;
 
 export const INCIDENTS = {
@@ -173,8 +181,6 @@ export const FAMILY = {
   WALLET_BALANCE: '/api/family/wallet/balance',
   WALLET_TOPUP: '/api/family/wallet/topup',
   WALLET_TOPUP_VERIFY: '/api/family/wallet/topup/verify',
-  WALLET_TOPUP_CONFIRM: '/api/family/wallet/topup/confirm',
-  WALLET_QR_PROXY: '/api/family/wallet/qr-proxy',
   VITALS: (residentId: string) => `/api/family/residents/${residentId}/vitals`,
   HEALTH_HISTORY: (residentId: string) => `/api/family/residents/${residentId}/health-history`,
   HEALTH_CHART: (residentId: string) => `/api/family/residents/${residentId}/health-chart`,
@@ -195,11 +201,31 @@ export const FAMILY = {
   SUPPORT_REQUESTS: '/api/family/support-requests',
   SUPPORT_DETAIL: (id: string) => `/api/family/support-requests/${id}`,
   SUPPORT_CLOSE: (id: string) => `/api/family/support-requests/${id}/close`,
+  SUPPORT_MESSAGES: (id: string) => `/api/family/support-requests/${id}/messages`,
+  VISITS: '/api/family/visits',
+  VISIT_CANCEL: (id: string) => `/api/family/visits/${id}/cancel`,
+  RESIDENT_PHOTOS: (residentId: string) => `/api/family/residents/${residentId}/photos`,
+} as const;
+
+export const STAFF_VISITS = {
+  LIST: '/api/resident-visits',
+  APPROVE: (id: string) => `/api/resident-visits/${id}/approve`,
+  REJECT: (id: string) => `/api/resident-visits/${id}/reject`,
+} as const;
+
+export const CONVERSATIONS = {
+  LIST: '/api/conversations',
+  CREATE: '/api/conversations',
+  DETAIL: (id: string) => `/api/conversations/${id}`,
+  MESSAGES: (id: string) => `/api/conversations/${id}/messages`,
+  SEARCH: '/api/conversations/search',
+  STAFF_DIRECTORY: '/api/conversations/staff-directory',
 } as const;
 
 export const ACTIVITIES = {
   LIST: '/api/admin/activities',
   DETAIL: (id: string) => `/api/admin/activities/${id}`,
+  RECORD_RESULT: (id: string) => `/api/admin/activities/${id}/record-result`,
 } as const;
 
 export const MEAL_PLANS = {
@@ -213,6 +239,29 @@ export const MEAL_PLANS = {
   PUBLISH: (id: string) => `/api/nurse/meal-plans/${id}/publish`,
 } as const;
 
+export const MEAL_TIME_SCHEDULES = {
+  TEMPLATES: '/api/nurse/meal-time-schedules/templates',
+  RESIDENTS: '/api/nurse/meal-time-schedules/residents',
+  PUBLISHED_TIMES: '/api/nurse/meal-time-schedules/published-times',
+  LIST: '/api/nurse/meal-time-schedules',
+  DETAIL: (id: string) => `/api/nurse/meal-time-schedules/${id}`,
+  CREATE_DRAFT: '/api/nurse/meal-time-schedules/drafts',
+  UPDATE: (id: string) => `/api/nurse/meal-time-schedules/${id}`,
+  DELETE: (id: string) => `/api/nurse/meal-time-schedules/${id}`,
+  PUBLISH: (id: string) => `/api/nurse/meal-time-schedules/${id}/publish`,
+} as const;
+
+export const SPECIAL_DIETS = {
+  TEMPLATES: '/api/nurse/special-diets/templates',
+  RESIDENTS: '/api/nurse/special-diets/residents',
+  LIST: '/api/nurse/special-diets',
+  DETAIL: (id: string) => `/api/nurse/special-diets/${id}`,
+  CREATE_DRAFT: '/api/nurse/special-diets/drafts',
+  UPDATE: (id: string) => `/api/nurse/special-diets/${id}`,
+  DELETE: (id: string) => `/api/nurse/special-diets/${id}`,
+  PUBLISH: (id: string) => `/api/nurse/special-diets/${id}/publish`,
+} as const;
+
 export const NUTRITION_REPORTS = {
   SUMMARY: '/api/nurse/nutrition-reports/summary',
   RESIDENTS: '/api/nurse/nutrition-reports/residents',
@@ -222,4 +271,10 @@ export const NUTRITION_REPORTS = {
 export const ADMIN_ADMISSIONS = {
   LIST: '/api/admin/admission-requests',
   DETAIL: (id: string) => `/api/admin/admission-requests/${id}`,
+} as const;
+
+export const MEDICAL_ADMISSIONS = {
+  CONSULTATION: (id: string) => `/api/medical/admission-requests/${id}/consultation`,
+  SCHEDULE_ASSESSMENT: (id: string) => `/api/medical/admission-requests/${id}/schedule-assessment`,
+  EVALUATE_ELIGIBILITY: (id: string) => `/api/medical/admission-requests/${id}/evaluate-eligibility`,
 } as const;

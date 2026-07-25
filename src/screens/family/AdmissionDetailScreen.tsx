@@ -3,6 +3,7 @@ import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Button, Dialog, Portal, TextInput, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -11,15 +12,7 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#2E7D32';
-
-const STATUS_LABELS: Record<string, string> = {
-  new_request: 'Yêu cầu mới',
-  consulting: 'Đang tư vấn',
-  assessing: 'Đang đánh giá',
-  contracting: 'Ký hợp đồng',
-  checked_in: 'Đã nhận',
-  cancelled: 'Đã hủy',
-};
+const NS = 'family.admissions';
 
 const InfoRow: React.FC<{ label: string; value?: string | null }> = ({ label, value }) => {
   if (!value) return null;
@@ -49,9 +42,15 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const admissionId = route.params?.admissionId;
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [cancelReason, setCancelReason] = useState('');
+
+  const STATUS_LABELS: Record<string, string> = {
+    new_request: t(`${NS}.statusNew`), consulting: t(`${NS}.statusConsulting`), assessing: t(`${NS}.statusAssessing`),
+    contracting: t(`${NS}.statusContracting`), checked_in: t(`${NS}.statusCheckedIn`), cancelled: t(`${NS}.statusCancelled`),
+  };
 
   const detailQ = useQuery({
     queryKey: ['admissionDetail', admissionId],
@@ -66,30 +65,30 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
       qc.invalidateQueries({ queryKey: ['admissions'] });
       setCancelId(null);
       setCancelReason('');
-      toast('Đã hủy yêu cầu', 'success');
+      toast(t(`${NS}.toastCancelled`), 'success');
     },
-    onError: () => toast('Không thể hủy', 'error'),
+    onError: () => toast(t(`${NS}.toastCancelError`), 'error'),
   });
 
   const item = detailQ.data?.data ?? detailQ.data;
   const canCancel = item?.status === 'new_request' || item?.status === 'consulting';
 
   const timelineEvents = item ? [
-    { label: 'Gửi yêu cầu', date: item.requestedAt ?? item.createdAt },
-    { label: 'Tư vấn', date: item.consultedAt },
-    { label: 'Đánh giá', date: item.assessedAt },
-    { label: 'Phê duyệt', date: item.approvedAt },
-    { label: 'Ký hợp đồng', date: item.contractSignedAt },
-    { label: 'Nhận phòng', date: item.checkInAt },
-    { label: 'Hủy', date: item.cancelledAt },
+    { label: t(`${NS}.timelineRequested`), date: item.requestedAt ?? item.createdAt },
+    { label: t(`${NS}.timelineConsulted`), date: item.consultedAt },
+    { label: t(`${NS}.timelineAssessed`), date: item.assessedAt },
+    { label: t(`${NS}.timelineApproved`), date: item.approvedAt },
+    { label: t(`${NS}.timelineContractSigned`), date: item.contractSignedAt },
+    { label: t(`${NS}.timelineCheckedIn`), date: item.checkInAt },
+    { label: t(`${NS}.timelineCancelled`), date: item.cancelledAt },
   ].filter(e => e.date) : [];
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Chi tiết yêu cầu</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.detailTitle`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -111,43 +110,43 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
                 </Card.Content>
               </Card>
 
-              <SectionHeader title="Thông tin người thân" roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.relativeInfoTitle`)} roleColor={COLOR} />
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
-                  <InfoRow label="Họ tên" value={item.applicant?.fullName} />
-                  <InfoRow label="Quan hệ" value={item.applicant?.relationshipToRequester} />
-                  <InfoRow label="Ngày sinh" value={item.applicant?.dateOfBirth ? new Date(item.applicant.dateOfBirth).toLocaleDateString('vi-VN') : null} />
-                  <InfoRow label="Giới tính" value={item.applicant?.gender === 'male' ? 'Nam' : item.applicant?.gender === 'female' ? 'Nữ' : item.applicant?.gender} />
-                  <InfoRow label="CCCD" value={item.applicant?.citizenId} />
-                  <InfoRow label="Nhóm máu" value={item.applicant?.bloodType} />
-                  <InfoRow label="Địa chỉ" value={item.applicant?.personalAddress} />
-                  {item.applicant?.allergies?.length > 0 && <InfoRow label="Dị ứng" value={item.applicant.allergies.join(', ')} />}
-                  {item.applicant?.chronicConditions?.length > 0 && <InfoRow label="Bệnh mãn tính" value={item.applicant.chronicConditions.join(', ')} />}
-                  <InfoRow label="Tình trạng sức khỏe ban đầu" value={item.applicant?.initialHealthCondition} />
+                  <InfoRow label={t(`${NS}.fullName`)} value={item.applicant?.fullName} />
+                  <InfoRow label={t(`${NS}.relationship`)} value={item.applicant?.relationshipToRequester} />
+                  <InfoRow label={t(`${NS}.dob`)} value={item.applicant?.dateOfBirth ? new Date(item.applicant.dateOfBirth).toLocaleDateString('vi-VN') : null} />
+                  <InfoRow label={t(`${NS}.gender`)} value={item.applicant?.gender === 'male' ? t(`${NS}.male`) : item.applicant?.gender === 'female' ? t(`${NS}.female`) : item.applicant?.gender} />
+                  <InfoRow label={t(`${NS}.citizenId`)} value={item.applicant?.citizenId} />
+                  <InfoRow label={t(`${NS}.bloodType`)} value={item.applicant?.bloodType} />
+                  <InfoRow label={t(`${NS}.address`)} value={item.applicant?.personalAddress} />
+                  {item.applicant?.allergies?.length > 0 && <InfoRow label={t(`${NS}.allergies`)} value={item.applicant.allergies.join(', ')} />}
+                  {item.applicant?.chronicConditions?.length > 0 && <InfoRow label={t(`${NS}.chronicConditions`)} value={item.applicant.chronicConditions.join(', ')} />}
+                  <InfoRow label={t(`${NS}.initialHealth`)} value={item.applicant?.initialHealthCondition} />
                 </Card.Content>
               </Card>
 
-              <SectionHeader title="Chi tiết yêu cầu" roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.requestDetailTitle`)} roleColor={COLOR} />
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
-                  <InfoRow label="Ngày nhập mong muốn" value={item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : null} />
-                  <InfoRow label="Lý do" value={item.reasonForAdmission} />
-                  <InfoRow label="SĐT liên hệ" value={item.requestedByPhone} />
-                  <InfoRow label="Ghi chú" value={item.notes} />
-                  <InfoRow label="Ghi chú tư vấn" value={item.consultationNotes} />
+                  <InfoRow label={t(`${NS}.preferredDate`)} value={item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : null} />
+                  <InfoRow label={t(`${NS}.reason`)} value={item.reasonForAdmission} />
+                  <InfoRow label={t(`${NS}.contactPhone`)} value={item.requestedByPhone} />
+                  <InfoRow label={t(`${NS}.notes`)} value={item.notes} />
+                  <InfoRow label={t(`${NS}.consultationNotes`)} value={item.consultationNotes} />
                 </Card.Content>
               </Card>
 
               {item.contractNumber && (
                 <>
-                  <SectionHeader title="Thông tin hợp đồng" roleColor={COLOR} />
+                  <SectionHeader title={t(`${NS}.contractInfoTitle`)} roleColor={COLOR} />
                   <Card style={styles.card} mode="outlined">
                     <Card.Content>
-                      <InfoRow label="Số hợp đồng" value={item.contractNumber} />
-                      <InfoRow label="Ngày bắt đầu" value={item.contractStartDate ? new Date(item.contractStartDate).toLocaleDateString('vi-VN') : null} />
-                      <InfoRow label="Ngày kết thúc" value={item.contractEndDate ? new Date(item.contractEndDate).toLocaleDateString('vi-VN') : null} />
-                      <InfoRow label="Thời hạn" value={item.contractDurationMonths ? `${item.contractDurationMonths} tháng` : null} />
-                      <InfoRow label="Giảm giá" value={item.contractDiscountPercent ? `${item.contractDiscountPercent}%` : null} />
+                      <InfoRow label={t(`${NS}.contractNumber`)} value={item.contractNumber} />
+                      <InfoRow label={t(`${NS}.startDate`)} value={item.contractStartDate ? new Date(item.contractStartDate).toLocaleDateString('vi-VN') : null} />
+                      <InfoRow label={t(`${NS}.endDate`)} value={item.contractEndDate ? new Date(item.contractEndDate).toLocaleDateString('vi-VN') : null} />
+                      <InfoRow label={t(`${NS}.duration`)} value={item.contractDurationMonths ? t(`${NS}.durationMonths`, { count: item.contractDurationMonths }) : null} />
+                      <InfoRow label={t(`${NS}.discount`)} value={item.contractDiscountPercent ? `${item.contractDiscountPercent}%` : null} />
                     </Card.Content>
                   </Card>
                 </>
@@ -155,7 +154,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
 
               {timelineEvents.length > 0 && (
                 <>
-                  <SectionHeader title="Tiến trình" roleColor={COLOR} />
+                  <SectionHeader title={t(`${NS}.progressTitle`)} roleColor={COLOR} />
                   <Card style={styles.card} mode="outlined">
                     <Card.Content>
                       {timelineEvents.map((e, i) => (
@@ -169,7 +168,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
               {item.cancellationReason && (
                 <Card style={[styles.card, { borderColor: '#FCA5A5' }]} mode="outlined">
                   <Card.Content>
-                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#991B1B', marginBottom: 4 }}>Lý do hủy</Text>
+                    <Text style={{ fontSize: 13, fontWeight: '600', color: '#991B1B', marginBottom: 4 }}>{t(`${NS}.cancellationReasonTitle`)}</Text>
                     <Text style={{ fontSize: 13, color: '#374151' }}>{item.cancellationReason}</Text>
                   </Card.Content>
                 </Card>
@@ -178,7 +177,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
               {canCancel && (
                 <Button mode="contained" buttonColor="#991B1B" style={styles.cancelBtn}
                   onPress={() => setCancelId(item._id)}>
-                  Hủy yêu cầu
+                  {t(`${NS}.cancelRequest`)}
                 </Button>
               )}
             </>
@@ -188,13 +187,13 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
 
       <Portal>
         <Dialog visible={!!cancelId} onDismiss={() => setCancelId(null)}>
-          <Dialog.Title>Hủy yêu cầu nhập viện?</Dialog.Title>
+          <Dialog.Title>{t(`${NS}.cancelConfirmTitle`)}</Dialog.Title>
           <Dialog.Content>
-            <TextInput label="Lý do hủy" mode="outlined" value={cancelReason} onChangeText={setCancelReason} dense multiline />
+            <TextInput label={t(`${NS}.cancelReasonLabel`)} mode="outlined" value={cancelReason} onChangeText={setCancelReason} dense multiline />
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setCancelId(null)}>Đóng</Button>
-            <Button mode="contained" buttonColor="#991B1B" onPress={() => cancelMut.mutate()} loading={cancelMut.isPending}>Hủy yêu cầu</Button>
+            <Button onPress={() => setCancelId(null)}>{t(`${NS}.close`)}</Button>
+            <Button mode="contained" buttonColor="#991B1B" onPress={() => cancelMut.mutate()} loading={cancelMut.isPending}>{t(`${NS}.cancelRequest`)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

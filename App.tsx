@@ -1,4 +1,5 @@
 import React from 'react';
+import './src/i18n';
 import { LogBox, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -8,7 +9,11 @@ import { AuthProvider } from './src/auth/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { ToastProvider } from './src/utils/toast';
 import { OfflineBanner } from './src/utils/offline';
-import { paperTheme } from './src/theme/theme';
+import { paperTheme, paperDarkTheme } from './src/theme/theme';
+import { ThemeProvider, useThemeMode } from './src/theme/ThemeContext';
+import { ErrorBoundary } from './src/components/ErrorBoundary';
+import { usePushNotifications } from './src/hooks/usePushNotifications';
+import { useAuth } from './src/auth/useAuth';
 
 LogBox.ignoreLogs([
   'props.pointerEvents is deprecated',
@@ -50,20 +55,40 @@ const queryClient = new QueryClient({
   },
 });
 
+// Registers this device for Expo push notifications once a user logs in — must render
+// inside AuthProvider (needs useAuth) and QueryClientProvider (needs useQueryClient).
+const PushNotificationsGate: React.FC = () => {
+  const { user, token } = useAuth();
+  usePushNotifications(user, token);
+  return null;
+};
+
+const AppContent: React.FC = () => {
+  const { effectiveScheme } = useThemeMode();
+  return (
+    <PaperProvider theme={effectiveScheme === 'dark' ? paperDarkTheme : paperTheme}>
+      <SafeAreaProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <OfflineBanner />
+            <PushNotificationsGate />
+            <RootNavigator />
+            <StatusBar style="light" />
+          </ToastProvider>
+        </AuthProvider>
+      </SafeAreaProvider>
+    </PaperProvider>
+  );
+};
+
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <PaperProvider theme={paperTheme}>
-        <SafeAreaProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <OfflineBanner />
-              <RootNavigator />
-              <StatusBar style="light" />
-            </ToastProvider>
-          </AuthProvider>
-        </SafeAreaProvider>
-      </PaperProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider>
+          <AppContent />
+        </ThemeProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }

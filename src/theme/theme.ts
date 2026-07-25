@@ -1,4 +1,4 @@
-import { MD3LightTheme } from 'react-native-paper';
+import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 
 export const ROLE_COLORS = {
   manager: '#1B3A6B',
@@ -54,6 +54,29 @@ export const paperTheme = {
     surface: '#FFFFFF',
     surfaceVariant: '#F0F0F0',
   },
+};
+
+export const paperDarkTheme = {
+  ...MD3DarkTheme,
+  colors: {
+    ...MD3DarkTheme.colors,
+    primary: '#6B8CC7',
+    secondary: '#4F9A82',
+    tertiary: '#C79A5B',
+    error: '#F87171',
+    background: '#121212',
+    surface: '#1E1E1E',
+    surfaceVariant: '#2A2A2A',
+  },
+};
+
+export const shadeColor = (hex: string, percent: number): string => {
+  const num = parseInt(hex.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const r = Math.min(255, Math.max(0, (num >> 16) + amt));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + amt));
+  const b = Math.min(255, Math.max(0, (num & 0x0000ff) + amt));
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
 
 export const getRoleColor = (role?: string): string => {

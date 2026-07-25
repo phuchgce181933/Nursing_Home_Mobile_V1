@@ -1,9 +1,10 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, Pressable, RefreshControl } from 'react-native';
-import { Text, Card } from 'react-native-paper';
+import { Text, Card, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FACILITIES } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
@@ -11,9 +12,11 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { getStatusEntry } from '../../utils/statusMap';
 
 const COLOR = '#6B4200';
+const NS = 'assistant.roomStatus';
 
-export const RoomStatusScreen: React.FC = () => {
+export const RoomStatusScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
 
   const roomsQ = useQuery({
     queryKey: ['rooms'],
@@ -44,10 +47,13 @@ export const RoomStatusScreen: React.FC = () => {
   };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <Text style={styles.topTitle}>Tình trạng phòng ốc</Text>
-        <Text style={styles.topSub}>{allRooms.length} phòng</Text>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
+        <View>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
+          <Text style={styles.topSub}>{t(`${NS}.roomCount`, { count: allRooms.length })}</Text>
+        </View>
       </View>
 
       <ScrollView
@@ -60,13 +66,13 @@ export const RoomStatusScreen: React.FC = () => {
           error={roomsQ.error ? (roomsQ.error as Error).message : null}
           onRetry={roomsQ.refetch}
           isEmpty={allRooms.length === 0}
-          emptyMessage="Không có dữ liệu phòng"
+          emptyMessage={t(`${NS}.empty`)}
         >
           <View style={styles.summaryRow}>
             {[
-              { label: 'Trống', count: statusCounts.available, color: '#065F46', bg: '#D1FAE5' },
-              { label: 'Đầy', count: statusCounts.full, color: '#1E40AF', bg: '#DBEAFE' },
-              { label: 'Bảo trì', count: statusCounts.maintenance, color: '#92400E', bg: '#FFEDD5' },
+              { label: t(`${NS}.statusAvailable`), count: statusCounts.available, color: '#065F46', bg: '#D1FAE5' },
+              { label: t(`${NS}.statusFull`), count: statusCounts.full, color: '#1E40AF', bg: '#DBEAFE' },
+              { label: t(`${NS}.statusMaintenance`), count: statusCounts.maintenance, color: '#92400E', bg: '#FFEDD5' },
             ].map((s, i) => (
               <Card key={i} style={[styles.summaryCard, { backgroundColor: s.bg }]}>
                 <Card.Content style={styles.summaryContent}>
@@ -77,14 +83,15 @@ export const RoomStatusScreen: React.FC = () => {
             ))}
           </View>
 
-          <SectionHeader title="Danh sách phòng" roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.listTitle`)} roleColor={COLOR} />
           <View style={styles.roomGrid}>
             {allRooms.map((room) => {
               const entry = getStatusEntry(room.status);
+              const label = entry.i18nKey ? t(entry.i18nKey, { defaultValue: room.status }) : room.status;
               return (
                 <Pressable key={room._id} style={[styles.roomCard, { borderColor: entry.textColor }]}>
                   <Text style={styles.roomNumber}>{room.roomNumber}</Text>
-                  <Text style={[styles.roomStatus, { color: entry.textColor }]}>{entry.label}</Text>
+                  <Text style={[styles.roomStatus, { color: entry.textColor }]}>{label}</Text>
                   <Text style={styles.roomOccupancy}>{room.occupiedCount}/{room.capacity}</Text>
                 </Pressable>
               );
@@ -98,7 +105,8 @@ export const RoomStatusScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
+  topBar: { backgroundColor: COLOR, paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' },
+  backBtn: { margin: 0 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
   body: { padding: 16, paddingBottom: 32 },

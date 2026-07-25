@@ -2,31 +2,13 @@ import React, { useState } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Text, TextInput, Button, Chip, Card, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useUpdateCareNote } from '../../hooks/useCareNotes';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#0F5040';
-
-const NOTE_TYPES = [
-  { value: 'general', label: 'Chung' },
-  { value: 'meal', label: 'Bữa ăn' },
-  { value: 'activity', label: 'Hoạt động' },
-  { value: 'daily_living', label: 'Sinh hoạt' },
-  { value: 'health', label: 'Sức khỏe' },
-];
-
-const MEAL_TYPES = [{ value: 'breakfast', label: 'Sáng' }, { value: 'lunch', label: 'Trưa' }, { value: 'dinner', label: 'Tối' }, { value: 'snack', label: 'Phụ' }];
-const INTAKE_AMOUNTS = [{ value: 'none', label: 'Không ăn' }, { value: 'little', label: 'Ít' }, { value: 'half', label: 'Nửa' }, { value: 'most', label: 'Nhiều' }, { value: 'all', label: 'Hết' }];
-const APPETITES = [{ value: 'poor', label: 'Kém' }, { value: 'fair', label: 'TB' }, { value: 'good', label: 'Tốt' }, { value: 'excellent', label: 'Rất tốt' }];
-const ACTIVITY_TYPES = [{ value: 'walking', label: 'Đi bộ' }, { value: 'exercise', label: 'Thể dục' }, { value: 'physiotherapy', label: 'Vật lý trị liệu' }, { value: 'reading', label: 'Đọc sách' }, { value: 'socializing', label: 'Giao tiếp' }, { value: 'entertainment', label: 'Giải trí' }, { value: 'other', label: 'Khác' }];
-const PARTICIPATION = [{ value: 'refused', label: 'Từ chối' }, { value: 'assisted', label: 'Hỗ trợ' }, { value: 'supervised', label: 'Giám sát' }, { value: 'independent', label: 'Tự lập' }];
-const MOODS = [{ value: 'happy', label: 'Vui' }, { value: 'neutral', label: 'Bình thường' }, { value: 'sad', label: 'Buồn' }, { value: 'agitated', label: 'Kích động' }, { value: 'anxious', label: 'Lo lắng' }];
-const CONSCIOUSNESS = [{ value: 'alert', label: 'Tỉnh táo' }, { value: 'confused', label: 'Lẫn lộn' }, { value: 'drowsy', label: 'Buồn ngủ' }, { value: 'unresponsive', label: 'Không phản hồi' }];
-const FALL_RISK = [{ value: 'low', label: 'Thấp' }, { value: 'medium', label: 'TB' }, { value: 'high', label: 'Cao' }];
-const DL_ACTIVITY_TYPES = [{ value: 'bathing', label: 'Tắm' }, { value: 'grooming', label: 'Vệ sinh' }, { value: 'dressing', label: 'Mặc đồ' }, { value: 'eating', label: 'Ăn uống' }, { value: 'mobility', label: 'Di chuyển' }, { value: 'toileting', label: 'Vệ sinh cá nhân' }, { value: 'sleeping', label: 'Ngủ' }, { value: 'other', label: 'Khác' }];
-const ASSISTANCE = [{ value: 'independent', label: 'Tự lập' }, { value: 'supervised', label: 'Giám sát' }, { value: 'assisted', label: 'Hỗ trợ' }, { value: 'total_care', label: 'Chăm sóc toàn phần' }];
-const COMPLETION = [{ value: 'completed', label: 'Hoàn thành' }, { value: 'partial', label: 'Một phần' }, { value: 'refused', label: 'Từ chối' }];
+const NS = 'nurse.careNotes';
 
 const ChipGroup: React.FC<{ label: string; options: { value: string; label: string }[]; selected: string; onSelect: (v: string) => void }> = ({ label, options, selected, onSelect }) => (
   <View style={{ marginBottom: 12 }}>
@@ -44,8 +26,28 @@ const ChipGroup: React.FC<{ label: string; options: { value: string; label: stri
 export const EditCareNoteScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { t } = useTranslation();
   const updateNote = useUpdateCareNote();
   const note = route.params?.note;
+
+  const NOTE_TYPES = [
+    { value: 'general', label: t(`${NS}.typeGeneral`) },
+    { value: 'meal', label: t(`${NS}.typeMeal`) },
+    { value: 'activity', label: t(`${NS}.typeActivity`) },
+    { value: 'daily_living', label: t(`${NS}.typeDailyLiving`) },
+    { value: 'health', label: t(`${NS}.typeHealth`) },
+  ];
+  const MEAL_TYPES = [{ value: 'breakfast', label: t(`${NS}.mealBreakfast`) }, { value: 'lunch', label: t(`${NS}.mealLunch`) }, { value: 'dinner', label: t(`${NS}.mealDinner`) }, { value: 'snack', label: t(`${NS}.mealSnack`) }];
+  const INTAKE_AMOUNTS = [{ value: 'none', label: t(`${NS}.intakeNone`) }, { value: 'little', label: t(`${NS}.intakeLittle`) }, { value: 'half', label: t(`${NS}.intakeHalf`) }, { value: 'most', label: t(`${NS}.intakeMost`) }, { value: 'all', label: t(`${NS}.intakeAll`) }];
+  const APPETITES = [{ value: 'poor', label: t(`${NS}.appetitePoor`) }, { value: 'fair', label: t(`${NS}.appetiteFair`) }, { value: 'good', label: t(`${NS}.appetiteGood`) }, { value: 'excellent', label: t(`${NS}.appetiteExcellent`) }];
+  const ACTIVITY_TYPES = [{ value: 'walking', label: t(`${NS}.activityWalking`) }, { value: 'exercise', label: t(`${NS}.activityExercise`) }, { value: 'physiotherapy', label: t(`${NS}.activityPhysiotherapy`) }, { value: 'reading', label: t(`${NS}.activityReading`) }, { value: 'socializing', label: t(`${NS}.activitySocializing`) }, { value: 'entertainment', label: t(`${NS}.activityEntertainment`) }, { value: 'other', label: t(`${NS}.activityOther`) }];
+  const PARTICIPATION = [{ value: 'refused', label: t(`${NS}.participationRefused`) }, { value: 'assisted', label: t(`${NS}.participationAssisted`) }, { value: 'supervised', label: t(`${NS}.participationSupervised`) }, { value: 'independent', label: t(`${NS}.participationIndependent`) }];
+  const MOODS = [{ value: 'happy', label: t(`${NS}.moodHappy`) }, { value: 'neutral', label: t(`${NS}.moodNeutral`) }, { value: 'sad', label: t(`${NS}.moodSad`) }, { value: 'agitated', label: t(`${NS}.moodAgitated`) }, { value: 'anxious', label: t(`${NS}.moodAnxious`) }];
+  const CONSCIOUSNESS = [{ value: 'alert', label: t(`${NS}.consciousAlert`) }, { value: 'confused', label: t(`${NS}.consciousConfused`) }, { value: 'drowsy', label: t(`${NS}.consciousDrowsy`) }, { value: 'unresponsive', label: t(`${NS}.consciousUnresponsive`) }];
+  const FALL_RISK = [{ value: 'low', label: t(`${NS}.fallRiskLow`) }, { value: 'medium', label: t(`${NS}.fallRiskMedium`) }, { value: 'high', label: t(`${NS}.fallRiskHigh`) }];
+  const DL_ACTIVITY_TYPES = [{ value: 'bathing', label: t(`${NS}.dlBathing`) }, { value: 'grooming', label: t(`${NS}.dlGrooming`) }, { value: 'dressing', label: t(`${NS}.dlDressing`) }, { value: 'eating', label: t(`${NS}.dlEating`) }, { value: 'mobility', label: t(`${NS}.dlMobility`) }, { value: 'toileting', label: t(`${NS}.dlToileting`) }, { value: 'sleeping', label: t(`${NS}.dlSleeping`) }, { value: 'other', label: t(`${NS}.dlOther`) }];
+  const ASSISTANCE = [{ value: 'independent', label: t(`${NS}.assistIndependent`) }, { value: 'supervised', label: t(`${NS}.assistSupervised`) }, { value: 'assisted', label: t(`${NS}.assistAssisted`) }, { value: 'total_care', label: t(`${NS}.assistTotalCare`) }];
+  const COMPLETION = [{ value: 'completed', label: t(`${NS}.completeCompleted`) }, { value: 'partial', label: t(`${NS}.completePartial`) }, { value: 'refused', label: t(`${NS}.completeRefused`) }];
 
   const [noteType, setNoteType] = useState(note?.noteType ?? 'general');
   const [content, setContent] = useState(note?.content ?? '');
@@ -57,24 +59,24 @@ export const EditCareNoteScreen: React.FC<{ route: any; navigation: any }> = ({ 
 
   const handleSubmit = async () => {
     if (!content.trim() || content.trim().length < 5) {
-      toast('Nội dung ghi chú tối thiểu 5 ký tự', 'warning');
+      toast(t(`${NS}.warnContentLength`), 'warning');
       return;
     }
     try {
       await updateNote.mutateAsync({ id: note._id, content: content.trim(), noteType, metadata });
-      toast('Đã cập nhật ghi chú', 'success');
+      toast(t(`${NS}.toastUpdated`), 'success');
       navigation.goBack();
     } catch {
-      toast('Không thể cập nhật. Thử lại.', 'error');
+      toast(t(`${NS}.toastUpdateError`), 'error');
     }
   };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Sửa ghi chú</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.editTitleShort`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -90,26 +92,26 @@ export const EditCareNoteScreen: React.FC<{ route: any; navigation: any }> = ({ 
           </Card.Content>
         </Card>
 
-        <Text style={[styles.label, { marginTop: 16 }]}>Loại ghi chú</Text>
+        <Text style={[styles.label, { marginTop: 16 }]}>{t(`${NS}.noteTypeLabel`)}</Text>
         <View style={styles.chipRow}>
-          {NOTE_TYPES.map(t => (
-            <Chip key={t.value} selected={noteType === t.value} onPress={() => { setNoteType(t.value); setMetadata({}); }}
-              style={noteType === t.value ? { backgroundColor: COLOR } : undefined}
-              textStyle={noteType === t.value ? { color: '#fff' } : undefined} compact>{t.label}</Chip>
+          {NOTE_TYPES.map(nt => (
+            <Chip key={nt.value} selected={noteType === nt.value} onPress={() => { setNoteType(nt.value); setMetadata({}); }}
+              style={noteType === nt.value ? { backgroundColor: COLOR } : undefined}
+              textStyle={noteType === nt.value ? { color: '#fff' } : undefined} compact>{nt.label}</Chip>
           ))}
         </View>
 
-        <TextInput label="Nội dung ghi chú" mode="outlined" value={content} onChangeText={setContent}
+        <TextInput label={t(`${NS}.contentLabel`)} mode="outlined" value={content} onChangeText={setContent}
           multiline numberOfLines={5} style={styles.textarea} maxLength={500} />
         <Text style={styles.charCount}>{content.length}/500</Text>
 
         {noteType === 'meal' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>Chi tiết bữa ăn</Text>
-              <ChipGroup label="Bữa" options={MEAL_TYPES} selected={metadata.mealType ?? ''} onSelect={v => updateMeta('mealType', v)} />
-              <ChipGroup label="Lượng ăn" options={INTAKE_AMOUNTS} selected={metadata.intakeAmount ?? ''} onSelect={v => updateMeta('intakeAmount', v)} />
-              <ChipGroup label="Khẩu vị" options={APPETITES} selected={metadata.appetite ?? ''} onSelect={v => updateMeta('appetite', v)} />
+              <Text style={styles.metaTitle}>{t(`${NS}.mealDetailTitle`)}</Text>
+              <ChipGroup label={t(`${NS}.mealLabel`)} options={MEAL_TYPES} selected={metadata.mealType ?? ''} onSelect={v => updateMeta('mealType', v)} />
+              <ChipGroup label={t(`${NS}.intakeLabel`)} options={INTAKE_AMOUNTS} selected={metadata.intakeAmount ?? ''} onSelect={v => updateMeta('intakeAmount', v)} />
+              <ChipGroup label={t(`${NS}.appetiteLabel`)} options={APPETITES} selected={metadata.appetite ?? ''} onSelect={v => updateMeta('appetite', v)} />
             </Card.Content>
           </Card>
         )}
@@ -117,11 +119,11 @@ export const EditCareNoteScreen: React.FC<{ route: any; navigation: any }> = ({ 
         {noteType === 'activity' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>Chi tiết hoạt động</Text>
-              <ChipGroup label="Loại" options={ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} />
-              <TextInput label="Thời lượng (phút)" mode="outlined" value={String(metadata.duration ?? '')} onChangeText={v => updateMeta('duration', Number(v) || 0)} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
-              <ChipGroup label="Mức tham gia" options={PARTICIPATION} selected={metadata.participationLevel ?? ''} onSelect={v => updateMeta('participationLevel', v)} />
-              <ChipGroup label="Tâm trạng" options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} />
+              <Text style={styles.metaTitle}>{t(`${NS}.activityDetailTitle`)}</Text>
+              <ChipGroup label={t(`${NS}.activityTypeLabel`)} options={ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} />
+              <TextInput label={t(`${NS}.durationLabel`)} mode="outlined" value={String(metadata.duration ?? '')} onChangeText={v => updateMeta('duration', Number(v) || 0)} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
+              <ChipGroup label={t(`${NS}.participationLabel`)} options={PARTICIPATION} selected={metadata.participationLevel ?? ''} onSelect={v => updateMeta('participationLevel', v)} />
+              <ChipGroup label={t(`${NS}.moodLabel`)} options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} />
             </Card.Content>
           </Card>
         )}
@@ -129,16 +131,16 @@ export const EditCareNoteScreen: React.FC<{ route: any; navigation: any }> = ({ 
         {noteType === 'health' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>Chi tiết sức khỏe</Text>
-              <TextInput label="Triệu chứng" mode="outlined" value={metadata.symptoms?.join(', ') ?? ''} onChangeText={v => updateMeta('symptoms', v.split(',').map((s: string) => s.trim()).filter(Boolean))} dense multiline style={{ marginBottom: 12 }} placeholder="Nhập triệu chứng, cách nhau bằng dấu phẩy" />
-              <ChipGroup label="Ý thức" options={CONSCIOUSNESS} selected={metadata.consciousness ?? ''} onSelect={v => updateMeta('consciousness', v)} />
-              <ChipGroup label="Nguy cơ ngã" options={FALL_RISK} selected={metadata.fallRisk ?? ''} onSelect={v => updateMeta('fallRisk', v)} />
-              <TextInput label="Mức đau (0-10)" mode="outlined" value={String(metadata.painLevel ?? '')} onChangeText={v => updateMeta('painLevel', Math.min(10, Math.max(0, Number(v) || 0)))} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
+              <Text style={styles.metaTitle}>{t(`${NS}.healthDetailTitle`)}</Text>
+              <TextInput label={t(`${NS}.symptomsLabel`)} mode="outlined" value={metadata.symptoms?.join(', ') ?? ''} onChangeText={v => updateMeta('symptoms', v.split(',').map((s: string) => s.trim()).filter(Boolean))} dense multiline style={{ marginBottom: 12 }} placeholder={t(`${NS}.symptomsPlaceholder`)} />
+              <ChipGroup label={t(`${NS}.consciousnessLabel`)} options={CONSCIOUSNESS} selected={metadata.consciousness ?? ''} onSelect={v => updateMeta('consciousness', v)} />
+              <ChipGroup label={t(`${NS}.fallRiskLabel`)} options={FALL_RISK} selected={metadata.fallRisk ?? ''} onSelect={v => updateMeta('fallRisk', v)} />
+              <TextInput label={t(`${NS}.painLevelLabel`)} mode="outlined" value={String(metadata.painLevel ?? '')} onChangeText={v => updateMeta('painLevel', Math.min(10, Math.max(0, Number(v) || 0)))} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-                <TextInput label="Nhiệt độ (°C)" mode="outlined" value={String(metadata.temperature ?? '')} onChangeText={v => updateMeta('temperature', Number(v) || 0)} keyboardType="numeric" dense style={{ flex: 1 }} />
-                <TextInput label="Mạch (bpm)" mode="outlined" value={String(metadata.pulse ?? '')} onChangeText={v => updateMeta('pulse', Number(v) || 0)} keyboardType="numeric" dense style={{ flex: 1 }} />
+                <TextInput label={t(`${NS}.temperatureLabel`)} mode="outlined" value={String(metadata.temperature ?? '')} onChangeText={v => updateMeta('temperature', Number(v) || 0)} keyboardType="numeric" dense style={{ flex: 1 }} />
+                <TextInput label={t(`${NS}.pulseLabel`)} mode="outlined" value={String(metadata.pulse ?? '')} onChangeText={v => updateMeta('pulse', Number(v) || 0)} keyboardType="numeric" dense style={{ flex: 1 }} />
               </View>
-              <TextInput label="Quan sát khác" mode="outlined" value={metadata.observations ?? ''} onChangeText={v => updateMeta('observations', v)} dense multiline style={{ marginBottom: 8 }} />
+              <TextInput label={t(`${NS}.observationsLabel`)} mode="outlined" value={metadata.observations ?? ''} onChangeText={v => updateMeta('observations', v)} dense multiline style={{ marginBottom: 8 }} />
             </Card.Content>
           </Card>
         )}
@@ -146,19 +148,19 @@ export const EditCareNoteScreen: React.FC<{ route: any; navigation: any }> = ({ 
         {noteType === 'daily_living' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>Chi tiết sinh hoạt</Text>
-              <ChipGroup label="Loại" options={DL_ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} />
-              <ChipGroup label="Mức hỗ trợ" options={ASSISTANCE} selected={metadata.assistanceLevel ?? ''} onSelect={v => updateMeta('assistanceLevel', v)} />
-              <ChipGroup label="Hoàn thành" options={COMPLETION} selected={metadata.completionStatus ?? ''} onSelect={v => updateMeta('completionStatus', v)} />
-              <TextInput label="Thời lượng (phút)" mode="outlined" value={String(metadata.duration ?? '')} onChangeText={v => updateMeta('duration', Number(v) || 0)} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
-              <ChipGroup label="Tâm trạng" options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} />
+              <Text style={styles.metaTitle}>{t(`${NS}.dlDetailTitle`)}</Text>
+              <ChipGroup label={t(`${NS}.dlActivityTypeLabel`)} options={DL_ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} />
+              <ChipGroup label={t(`${NS}.assistanceLabel`)} options={ASSISTANCE} selected={metadata.assistanceLevel ?? ''} onSelect={v => updateMeta('assistanceLevel', v)} />
+              <ChipGroup label={t(`${NS}.completionLabel`)} options={COMPLETION} selected={metadata.completionStatus ?? ''} onSelect={v => updateMeta('completionStatus', v)} />
+              <TextInput label={t(`${NS}.durationLabel`)} mode="outlined" value={String(metadata.duration ?? '')} onChangeText={v => updateMeta('duration', Number(v) || 0)} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
+              <ChipGroup label={t(`${NS}.moodLabel`)} options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} />
             </Card.Content>
           </Card>
         )}
 
         <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit}
           loading={updateNote.isPending} disabled={updateNote.isPending} style={styles.submitBtn}>
-          Cập nhật ghi chú
+          {t(`${NS}.update`)}
         </Button>
       </ScrollView>
     </View>

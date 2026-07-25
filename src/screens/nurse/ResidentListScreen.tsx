@@ -2,24 +2,27 @@ import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Searchbar, Chip } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useResidents } from '../../hooks/useResidents';
 import { ResidentCard } from '../../components/cards/ResidentCard';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 
 const COLOR = '#1B3A6B';
-
-const STATUS_OPTIONS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'admitted', label: 'Đang ở' },
-  { value: 'pending', label: 'Chờ' },
-  { value: 'discharged', label: 'Đã xuất' },
-];
+const NS = 'nurse.residents';
 
 export const ResidentListScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('admitted');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  const STATUS_OPTIONS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'admitted', label: t(`${NS}.filterAdmitted`) },
+    { value: 'pending', label: t(`${NS}.filterPending`) },
+    { value: 'discharged', label: t(`${NS}.filterDischarged`) },
+  ];
 
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const onSearch = (text: string) => {
@@ -37,10 +40,10 @@ export const ResidentListScreen: React.FC = () => {
   const residents = Array.isArray(data) ? data : (data?.data ?? []);
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <View style={styles.flex}>
+      <View style={[styles.header, { paddingTop: insets.top }]}>
         <Searchbar
-          placeholder="Tìm cư dân..."
+          placeholder={t(`${NS}.searchPlaceholder`)}
           value={search}
           onChangeText={onSearch}
           style={styles.searchBar}
@@ -67,7 +70,7 @@ export const ResidentListScreen: React.FC = () => {
         error={error ? (error as Error).message : null}
         onRetry={refetch}
         isEmpty={residents.length === 0}
-        emptyMessage="Không tìm thấy cư dân"
+        emptyMessage={t(`${NS}.empty`)}
       >
         <FlatList
           data={residents}

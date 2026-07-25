@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
-import { ScrollView, View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, IconButton, Dialog, Portal, Button, TextInput, Chip } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useNutritionSummary, useNutritionResidents, useNutritionResidentDetail } from '../../hooks/useNutritionReports';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 
 const COLOR = '#0F5040';
+const NS = 'nurse.nutritionReports';
 
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -26,33 +28,34 @@ const fmtDate = (str?: string) => {
   return `${Number(d)}/${Number(m)}/${y}`;
 };
 
-const KPI_CONFIG = [
-  { key: 'totalAdmittedResidents',       label: 'Cư dân đang ở',        icon: 'account-group-outline',    color: '#3b5bdb' },
-  { key: 'residentsWithMealPlan',         label: 'Có thực đơn publish',  icon: 'silverware-fork-knife',    color: '#0891b2' },
-  { key: 'residentsWithSpecialDiet',      label: 'Chế độ đặc biệt',      icon: 'food-apple-outline',       color: '#7c3aed' },
-  { key: 'residentsWithMealTimeSchedule', label: 'Có lịch giờ ăn',       icon: 'clock-outline',            color: '#0d9488' },
-  { key: 'totalMealIntakeRecords',        label: 'Ghi nhận intake (CG)',  icon: 'note-text-outline',        color: '#2563eb' },
-  { key: 'residentsWithMealIntake',       label: 'Cư dân có intake',      icon: 'account-check-outline',    color: '#059669' },
-  { key: 'totalMealNotes',               label: 'Ghi chú meal',          icon: 'chat-outline',             color: '#6366f1' },
-  { key: 'residentsMissingMealPlan',      label: 'Thiếu thực đơn',        icon: 'alert-circle-outline',    color: '#dc2626' },
-];
-
-const MEAL_TYPE_LABEL: Record<string, string> = {
-  breakfast: 'Sáng', lunch: 'Trưa', dinner: 'Tối',
-};
-
-const DIET_TYPE_LABEL: Record<string, string> = {
-  diabetic: 'Tiểu đường', low_sodium: 'Ít muối', vegetarian: 'Chay',
-  high_protein: 'Nhiều đạm', low_fat: 'Ít béo', renal: 'Thận',
-  texture_modified: 'Điều chỉnh kết cấu', other: 'Khác',
-};
-
-const INTAKE_STATUS_LABEL: Record<string, string> = {
-  ate_all: 'Ăn hết', partial: 'Ăn một phần', refused: 'Từ chối', not_applicable: 'Không áp dụng',
-};
-
 export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+
+  const KPI_CONFIG = [
+    { key: 'totalAdmittedResidents',       label: t(`${NS}.kpiAdmitted`),        icon: 'account-group-outline',    color: '#3b5bdb' },
+    { key: 'residentsWithMealPlan',         label: t(`${NS}.kpiHasMealPlan`),  icon: 'silverware-fork-knife',    color: '#0891b2' },
+    { key: 'residentsWithSpecialDiet',      label: t(`${NS}.kpiSpecialDiet`),      icon: 'food-apple-outline',       color: '#7c3aed' },
+    { key: 'residentsWithMealTimeSchedule', label: t(`${NS}.kpiMealTimeSchedule`),       icon: 'clock-outline',            color: '#0d9488' },
+    { key: 'totalMealIntakeRecords',        label: t(`${NS}.kpiIntakeRecords`),  icon: 'note-text-outline',        color: '#2563eb' },
+    { key: 'residentsWithMealIntake',       label: t(`${NS}.kpiHasIntake`),      icon: 'account-check-outline',    color: '#059669' },
+    { key: 'totalMealNotes',               label: t(`${NS}.kpiMealNotes`),          icon: 'chat-outline',             color: '#6366f1' },
+    { key: 'residentsMissingMealPlan',      label: t(`${NS}.kpiMissingMealPlan`),        icon: 'alert-circle-outline',    color: '#dc2626' },
+  ];
+
+  const MEAL_TYPE_LABEL: Record<string, string> = {
+    breakfast: t(`${NS}.mealBreakfast`), lunch: t(`${NS}.mealLunch`), dinner: t(`${NS}.mealDinner`),
+  };
+
+  const DIET_TYPE_LABEL: Record<string, string> = {
+    diabetic: t(`${NS}.dietDiabetic`), low_sodium: t(`${NS}.dietLowSodium`), vegetarian: t(`${NS}.dietVegetarian`),
+    high_protein: t(`${NS}.dietHighProtein`), low_fat: t(`${NS}.dietLowFat`), renal: t(`${NS}.dietRenal`),
+    texture_modified: t(`${NS}.dietTextureModified`), other: t(`${NS}.dietOther`),
+  };
+
+  const INTAKE_STATUS_LABEL: Record<string, string> = {
+    ate_all: t(`${NS}.intakeAteAll`), partial: t(`${NS}.intakePartial`), refused: t(`${NS}.intakeRefused`), not_applicable: t(`${NS}.intakeNotApplicable`),
+  };
 
   const [toDate, setToDate]   = useState(today());
   const [fromDate, setFromDate] = useState(addDays(today(), -6));
@@ -74,15 +77,15 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
 
   const refetch = () => { summaryQ.refetch(); residentsQ.refetch(); };
 
-  const setLast7 = () => { const t = today(); setToDate(t); setFromDate(addDays(t, -6)); };
-  const setTodayOnly = () => { const t = today(); setFromDate(t); setToDate(t); };
+  const setLast7 = () => { const t2 = today(); setToDate(t2); setFromDate(addDays(t2, -6)); };
+  const setTodayOnly = () => { const t2 = today(); setFromDate(t2); setToDate(t2); };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Báo cáo dinh dưỡng</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <IconButton icon="filter-variant" iconColor="#fff" size={22} onPress={() => setShowFilters(v => !v)} />
         </View>
       </View>
@@ -91,26 +94,26 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
         <View style={styles.filterBox}>
           <View style={styles.dateRow}>
             <View style={{ flex: 1 }}>
-              <CalendarPicker label="Từ ngày" value={fromDate} onChange={setFromDate} color={COLOR} />
+              <CalendarPicker label={t(`${NS}.fromDate`)} value={fromDate} onChange={setFromDate} color={COLOR} />
             </View>
             <View style={{ flex: 1 }}>
-              <CalendarPicker label="Đến ngày" value={toDate} onChange={setToDate} color={COLOR} />
+              <CalendarPicker label={t(`${NS}.toDate`)} value={toDate} onChange={setToDate} color={COLOR} />
             </View>
           </View>
           <TextInput
-            placeholder="Tìm cư dân (tên hoặc mã)..."
+            placeholder={t(`${NS}.searchPlaceholder`)}
             mode="outlined" value={search} onChangeText={setSearch}
             dense style={styles.searchInput}
             left={<TextInput.Icon icon="magnify" />}
             right={search ? <TextInput.Icon icon="close" onPress={() => setSearch('')} /> : undefined}
           />
           <View style={styles.presetRow}>
-            <Button compact mode="outlined" textColor={COLOR} style={styles.presetBtn} onPress={setLast7}>7 ngày gần nhất</Button>
-            <Button compact mode="outlined" textColor={COLOR} style={styles.presetBtn} onPress={setTodayOnly}>Hôm nay</Button>
+            <Button compact mode="outlined" textColor={COLOR} style={styles.presetBtn} onPress={setLast7}>{t(`${NS}.last7Days`)}</Button>
+            <Button compact mode="outlined" textColor={COLOR} style={styles.presetBtn} onPress={setTodayOnly}>{t(`${NS}.today`)}</Button>
             <Chip selected={missingOnly} onPress={() => setMissingOnly(v => !v)} compact
               style={missingOnly ? { backgroundColor: '#FEE2E2' } : undefined}
               textStyle={missingOnly ? { color: '#991B1B' } : undefined}>
-              Thiếu thực đơn
+              {t(`${NS}.missingMealPlan`)}
             </Chip>
           </View>
           <Text style={styles.rangeLabel}>{fmtDate(fromDate)} – {fmtDate(toDate)}</Text>
@@ -136,14 +139,14 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
 
           {/* Resident list */}
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Danh sách cư dân</Text>
-            <Text style={styles.sectionCount}>{residents.length} kết quả</Text>
+            <Text style={styles.sectionTitle}>{t(`${NS}.residentListTitle`)}</Text>
+            <Text style={styles.sectionCount}>{t(`${NS}.resultsCount`, { count: residents.length })}</Text>
           </View>
 
           {residentsQ.isLoading ? (
-            <Text style={styles.empty}>Đang tải...</Text>
+            <Text style={styles.empty}>{t(`${NS}.loading`)}</Text>
           ) : residents.length === 0 ? (
-            <Text style={styles.empty}>Không có cư dân phù hợp</Text>
+            <Text style={styles.empty}>{t(`${NS}.noMatchingResidents`)}</Text>
           ) : (
             residents.map((r: any) => (
               <Card key={r.residentId} style={styles.resCard} mode="outlined">
@@ -153,17 +156,17 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                     <Text style={styles.resName}>{r.fullName ?? ''}</Text>
                     <Text style={styles.resCode}>{r.residentCode ?? ''}</Text>
                     <View style={styles.resBadges}>
-                      <ResBadge ok={r.hasMealPlan} label="Thực đơn" />
-                      <ResBadge ok={r.hasSpecialDiet} label="Đặc biệt" neutral />
-                      <ResBadge ok={r.hasMealTimeSchedule} label="Giờ ăn" neutral />
+                      <ResBadge ok={r.hasMealPlan} label={t(`${NS}.badgeMealPlan`)} />
+                      <ResBadge ok={r.hasSpecialDiet} label={t(`${NS}.badgeSpecialDiet`)} neutral />
+                      <ResBadge ok={r.hasMealTimeSchedule} label={t(`${NS}.badgeMealTime`)} neutral />
                       {r.mealIntakeCount > 0 && (
                         <View style={styles.countBadge}>
-                          <Text style={styles.countBadgeText}>{r.mealIntakeCount} intake</Text>
+                          <Text style={styles.countBadgeText}>{t(`${NS}.intakeCount`, { count: r.mealIntakeCount })}</Text>
                         </View>
                       )}
                       {r.mealNotesCount > 0 && (
                         <View style={styles.countBadge}>
-                          <Text style={styles.countBadgeText}>{r.mealNotesCount} ghi chú</Text>
+                          <Text style={styles.countBadgeText}>{t(`${NS}.notesCount`, { count: r.mealNotesCount })}</Text>
                         </View>
                       )}
                     </View>
@@ -184,7 +187,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
             {!detail ? (
               <View style={{ padding: 16 }}>
                 <Text style={{ color: '#9CA3AF', textAlign: 'center' }}>
-                  {detailQ.isLoading ? 'Đang tải...' : 'Không có dữ liệu'}
+                  {detailQ.isLoading ? t(`${NS}.loading`) : t(`${NS}.noData`)}
                 </Text>
               </View>
             ) : (
@@ -201,31 +204,31 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                 {/* Meta */}
                 <View style={styles.detailInfo}>
                   {detail.period && (
-                    <Text style={styles.dLabel}>Khoảng: <Text style={styles.dValue}>
+                    <Text style={styles.dLabel}>{t(`${NS}.period`)}: <Text style={styles.dValue}>
                       {fmtDate(detail.period.from)} – {fmtDate(detail.period.to)}
                     </Text></Text>
                   )}
                   {detail.resident?.allergies?.length > 0 && (
-                    <Text style={styles.dLabel}>Dị ứng: <Text style={styles.dAllergyValue}>{detail.resident.allergies.join(', ')}</Text></Text>
+                    <Text style={styles.dLabel}>{t(`${NS}.allergies`)}: <Text style={styles.dAllergyValue}>{detail.resident.allergies.join(', ')}</Text></Text>
                   )}
                   {detail.resident?.chronicConditions?.length > 0 && (
-                    <Text style={styles.dLabel}>Bệnh nền: <Text style={styles.dChronicValue}>{detail.resident.chronicConditions.join(', ')}</Text></Text>
+                    <Text style={styles.dLabel}>{t(`${NS}.chronicConditions`)}: <Text style={styles.dChronicValue}>{detail.resident.chronicConditions.join(', ')}</Text></Text>
                   )}
                 </View>
 
                 {/* Summary chips */}
                 {detail.summary && (
                   <View style={styles.chipRow}>
-                    <InfoChip value={detail.summary.mealPlanMealCount ?? 0} label="bữa có thực đơn" />
-                    <InfoChip value={detail.summary.mealIntakeCount ?? 0} label="ghi nhận intake" />
-                    <InfoChip value={detail.summary.mealNotesCount ?? 0} label="ghi chú meal" />
-                    <InfoChip value={detail.summary.daysWithData ?? 0} label="ngày có dữ liệu" />
+                    <InfoChip value={detail.summary.mealPlanMealCount ?? 0} label={t(`${NS}.mealsWithPlan`)} />
+                    <InfoChip value={detail.summary.mealIntakeCount ?? 0} label={t(`${NS}.intakeRecorded`)} />
+                    <InfoChip value={detail.summary.mealNotesCount ?? 0} label={t(`${NS}.mealNotesLabel`)} />
+                    <InfoChip value={detail.summary.daysWithData ?? 0} label={t(`${NS}.daysWithData`)} />
                   </View>
                 )}
 
                 {/* Days */}
                 {!detail.days?.length ? (
-                  <Text style={{ color: '#9CA3AF', marginTop: 8 }}>Chưa có dữ liệu dinh dưỡng publish trong khoảng này.</Text>
+                  <Text style={{ color: '#9CA3AF', marginTop: 8 }}>{t(`${NS}.noNutritionData`)}</Text>
                 ) : (
                   detail.days.map((day: any, i: number) => (
                     <Card key={day.workDate ?? i} style={styles.dayCard} mode="outlined">
@@ -233,16 +236,16 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         <Text style={styles.dayDate}>{fmtDate(day.workDate)}</Text>
 
                         {day.mealTimeSchedule && (
-                          <DaySection title="Giờ ăn">
+                          <DaySection title={t(`${NS}.mealTimeTitle`)}>
                             <Text style={styles.dayText}>
-                              Sáng: {day.mealTimeSchedule.breakfastTime ?? '--'} · Trưa: {day.mealTimeSchedule.lunchTime ?? '--'} · Tối: {day.mealTimeSchedule.dinnerTime ?? '--'}
+                              {t(`${NS}.mealBreakfast`)}: {day.mealTimeSchedule.breakfastTime ?? '--'} · {t(`${NS}.mealLunch`)}: {day.mealTimeSchedule.lunchTime ?? '--'} · {t(`${NS}.mealDinner`)}: {day.mealTimeSchedule.dinnerTime ?? '--'}
                             </Text>
                             {day.mealTimeSchedule.notes ? <Text style={styles.dayNote}>{day.mealTimeSchedule.notes}</Text> : null}
                           </DaySection>
                         )}
 
                         {day.mealPlanEntries?.length > 0 && (
-                          <DaySection title="Thực đơn">
+                          <DaySection title={t(`${NS}.mealPlanTitle`)}>
                             {day.mealPlanEntries.map((m: any, j: number) => (
                               <Text key={j} style={styles.dayText}>
                                 {MEAL_TYPE_LABEL[m.mealType] ?? m.mealType}: {m.mealName ?? ''}
@@ -254,7 +257,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.specialDietEntries?.length > 0 && (
-                          <DaySection title="Chế độ đặc biệt">
+                          <DaySection title={t(`${NS}.specialDietTitle`)}>
                             {day.specialDietEntries.map((s: any, j: number) => (
                               <Text key={j} style={styles.dayText}>
                                 {DIET_TYPE_LABEL[s.dietType] ?? s.dietType}
@@ -267,14 +270,14 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.mealIntakeNotes?.length > 0 && (
-                          <DaySection title="Ghi nhận intake (Caregiver)">
+                          <DaySection title={t(`${NS}.intakeTitle`)}>
                             {day.mealIntakeNotes.map((n: any, j: number) => (
                               <View key={j} style={styles.noteCard}>
                                 <Text style={styles.noteTime}>
                                   {MEAL_TYPE_LABEL[n.mealType] ?? n.mealType} · {INTAKE_STATUS_LABEL[n.intakeStatus] ?? n.intakeStatus}
                                   {n.portionPercent != null && n.intakeStatus === 'partial' ? ` · ${n.portionPercent}%` : ''}
                                 </Text>
-                                {n.plannedMealName ? <Text style={styles.noteContent}>Dự kiến: {n.plannedMealName}</Text> : null}
+                                {n.plannedMealName ? <Text style={styles.noteContent}>{t(`${NS}.plannedMeal`, { name: n.plannedMealName })}</Text> : null}
                                 {n.notes ? <Text style={styles.noteContent}>{n.notes}</Text> : null}
                                 <Text style={styles.noteTime}>
                                   {n.recordedAt ? new Date(n.recordedAt).toLocaleString('vi-VN') : ''}
@@ -286,7 +289,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.mealNotes?.length > 0 && (
-                          <DaySection title="Ghi chú ăn uống">
+                          <DaySection title={t(`${NS}.mealNotesTitle`)}>
                             {day.mealNotes.map((n: any, j: number) => (
                               <View key={j} style={styles.noteCard}>
                                 <Text style={styles.noteTime}>
@@ -307,7 +310,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
             )}
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setSelectedId(null)} textColor={COLOR}>Đóng</Button>
+            <Button onPress={() => setSelectedId(null)} textColor={COLOR}>{t('common.close')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
