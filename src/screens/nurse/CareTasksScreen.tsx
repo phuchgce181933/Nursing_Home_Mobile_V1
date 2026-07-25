@@ -4,6 +4,7 @@ import { Text, Card, Chip, Button, Dialog, Portal, IconButton } from 'react-nati
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { CARE_TASKS } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -11,20 +12,23 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#0F5040';
-const STATUS_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'pending', label: 'Chờ' },
-  { value: 'in_progress', label: 'Đang làm' },
-  { value: 'completed', label: 'Hoàn thành' },
-  { value: 'skipped', label: 'Bỏ qua' },
-];
+const NS = 'nurse.careTasks';
 
 export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [actionTask, setActionTask] = useState<any>(null);
+
+  const STATUS_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'pending', label: t(`${NS}.filterPending`) },
+    { value: 'in_progress', label: t(`${NS}.filterInProgress`) },
+    { value: 'completed', label: t(`${NS}.filterCompleted`) },
+    { value: 'skipped', label: t(`${NS}.filterSkipped`) },
+  ];
 
   const today = new Date().toISOString().split('T')[0];
   const tasksQ = useQuery({
@@ -44,17 +48,17 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['nurseTasks'] });
       setActionTask(null);
-      toast('Đã cập nhật trạng thái', 'success');
+      toast(t(`${NS}.toastUpdated`), 'success');
     },
-    onError: () => toast('Không thể cập nhật', 'error'),
+    onError: () => toast(t(`${NS}.toastError`), 'error'),
   });
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Nhiệm vụ chăm sóc</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -68,7 +72,7 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       </View>
 
       <ScreenLayout loading={tasksQ.isLoading} error={tasksQ.error ? (tasksQ.error as Error).message : null}
-        onRetry={tasksQ.refetch} isEmpty={items.length === 0} emptyMessage="Không có nhiệm vụ nào">
+        onRetry={tasksQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
@@ -76,7 +80,7 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>{item.taskType ?? item.title ?? 'Nhiệm vụ'}</Text>
+                    <Text style={styles.title}>{item.taskType ?? item.title ?? t(`${NS}.defaultTitle`)}</Text>
                     <Text style={styles.resident}>{item.residentId?.fullName ?? ''}</Text>
                     <View style={styles.timeRow}>
                       <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
@@ -95,21 +99,21 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <Portal>
         <Dialog visible={!!actionTask} onDismiss={() => setActionTask(null)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>{actionTask?.taskType ?? 'Nhiệm vụ'}</Dialog.Title>
+          <Dialog.Title>{actionTask?.taskType ?? t(`${NS}.defaultTitle`)}</Dialog.Title>
           <Dialog.Content>
-            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>Cư dân: {actionTask?.residentId?.fullName ?? '--'}</Text>
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>{t(`${NS}.residentLabel`, { name: actionTask?.residentId?.fullName ?? '--' })}</Text>
             {actionTask?.notes ? <Text style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>{actionTask.notes}</Text> : null}
-            <Text style={{ fontSize: 12, color: '#9CA3AF' }}>Trạng thái: {actionTask?.status}</Text>
+            <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{t(`${NS}.statusLabel`, { status: actionTask?.status })}</Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setActionTask(null)}>Đóng</Button>
+            <Button onPress={() => setActionTask(null)}>{t('common.close')}</Button>
             {actionTask?.status === 'pending' && (
               <Button mode="contained" buttonColor="#1565C0" onPress={() => updateMut.mutate({ id: actionTask._id, status: 'in_progress' })}
-                loading={updateMut.isPending}>Bắt đầu</Button>
+                loading={updateMut.isPending}>{t(`${NS}.start`)}</Button>
             )}
             {(actionTask?.status === 'pending' || actionTask?.status === 'in_progress') && (
               <Button mode="contained" buttonColor={COLOR} onPress={() => updateMut.mutate({ id: actionTask._id, status: 'completed' })}
-                loading={updateMut.isPending}>Hoàn thành</Button>
+                loading={updateMut.isPending}>{t(`${NS}.complete`)}</Button>
             )}
           </Dialog.Actions>
         </Dialog>

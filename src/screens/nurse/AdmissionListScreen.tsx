@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, IconButton, Dialog, Portal, Button } from 'react-native-paper';
+import { Text, Card, Chip, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { ADMIN_ADMISSIONS } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 
 const COLOR = '#0F5040';
-const STATUS_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'new_request', label: 'Mới' },
-  { value: 'consulting', label: 'Tư vấn' },
-  { value: 'assessing', label: 'Đánh giá' },
-  { value: 'contracting', label: 'Hợp đồng' },
-  { value: 'checked_in', label: 'Đã nhận' },
-  { value: 'cancelled', label: 'Đã hủy' },
-];
+const NS = 'nurse.admissions';
 
 export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+
+  const STATUS_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'new_request', label: t(`${NS}.filterNew`) },
+    { value: 'consulting', label: t(`${NS}.filterConsulting`) },
+    { value: 'assessing', label: t(`${NS}.filterAssessing`) },
+    { value: 'contracting', label: t(`${NS}.filterContracting`) },
+    { value: 'checked_in', label: t(`${NS}.filterCheckedIn`) },
+    { value: 'cancelled', label: t(`${NS}.filterCancelled`) },
+  ];
 
   const listQ = useQuery({
     queryKey: ['adminAdmissions', filter],
@@ -34,11 +37,11 @@ export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation 
   const items = listQ.data?.data ?? listQ.data ?? [];
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Yêu cầu nhập viện</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -52,11 +55,11 @@ export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation 
       </View>
 
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
-        onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage="Không có yêu cầu nhập viện">
+        onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
-            <Card style={styles.card} mode="outlined" onPress={() => setSelectedItem(item)}>
+            <Card style={styles.card} mode="outlined" onPress={() => navigation.navigate('AdmissionDetail', { admissionId: item._id })}>
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
@@ -73,32 +76,6 @@ export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation 
             </Card>
           )} />
       </ScreenLayout>
-
-      <Portal>
-        <Dialog visible={!!selectedItem} onDismiss={() => setSelectedItem(null)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>Chi tiết yêu cầu</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 400 }}>
-            {selectedItem ? (
-              <View style={{ padding: 4 }}>
-                <Text style={styles.dLabel}>Mã: <Text style={styles.dValue}>{selectedItem.requestCode ?? ''}</Text></Text>
-                <Text style={styles.dLabel}>Họ tên: <Text style={styles.dValue}>{selectedItem.applicant?.fullName ?? ''}</Text></Text>
-                <Text style={styles.dLabel}>Quan hệ: <Text style={styles.dValue}>{selectedItem.applicant?.relationshipToRequester ?? ''}</Text></Text>
-                {selectedItem.applicant?.dateOfBirth && <Text style={styles.dLabel}>Ngày sinh: <Text style={styles.dValue}>{new Date(selectedItem.applicant.dateOfBirth).toLocaleDateString('vi-VN')}</Text></Text>}
-                {selectedItem.applicant?.gender && <Text style={styles.dLabel}>Giới tính: <Text style={styles.dValue}>{selectedItem.applicant.gender === 'male' ? 'Nam' : selectedItem.applicant.gender === 'female' ? 'Nữ' : selectedItem.applicant.gender}</Text></Text>}
-                {selectedItem.preferredAdmissionDate && <Text style={styles.dLabel}>Ngày nhập mong muốn: <Text style={styles.dValue}>{new Date(selectedItem.preferredAdmissionDate).toLocaleDateString('vi-VN')}</Text></Text>}
-                {selectedItem.reasonForAdmission && <Text style={styles.dLabel}>Lý do: <Text style={styles.dValue}>{selectedItem.reasonForAdmission}</Text></Text>}
-                {selectedItem.requestedByPhone && <Text style={styles.dLabel}>SĐT: <Text style={styles.dValue}>{selectedItem.requestedByPhone}</Text></Text>}
-                {selectedItem.notes && <Text style={styles.dLabel}>Ghi chú: <Text style={styles.dValue}>{selectedItem.notes}</Text></Text>}
-                {selectedItem.applicant?.allergies?.length > 0 && <Text style={styles.dLabel}>Dị ứng: <Text style={styles.dValue}>{selectedItem.applicant.allergies.join(', ')}</Text></Text>}
-                {selectedItem.applicant?.chronicConditions?.length > 0 && <Text style={styles.dLabel}>Bệnh mãn tính: <Text style={styles.dValue}>{selectedItem.applicant.chronicConditions.join(', ')}</Text></Text>}
-                {selectedItem.consultationNotes && <Text style={styles.dLabel}>Ghi chú tư vấn: <Text style={styles.dValue}>{selectedItem.consultationNotes}</Text></Text>}
-                <Text style={[styles.dLabel, { marginTop: 8 }]}>Ngày tạo: <Text style={styles.dValue}>{selectedItem.createdAt ? new Date(selectedItem.createdAt).toLocaleString('vi-VN') : ''}</Text></Text>
-              </View>
-            ) : null}
-          </Dialog.ScrollArea>
-          <Dialog.Actions><Button onPress={() => setSelectedItem(null)}>Đóng</Button></Dialog.Actions>
-        </Dialog>
-      </Portal>
     </View>
   );
 };
@@ -116,6 +93,4 @@ const styles = StyleSheet.create({
   code: { fontSize: 11, color: COLOR, marginTop: 1 },
   sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   reason: { fontSize: 12, color: '#374151', marginTop: 4 },
-  dLabel: { fontSize: 13, fontWeight: '500', color: '#6B7280', marginBottom: 4 },
-  dValue: { fontWeight: '400', color: '#111827' },
 });

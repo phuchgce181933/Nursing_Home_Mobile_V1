@@ -1,12 +1,23 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image } from 'react-native';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../api/axiosInstance';
 import { AUTH } from '../../api/endpoints';
 import { useAuth } from '../../auth/useAuth';
+import { LANGUAGE_STORAGE_KEY } from '../../i18n';
 
 export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const { t, i18n } = useTranslation();
   const { login } = useAuth();
+
+  const changeLanguage = (lang: 'vi' | 'en') => {
+    i18n.changeLanguage(lang);
+    AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -15,7 +26,7 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError('Vui lòng nhập email và mật khẩu');
+      setError(t('auth.errorMissingFields'));
       return;
     }
     setError('');
@@ -28,12 +39,12 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
       const status = err.response?.status;
       const msg = err.response?.data?.message ?? '';
       if (status === 401) {
-        if (msg.toLowerCase().includes('inactive')) setError('Tài khoản đã bị vô hiệu hóa');
-        else if (msg.toLowerCase().includes('banned')) setError('Tài khoản đã bị khóa');
-        else setError('Sai tên đăng nhập hoặc mật khẩu');
+        if (msg.toLowerCase().includes('inactive')) setError(t('auth.errorInactive'));
+        else if (msg.toLowerCase().includes('banned')) setError(t('auth.errorBanned'));
+        else setError(t('auth.errorInvalidCredentials'));
       }
-      else if (status === 403) setError('Tài khoản không có quyền truy cập');
-      else setError('Không thể kết nối. Kiểm tra mạng.');
+      else if (status === 403) setError(t('auth.errorForbidden'));
+      else setError(t('auth.errorNetwork'));
     } finally {
       setLoading(false);
     }
@@ -41,6 +52,16 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.langToggle, { top: insets.top + 12 }]}>
+        <Pressable onPress={() => changeLanguage('vi')} hitSlop={8}>
+          <Text style={[styles.langText, i18n.language === 'vi' && styles.langTextActive]}>VI</Text>
+        </Pressable>
+        <Text style={styles.langSep}>|</Text>
+        <Pressable onPress={() => changeLanguage('en')} hitSlop={8}>
+          <Text style={[styles.langText, i18n.language === 'en' && styles.langTextActive]}>EN</Text>
+        </Pressable>
+      </View>
+
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Image
@@ -48,22 +69,22 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             style={styles.logo}
             resizeMode="contain"
           />
-          <Text style={styles.title}>Nursing Home</Text>
-          <Text style={styles.subtitle}>Hệ thống quản lý viện dưỡng lão</Text>
+          <Text style={styles.title}>{t('auth.appTitle')}</Text>
+          <Text style={styles.subtitle}>{t('auth.appSubtitle')}</Text>
 
           <TextInput
-            label="Email"
+            label={t('auth.emailOrPhone')}
             mode="outlined"
             value={email}
             onChangeText={setEmail}
-            keyboardType="email-address"
+            keyboardType="default"
             autoCapitalize="none"
-            left={<TextInput.Icon icon="email-outline" />}
+            left={<TextInput.Icon icon="account-outline" />}
             style={styles.input}
           />
 
           <TextInput
-            label="Mật khẩu"
+            label={t('auth.password')}
             mode="outlined"
             value={password}
             onChangeText={setPassword}
@@ -79,6 +100,10 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             style={styles.input}
           />
 
+          <Pressable onPress={() => navigation?.navigate('ForgotPassword')} style={styles.forgotLink}>
+            <Text style={styles.forgotLinkText}>{t('auth.forgotPasswordLink')}</Text>
+          </Pressable>
+
           {error ? (
             <View style={styles.errorBanner}>
               <Text style={styles.errorText}>{error}</Text>
@@ -93,8 +118,12 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             buttonColor="#1B3A6B"
             contentStyle={{ height: 48 }}
           >
-            {loading ? <ActivityIndicator color="#fff" size={20} /> : 'Đăng nhập'}
+            {loading ? <ActivityIndicator color="#fff" size={20} /> : t('auth.loginButton')}
           </Button>
+
+          <Pressable onPress={() => navigation?.navigate('Register')} style={styles.registerLink}>
+            <Text style={styles.registerLinkText}>{t('auth.registerLink')}</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -122,4 +151,19 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#991B1B', fontSize: 13, textAlign: 'center' },
   button: { width: '100%', marginTop: 4, borderRadius: 8 },
+  langToggle: {
+    position: 'absolute',
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    zIndex: 1,
+  },
+  langText: { fontSize: 13, fontWeight: '500', color: '#9CA3AF' },
+  langTextActive: { color: '#1B3A6B', fontWeight: '700' },
+  langSep: { fontSize: 13, color: '#D1D5DB' },
+  forgotLink: { alignSelf: 'flex-end', marginBottom: 12, marginTop: -4 },
+  forgotLinkText: { fontSize: 13, color: '#1B3A6B', fontWeight: '500' },
+  registerLink: { marginTop: 16 },
+  registerLinkText: { fontSize: 13, color: '#1B3A6B', fontWeight: '500' },
 });

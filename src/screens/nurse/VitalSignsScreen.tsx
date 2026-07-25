@@ -3,7 +3,9 @@ import { ScrollView, View, FlatList, StyleSheet, RefreshControl, Pressable } fro
 import { Text, Card, Button, TextInput, Portal, Modal, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useResidents, useResidentDetail, useResidentVitals } from '../../hooks/useResidents';
+import { useTranslation } from 'react-i18next';
+import { useResidents, useResidentDetail, useResidentVitals, useCaregiverResidents, useCaregiverResidentDetail } from '../../hooks/useResidents';
+import { useAuth } from '../../auth/useAuth';
 import { AlertBanner } from '../../components/shared/AlertBanner';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
@@ -13,11 +15,17 @@ import api from '../../api/axiosInstance';
 import { RESIDENTS } from '../../api/endpoints';
 
 const COLOR = '#0F5040';
+const NS = 'nurse.vitalSigns';
+
+type Severity = 'critical' | 'warning' | 'normal';
 
 export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useTranslation();
+  const { user } = useAuth();
+  const isCaregiver = user?.role === 'caregiver';
 
   const [selectedId, setSelectedId] = useState<string | undefined>(route?.params?.residentId);
   const [search, setSearch] = useState('');
@@ -27,10 +35,14 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
     temperatureCelsius: '', oxygenSaturation: '', bloodSugar: '',
   });
 
-  const residentsQ = useResidents({ status: 'admitted', search: search || undefined });
+  const nurseResidentsQ = useResidents({ status: 'admitted', search: search || undefined }, { enabled: !isCaregiver });
+  const caregiverResidentsQ = useCaregiverResidents({ search: search || undefined }, { enabled: isCaregiver });
+  const residentsQ = isCaregiver ? caregiverResidentsQ : nurseResidentsQ;
   const allResidents = Array.isArray(residentsQ.data) ? residentsQ.data : (residentsQ.data?.data ?? []);
 
-  const residentQ = useResidentDetail(selectedId);
+  const nurseResidentQ = useResidentDetail(selectedId, { enabled: !isCaregiver });
+  const caregiverResidentQ = useCaregiverResidentDetail(selectedId, { enabled: isCaregiver });
+  const residentQ = isCaregiver ? caregiverResidentQ : nurseResidentQ;
   const vitalsQ = useResidentVitals(selectedId);
   const resident = residentQ.data?.data ?? residentQ.data;
   const vitals = vitalsQ.data?.data ?? vitalsQ.data ?? [];
@@ -45,18 +57,19 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
       qc.invalidateQueries({ queryKey: ['vitals', selectedId] });
       setShowForm(false);
       setForm({ bloodPressureSystolic: '', bloodPressureDiastolic: '', pulse: '', temperatureCelsius: '', oxygenSaturation: '', bloodSugar: '' });
-      toast('Đã lưu chỉ số sinh hiệu', 'success');
+      toast(t(`${NS}.toastSaved`), 'success');
     },
-    onError: (e: any) => toast(e.response?.data?.message ?? 'Không thể lưu. Thử lại.', 'error'),
+    onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastSaveError`), 'error'),
   });
 
+  // Kept in sync with backend VITAL_RANGES (services/medicalRecordService.js) so client rejection matches server rejection.
   const RANGES: Record<string, { min: number; max: number; label: string }> = {
-    bloodPressureSystolic: { min: 60, max: 250, label: 'Huyết áp tâm thu' },
-    bloodPressureDiastolic: { min: 30, max: 180, label: 'Huyết áp tâm trương' },
-    pulse: { min: 20, max: 300, label: 'Nhịp tim' },
-    temperatureCelsius: { min: 30, max: 45, label: 'Nhiệt độ' },
-    oxygenSaturation: { min: 50, max: 100, label: 'SpO2' },
-    bloodSugar: { min: 20, max: 600, label: 'Đường huyết' },
+    bloodPressureSystolic: { min: 60, max: 260, label: t(`${NS}.bloodPressureSystolic`) },
+    bloodPressureDiastolic: { min: 30, max: 160, label: t(`${NS}.bloodPressureDiastolic`) },
+    pulse: { min: 30, max: 220, label: t(`${NS}.pulse`) },
+    temperatureCelsius: { min: 30, max: 45, label: t(`${NS}.temperature`) },
+    oxygenSaturation: { min: 0, max: 100, label: t(`${NS}.spo2`) },
+    bloodSugar: { min: 20, max: 800, label: t(`${NS}.bloodSugar`) },
   };
 
   const WARN: Record<string, { low?: number; high?: number }> = {
@@ -76,8 +89,8 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
       const w = WARN[k];
       const r = RANGES[k];
       if (!w || !r) return;
-      if (w.low && n < w.low) warnings.push(`${r.label}: ${n} thấp hơn bình thường (${w.low})`);
-      if (w.high && n > w.high) warnings.push(`${r.label}: ${n} cao hơn bình thường (${w.high})`);
+      if (w.low && n < w.low) warnings.push(t(`${NS}.warnLow`, { label: r.label, value: n, threshold: w.low }));
+      if (w.high && n > w.high) warnings.push(t(`${NS}.warnHigh`, { label: r.label, value: n, threshold: w.high }));
     });
     return warnings;
   };
@@ -93,13 +106,20 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
       const n = Number(v);
       const r = RANGES[k];
       if (r && (n < r.min || n > r.max)) {
-        errors.push(`${r.label}: phải từ ${r.min} đến ${r.max}`);
+        errors.push(t(`${NS}.warnOutOfRange`, { label: r.label, min: r.min, max: r.max }));
       } else {
         body[k] = n;
       }
     });
+    if (
+      body.bloodPressureSystolic !== undefined &&
+      body.bloodPressureDiastolic !== undefined &&
+      body.bloodPressureDiastolic >= body.bloodPressureSystolic
+    ) {
+      errors.push(t(`${NS}.warnDiastolicTooHigh`));
+    }
     if (errors.length > 0) { setFormError(errors.join('\n')); return; }
-    if (Object.keys(body).length === 0) { setFormError('Nhập ít nhất 1 chỉ số'); return; }
+    if (Object.keys(body).length === 0) { setFormError(t(`${NS}.warnMinOneField`)); return; }
     recordMutation.mutate(body);
   };
 
@@ -112,7 +132,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
     bloodSugar: { low: 50, high: 400 },
   };
 
-  const getVitalSeverity = (key: string, val: number | undefined): 'critical' | 'warning' | 'normal' => {
+  const getVitalSeverity = (key: string, val: number | undefined): Severity => {
     if (val == null) return 'normal';
     const c = CRITICAL[key];
     if (c) {
@@ -125,7 +145,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
     return 'normal';
   };
 
-  const SEV_COLORS = {
+  const SEV_COLORS: Record<Severity, { bg: string; text: string; value: string }> = {
     critical: { bg: '#FEE2E2', text: '#991B1B', value: '#DC2626' },
     warning:  { bg: '#FEF3C7', text: '#92400E', value: '#D97706' },
     normal:   { bg: '#D1FAE5', text: '#065F46', value: '#059669' },
@@ -136,12 +156,12 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
     const criticals: string[] = [];
     const warnings: string[] = [];
     const checks: { key: string; val: number | undefined; label: string }[] = [
-      { key: 'bloodPressureSystolic', val: latest.bloodPressureSystolic, label: 'Huyết áp tâm thu' },
-      { key: 'bloodPressureDiastolic', val: latest.bloodPressureDiastolic, label: 'Huyết áp tâm trương' },
-      { key: 'pulse', val: latest.pulse, label: 'Nhịp tim' },
-      { key: 'temperatureCelsius', val: latest.temperatureCelsius, label: 'Nhiệt độ' },
-      { key: 'oxygenSaturation', val: latest.oxygenSaturation, label: 'SpO2' },
-      { key: 'bloodSugar', val: latest.bloodSugar, label: 'Đường huyết' },
+      { key: 'bloodPressureSystolic', val: latest.bloodPressureSystolic, label: t(`${NS}.bloodPressureSystolic`) },
+      { key: 'bloodPressureDiastolic', val: latest.bloodPressureDiastolic, label: t(`${NS}.bloodPressureDiastolic`) },
+      { key: 'pulse', val: latest.pulse, label: t(`${NS}.pulse`) },
+      { key: 'temperatureCelsius', val: latest.temperatureCelsius, label: t(`${NS}.temperature`) },
+      { key: 'oxygenSaturation', val: latest.oxygenSaturation, label: t(`${NS}.spo2`) },
+      { key: 'bloodSugar', val: latest.bloodSugar, label: t(`${NS}.bloodSugar`) },
     ];
     for (const { key, val, label } of checks) {
       if (val == null) continue;
@@ -156,7 +176,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
 
   const alerts = getAlerts();
 
-  const getCardSeverity = (keys: { key: string; val: number | undefined }[]) => {
+  const getCardSeverity = (keys: { key: string; val: number | undefined }[]): Severity => {
     const sevs = keys.map(k => getVitalSeverity(k.key, k.val));
     if (sevs.includes('critical')) return 'critical';
     if (sevs.includes('warning')) return 'warning';
@@ -164,35 +184,35 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   };
 
   const vitalCards = latest ? [
-    { label: 'Huyết áp', value: `${latest.bloodPressureSystolic ?? '--'}/${latest.bloodPressureDiastolic ?? '--'}`, unit: 'mmHg',
+    { label: t(`${NS}.bloodPressure`), value: `${latest.bloodPressureSystolic ?? '--'}/${latest.bloodPressureDiastolic ?? '--'}`, unit: 'mmHg',
       severity: getCardSeverity([{ key: 'bloodPressureSystolic', val: latest.bloodPressureSystolic }, { key: 'bloodPressureDiastolic', val: latest.bloodPressureDiastolic }]) },
-    { label: 'Nhịp tim', value: latest.pulse ?? '--', unit: 'bpm',
+    { label: t(`${NS}.pulse`), value: latest.pulse ?? '--', unit: 'bpm',
       severity: getVitalSeverity('pulse', latest.pulse) },
-    { label: 'Nhiệt độ', value: latest.temperatureCelsius ?? '--', unit: '°C',
+    { label: t(`${NS}.temperature`), value: latest.temperatureCelsius ?? '--', unit: '°C',
       severity: getVitalSeverity('temperatureCelsius', latest.temperatureCelsius) },
-    { label: 'SpO2', value: latest.oxygenSaturation ?? '--', unit: '%',
+    { label: t(`${NS}.spo2`), value: latest.oxygenSaturation ?? '--', unit: '%',
       severity: getVitalSeverity('oxygenSaturation', latest.oxygenSaturation) },
-    { label: 'Đường huyết', value: latest.bloodSugar ?? '--', unit: 'mg/dL',
+    { label: t(`${NS}.bloodSugar`), value: latest.bloodSugar ?? '--', unit: 'mg/dL',
       severity: getVitalSeverity('bloodSugar', latest.bloodSugar) },
   ] : [];
 
   if (!selectedId) {
     return (
-      <View style={[styles.flex, { paddingTop: insets.top }]}>
-        <View style={styles.topBar}>
+      <View style={styles.flex}>
+        <View style={[styles.topBar, { paddingTop: insets.top }]}>
           <View style={styles.topRow}>
             <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} />
-            <Text style={styles.topTitle}>Sinh hiệu</Text>
+            <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
             <View style={{ width: 40 }} />
           </View>
         </View>
         <View style={{ padding: 12 }}>
-          <TextInput placeholder="Tìm cư dân..." mode="outlined" value={search}
+          <TextInput placeholder={t(`${NS}.searchPlaceholder`)} mode="outlined" value={search}
             onChangeText={setSearch} dense style={{ backgroundColor: '#fff', marginBottom: 8 }}
             left={<TextInput.Icon icon="magnify" />} />
         </View>
         <ScreenLayout loading={residentsQ.isLoading} error={residentsQ.error ? (residentsQ.error as Error).message : null}
-          onRetry={residentsQ.refetch} isEmpty={allResidents.length === 0} emptyMessage="Không tìm thấy cư dân">
+          onRetry={residentsQ.refetch} isEmpty={allResidents.length === 0} emptyMessage={t(`${NS}.empty`)}>
           <FlatList data={allResidents} keyExtractor={(i: any) => i._id} contentContainerStyle={{ padding: 16 }}
             refreshControl={<RefreshControl refreshing={false} onRefresh={residentsQ.refetch} tintColor={COLOR} />}
             renderItem={({ item }) => (
@@ -200,7 +220,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
                 <AvatarCircle name={item.fullName} size={40} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.residentName}>{item.fullName}</Text>
-                  <Text style={styles.residentCode}>{item.residentCode} · {item.roomId?.roomNumber ? `Phòng ${item.roomId.roomNumber}` : ''}</Text>
+                  <Text style={styles.residentCode}>{item.residentCode} · {(item.roomId?.roomNumber ?? item.area?.room?.roomNumber) ? t(`${NS}.room`, { room: item.roomId?.roomNumber ?? item.area?.room?.roomNumber }) : ''}</Text>
                 </View>
               </Pressable>
             )} />
@@ -212,13 +232,13 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   const refetch = () => { residentQ.refetch(); vitalsQ.refetch(); };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => setSelectedId(undefined)} />
           <View style={{ flex: 1 }}>
-            <Text style={styles.topTitle}>{resident?.fullName ?? 'Sinh hiệu'}</Text>
-            <Text style={styles.topSub}>{resident?.residentCode ?? ''} · {resident?.gender === 'male' ? 'Nam' : 'Nữ'}</Text>
+            <Text style={styles.topTitle}>{resident?.fullName ?? t(`${NS}.title`)}</Text>
+            <Text style={styles.topSub}>{resident?.residentCode ?? ''} · {resident?.gender === 'male' ? t(`${NS}.male`) : t(`${NS}.female`)}</Text>
           </View>
         </View>
       </View>
@@ -230,13 +250,13 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
           {alerts ? (
             <AlertBanner
               message={alerts.severity === 'critical'
-                ? `${alerts.messages.join(', ')} — cần theo dõi ngay`
-                : `${alerts.messages.join(', ')} — chỉ số bất thường`}
+                ? `${alerts.messages.join(', ')} — ${t(`${NS}.criticalSuffix`)}`
+                : `${alerts.messages.join(', ')} — ${t(`${NS}.warningSuffix`)}`}
               severity={alerts.severity}
             />
           ) : null}
 
-          <SectionHeader title="Chỉ số hiện tại" roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.currentVitals`)} roleColor={COLOR} />
           {vitalCards.length > 0 ? (
             <View style={styles.vitalsGrid}>
               {vitalCards.map((v, i) => {
@@ -253,30 +273,30 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
               })}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Chưa có dữ liệu sinh hiệu</Text>
+            <Text style={styles.emptyText}>{t(`${NS}.noVitalsData`)}</Text>
           )}
 
           {latest?.measuredAt && (
-            <Text style={styles.measuredAt}>Đo lúc: {new Date(latest.measuredAt).toLocaleString('vi-VN')}</Text>
+            <Text style={styles.measuredAt}>{t(`${NS}.measuredAt`, { time: new Date(latest.measuredAt).toLocaleString('vi-VN') })}</Text>
           )}
 
           <Button mode="contained" buttonColor={COLOR} style={styles.updateBtn} onPress={() => setShowForm(true)}>
-            Cập nhật sinh hiệu
+            {t(`${NS}.updateButton`)}
           </Button>
         </ScreenLayout>
       </ScrollView>
 
       <Portal>
         <Modal visible={showForm} onDismiss={() => setShowForm(false)} contentContainerStyle={styles.modal}>
-          <Text style={styles.modalTitle}>Nhập chỉ số sinh hiệu</Text>
+          <Text style={styles.modalTitle}>{t(`${NS}.modalTitle`)}</Text>
           <Text style={styles.modalSub}>{resident?.fullName ?? ''}</Text>
           {[
-            { key: 'bloodPressureSystolic', label: 'Huyết áp tâm thu (mmHg)' },
-            { key: 'bloodPressureDiastolic', label: 'Huyết áp tâm trương (mmHg)' },
-            { key: 'pulse', label: 'Nhịp tim (bpm)' },
-            { key: 'temperatureCelsius', label: 'Nhiệt độ (°C)' },
-            { key: 'oxygenSaturation', label: 'SpO2 (%)' },
-            { key: 'bloodSugar', label: 'Đường huyết (mg/dL)' },
+            { key: 'bloodPressureSystolic', label: t(`${NS}.bpSystolicUnit`) },
+            { key: 'bloodPressureDiastolic', label: t(`${NS}.bpDiastolicUnit`) },
+            { key: 'pulse', label: t(`${NS}.pulseUnit`) },
+            { key: 'temperatureCelsius', label: t(`${NS}.temperatureUnit`) },
+            { key: 'oxygenSaturation', label: t(`${NS}.spo2Unit`) },
+            { key: 'bloodSugar', label: t(`${NS}.bloodSugarUnit`) },
           ].map(({ key, label }) => {
             const v = (form as any)[key];
             const n = v ? Number(v) : null;
@@ -290,8 +310,8 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
                   value={v} onChangeText={(val) => { setForm((f) => ({ ...f, [key]: val })); setFormError(''); }}
                   style={styles.formInput} dense
                   error={!!isOutOfRange} />
-                {isOutOfRange && <Text style={styles.fieldError}>Phải từ {r.min} đến {r.max}</Text>}
-                {isAbnormal && <Text style={styles.fieldWarn}>⚠ Chỉ số bất thường</Text>}
+                {isOutOfRange && <Text style={styles.fieldError}>{t(`${NS}.rangeError`, { min: r.min, max: r.max })}</Text>}
+                {isAbnormal && <Text style={styles.fieldWarn}>{t(`${NS}.abnormalWarning`)}</Text>}
               </View>
             );
           })}
@@ -301,9 +321,9 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
             </View>
           ) : null}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
-            <Button mode="outlined" onPress={() => { setShowForm(false); setFormError(''); }} style={{ flex: 1 }}>Hủy</Button>
+            <Button mode="outlined" onPress={() => { setShowForm(false); setFormError(''); }} style={{ flex: 1 }}>{t('common.cancel')}</Button>
             <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit}
-              loading={recordMutation.isPending} style={{ flex: 1 }}>Lưu</Button>
+              loading={recordMutation.isPending} style={{ flex: 1 }}>{t('common.save')}</Button>
           </View>
         </Modal>
       </Portal>

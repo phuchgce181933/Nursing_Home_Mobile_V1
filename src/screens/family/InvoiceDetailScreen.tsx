@@ -4,6 +4,7 @@ import { Text, Card, Button, Dialog, Portal, IconButton } from 'react-native-pap
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -11,20 +12,7 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#2E7D32';
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: 'Nháp',
-  ISSUED: 'Chưa thanh toán',
-  PARTIALLY_PAID: 'Thanh toán một phần',
-  PAID: 'Đã thanh toán',
-  CANCELLED: 'Đã hủy',
-  issued: 'Chưa thanh toán',
-  paid: 'Đã thanh toán',
-  partially_paid: 'Thanh toán một phần',
-  overdue: 'Quá hạn',
-  draft: 'Nháp',
-  cancelled: 'Đã hủy',
-};
+const NS = 'family.invoiceDetail';
 
 const CostRow: React.FC<{ icon: string; label: string; amount: number; color?: string }> = ({ icon, label, amount, color }) => {
   if (!amount || amount <= 0) return null;
@@ -41,12 +29,27 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const invoice = route.params?.invoice;
   const residentId = route.params?.residentId;
 
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+
+  const STATUS_LABELS: Record<string, string> = {
+    DRAFT: t('status.draft'),
+    ISSUED: t(`${NS}.statusIssued`),
+    PARTIALLY_PAID: t(`${NS}.statusPartiallyPaid`),
+    PAID: t('status.completed'),
+    CANCELLED: t('status.cancelled'),
+    issued: t(`${NS}.statusIssued`),
+    paid: t('status.completed'),
+    partially_paid: t(`${NS}.statusPartiallyPaid`),
+    overdue: t('status.OVERDUE'),
+    draft: t('status.draft'),
+    cancelled: t('status.cancelled'),
+  };
 
   const walletPayMut = useMutation({
     mutationFn: async () => {
@@ -58,11 +61,15 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
       qc.invalidateQueries({ queryKey: ['familyWallet'] });
       setShowConfirm(false);
       setPaySuccess(true);
-      toast('Thanh toán thành công!', 'success');
+      toast(t(`${NS}.toastPaySuccess`), 'success');
     },
     onError: (e: any) => {
       setShowConfirm(false);
-      toast(e.response?.data?.message ?? 'Thanh toán thất bại', 'error');
+      if (e.response?.status === 400) {
+        toast(t(`${NS}.toastInsufficientBalance`), 'error');
+      } else {
+        toast(t(`${NS}.toastPayError`), 'error');
+      }
     },
   });
 
@@ -70,11 +77,11 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     setShowPayDialog(false);
     try {
       const res = await api.get(FAMILY.PAYMENT_URL(residentId, invoice._id));
-      const url = res.data?.checkoutUrl ?? res.data?.paymentUrl ?? res.data?.data?.checkoutUrl;
+      const url = res.data?.data?.paymentUrl ?? res.data?.checkoutUrl ?? res.data?.paymentUrl ?? res.data?.data?.checkoutUrl;
       if (url) await Linking.openURL(url);
-      else toast('Không nhận được URL thanh toán', 'error');
+      else toast(t(`${NS}.toastNoPaymentUrl`), 'error');
     } catch {
-      toast('Không thể tạo thanh toán. Thử lại.', 'error');
+      toast(t(`${NS}.toastPaymentCreateError`), 'error');
     }
   };
 
@@ -83,20 +90,20 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
   if (paySuccess) {
     return (
-      <View style={[styles.flex, { paddingTop: insets.top }]}>
-        <View style={styles.topBar}>
+      <View style={styles.flex}>
+        <View style={[styles.topBar, { paddingTop: insets.top }]}>
           <View style={styles.topRow}>
             <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-            <Text style={styles.topTitle}>Thanh toán</Text>
+            <Text style={styles.topTitle}>{t(`${NS}.paymentTitle`)}</Text>
             <View style={{ width: 40 }} />
           </View>
         </View>
         <View style={styles.successBox}>
           <MaterialCommunityIcons name="check-circle" size={64} color="#065F46" />
-          <Text style={styles.successText}>Thanh toán thành công!</Text>
+          <Text style={styles.successText}>{t(`${NS}.paySuccessText`)}</Text>
           <Text style={styles.successAmount}>{totalAmount.toLocaleString('vi-VN')} ₫</Text>
           <Button mode="contained" buttonColor={COLOR} onPress={() => navigation.goBack()} style={{ marginTop: 24, borderRadius: 8 }}>
-            Quay lại
+            {t(`${NS}.back`)}
           </Button>
         </View>
       </View>
@@ -104,11 +111,11 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   }
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Chi tiết hóa đơn</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -127,24 +134,24 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           </Card.Content>
         </Card>
 
-        <SectionHeader title="Thông tin" roleColor={COLOR} />
+        <SectionHeader title={t(`${NS}.infoTitle`)} roleColor={COLOR} />
         <Card style={styles.card} mode="outlined">
           <Card.Content>
             {invoice?.createdAt && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Ngày tạo</Text>
+                <Text style={styles.infoLabel}>{t(`${NS}.createdDate`)}</Text>
                 <Text style={styles.infoValue}>{new Date(invoice.createdAt).toLocaleDateString('vi-VN')}</Text>
               </View>
             )}
             {invoice?.dueDate && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Hạn thanh toán</Text>
+                <Text style={styles.infoLabel}>{t(`${NS}.dueDate`)}</Text>
                 <Text style={styles.infoValue}>{new Date(invoice.dueDate).toLocaleDateString('vi-VN')}</Text>
               </View>
             )}
             {(invoice?.periodStart || invoice?.billingPeriodStart) && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Kỳ thanh toán</Text>
+                <Text style={styles.infoLabel}>{t(`${NS}.billingPeriod`)}</Text>
                 <Text style={styles.infoValue}>
                   {new Date(invoice.periodStart ?? invoice.billingPeriodStart).toLocaleDateString('vi-VN')} — {new Date(invoice.periodEnd ?? invoice.billingPeriodEnd).toLocaleDateString('vi-VN')}
                 </Text>
@@ -152,26 +159,26 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             )}
             {invoice?.type && (
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Loại</Text>
+                <Text style={styles.infoLabel}>{t(`${NS}.typeLabel`)}</Text>
                 <Text style={styles.infoValue}>
-                  {invoice.type === 'SERVICE' ? 'Dịch vụ' : invoice.type === 'MEDICATION' ? 'Thuốc' : invoice.type === 'COMBINED' ? 'Tổng hợp' : invoice.type}
+                  {invoice.type === 'SERVICE' ? t(`${NS}.typeService`) : invoice.type === 'MEDICATION' ? t(`${NS}.typeMedication`) : invoice.type === 'COMBINED' ? t(`${NS}.typeCombined`) : invoice.type}
                 </Text>
               </View>
             )}
           </Card.Content>
         </Card>
 
-        <SectionHeader title="Chi tiết chi phí" roleColor={COLOR} />
+        <SectionHeader title={t(`${NS}.costBreakdownTitle`)} roleColor={COLOR} />
         <Card style={styles.card} mode="outlined">
           <Card.Content>
-            <CostRow icon="bed-outline" label="Phòng" amount={invoice?.roomCost} color="#1565C0" />
-            <CostRow icon="pill" label="Thuốc" amount={invoice?.medicationCost} color="#E65100" />
-            <CostRow icon="hand-heart-outline" label="Chăm sóc" amount={invoice?.careServiceCost} color="#2E7D32" />
-            <CostRow icon="dots-horizontal" label="Khác" amount={invoice?.otherCost} color="#6B7280" />
+            <CostRow icon="bed-outline" label={t(`${NS}.costRoom`)} amount={invoice?.roomCost} color="#1565C0" />
+            <CostRow icon="pill" label={t(`${NS}.costMedication`)} amount={invoice?.medicationCost} color="#E65100" />
+            <CostRow icon="hand-heart-outline" label={t(`${NS}.costCare`)} amount={invoice?.careServiceCost} color="#2E7D32" />
+            <CostRow icon="dots-horizontal" label={t(`${NS}.costOther`)} amount={invoice?.otherCost} color="#6B7280" />
             {(invoice?.roomCost > 0 || invoice?.medicationCost > 0 || invoice?.careServiceCost > 0 || invoice?.otherCost > 0) && (
               <View style={[styles.costRow, { borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8, marginTop: 4 }]}>
                 <MaterialCommunityIcons name="sigma" size={20} color={COLOR} />
-                <Text style={[styles.costLabel, { fontWeight: '700' }]}>Tổng cộng</Text>
+                <Text style={[styles.costLabel, { fontWeight: '700' }]}>{t(`${NS}.total`)}</Text>
                 <Text style={[styles.costAmount, { fontWeight: '700', color: COLOR }]}>{totalAmount.toLocaleString('vi-VN')} ₫</Text>
               </View>
             )}
@@ -180,12 +187,12 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
         {invoice?.items?.length > 0 && (
           <>
-            <SectionHeader title="Danh mục" roleColor={COLOR} />
+            <SectionHeader title={t(`${NS}.itemsTitle`)} roleColor={COLOR} />
             <Card style={styles.card} mode="outlined">
               <Card.Content>
                 {invoice.items.map((item: any, i: number) => (
                   <View key={i} style={styles.lineItem}>
-                    <Text style={styles.lineDesc} numberOfLines={2}>{item.description ?? `Mục ${i + 1}`}</Text>
+                    <Text style={styles.lineDesc} numberOfLines={2}>{item.description ?? t(`${NS}.defaultItem`, { index: i + 1 })}</Text>
                     <Text style={styles.lineAmount}>{(item.amount ?? 0).toLocaleString('vi-VN')} ₫</Text>
                   </View>
                 ))}
@@ -199,7 +206,7 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             <Button mode="contained" buttonColor={COLOR} icon="wallet-outline"
               style={styles.payBtn} contentStyle={{ height: 48 }}
               onPress={() => setShowPayDialog(true)}>
-              Thanh toán ngay
+              {t(`${NS}.payNow`)}
             </Button>
           </View>
         )}
@@ -207,36 +214,36 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
       <Portal>
         <Dialog visible={showPayDialog} onDismiss={() => setShowPayDialog(false)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>Chọn phương thức</Dialog.Title>
+          <Dialog.Title>{t(`${NS}.chooseMethodTitle`)}</Dialog.Title>
           <Dialog.Content>
             <Text style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
-              Số tiền: {totalAmount.toLocaleString('vi-VN')} ₫
+              {t(`${NS}.amountLabel`, { amount: totalAmount.toLocaleString('vi-VN') })}
             </Text>
             <Button mode="outlined" icon="wallet-outline" style={styles.methodBtn}
               onPress={() => { setShowPayDialog(false); setShowConfirm(true); }}>
-              Thanh toán bằng ví
+              {t(`${NS}.payWithWallet`)}
             </Button>
             <Button mode="outlined" icon="credit-card-outline" style={styles.methodBtn}
               onPress={handlePayOnline}>
-              Thanh toán online (PayOS)
+              {t(`${NS}.payOnline`)}
             </Button>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowPayDialog(false)}>Hủy</Button>
+            <Button onPress={() => setShowPayDialog(false)}>{t('common.cancel')}</Button>
           </Dialog.Actions>
         </Dialog>
 
         <Dialog visible={showConfirm} onDismiss={() => setShowConfirm(false)}>
-          <Dialog.Title>Xác nhận thanh toán</Dialog.Title>
+          <Dialog.Title>{t(`${NS}.confirmPayTitle`)}</Dialog.Title>
           <Dialog.Content>
             <Text style={{ fontSize: 14, color: '#374151' }}>
-              Bạn sẽ thanh toán {totalAmount.toLocaleString('vi-VN')} ₫ từ ví điện tử. Tiếp tục?
+              {t(`${NS}.confirmPayContent`, { amount: totalAmount.toLocaleString('vi-VN') })}
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowConfirm(false)}>Hủy</Button>
+            <Button onPress={() => setShowConfirm(false)}>{t('common.cancel')}</Button>
             <Button mode="contained" buttonColor={COLOR} onPress={() => walletPayMut.mutate()}
-              loading={walletPayMut.isPending}>Xác nhận</Button>
+              loading={walletPayMut.isPending}>{t('common.confirm')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

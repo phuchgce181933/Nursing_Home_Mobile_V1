@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, Button, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { IconButton } from 'react-native-paper';
+import { useTranslation } from 'react-i18next';
 import { useNoteHistory } from '../../hooks/useCareNotes';
 import { useResidents } from '../../hooks/useResidents';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -10,21 +11,24 @@ import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 
 const COLOR = '#0F5040';
-const TYPE_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'meal', label: 'Bữa ăn' },
-  { value: 'activity', label: 'Hoạt động' },
-  { value: 'daily_living', label: 'Sinh hoạt' },
-  { value: 'health', label: 'Sức khỏe' },
-  { value: 'general', label: 'Chung' },
-];
+const NS = 'nurse.careNotes';
 
 export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [selectedResidentId, setSelectedResidentId] = useState('');
   const [filter, setFilter] = useState('');
   const [showPicker, setShowPicker] = useState(false);
   const [searchResident, setSearchResident] = useState('');
+
+  const TYPE_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'meal', label: t(`${NS}.typeMeal`) },
+    { value: 'activity', label: t(`${NS}.typeActivity`) },
+    { value: 'daily_living', label: t(`${NS}.typeDailyLiving`) },
+    { value: 'health', label: t(`${NS}.typeHealth`) },
+    { value: 'general', label: t(`${NS}.typeGeneral`) },
+  ];
 
   const residentsQ = useResidents({ status: 'admitted' });
   const residents = Array.isArray(residentsQ.data) ? residentsQ.data : (residentsQ.data?.data ?? []);
@@ -38,17 +42,17 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
     : residents.slice(0, 20);
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Lịch sử ghi chú</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.historyTitle`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.label}>Chọn cư dân</Text>
+        <Text style={styles.label}>{t(`${NS}.selectResident`)}</Text>
         {selectedResident ? (
           <Card style={styles.residentCard} mode="outlined" onPress={() => setShowPicker(!showPicker)}>
             <Card.Content style={styles.residentRow}>
@@ -57,19 +61,19 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
                 <Text style={styles.residentName}>{selectedResident.fullName}</Text>
                 <Text style={styles.residentCode}>{selectedResident.residentCode}</Text>
               </View>
-              <Button compact mode="text" textColor={COLOR} onPress={() => { setSelectedResidentId(''); setShowPicker(true); }}>Đổi</Button>
+              <Button compact mode="text" textColor={COLOR} onPress={() => { setSelectedResidentId(''); setShowPicker(true); }}>{t(`${NS}.change`)}</Button>
             </Card.Content>
           </Card>
         ) : (
           <Button mode="outlined" onPress={() => setShowPicker(!showPicker)} style={styles.selectBtn}>
-            Chọn cư dân để xem lịch sử
+            {t(`${NS}.historySelectResident`)}
           </Button>
         )}
 
         {showPicker && (
           <Card style={styles.pickerCard}>
             <Card.Content>
-              <TextInput placeholder="Tìm cư dân..." mode="outlined" value={searchResident}
+              <TextInput placeholder={t(`${NS}.searchResidentPlaceholder`)} mode="outlined" value={searchResident}
                 onChangeText={setSearchResident} dense style={{ marginBottom: 8 }} />
               {filteredResidents.map((r: any) => (
                 <Button key={r._id} mode="text" compact
@@ -94,7 +98,7 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
           </View>
 
           <ScreenLayout loading={historyQ.isLoading} error={historyQ.error ? (historyQ.error as Error).message : null}
-            onRetry={historyQ.refetch} isEmpty={items.length === 0} emptyMessage="Chưa có ghi chú cho cư dân này">
+            onRetry={historyQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.historyEmpty`)}>
             <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={false} onRefresh={historyQ.refetch} tintColor={COLOR} />}
               renderItem={({ item }) => (
@@ -107,7 +111,7 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
                     </View>
                     <Text style={styles.content} numberOfLines={3}>{item.content}</Text>
                     <Text style={styles.author}>
-                      {item.authorStaffId?.userId?.fullName ?? 'Nhân viên'}
+                      {item.authorStaffId?.userId?.fullName ?? t(`${NS}.staffDefault`)}
                     </Text>
                   </Card.Content>
                 </Card>

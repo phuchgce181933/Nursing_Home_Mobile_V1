@@ -8,7 +8,10 @@
     "scheme": "nursinghomemobile",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["momo", "zalopay", "vnpay"]
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -34,10 +37,26 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-font",
+      "expo-web-browser",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Cho phép ứng dụng truy cập thư viện ảnh để lưu mã QR nạp tiền.",
+          "savePhotosPermission": "Cho phép ứng dụng lưu mã QR nạp tiền vào thư viện ảnh.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Cho phép ứng dụng truy cập thư viện ảnh để chọn ảnh đại diện."
+        }
+      ]
     ],
     "experiments": {
-      "reactCompiler": true
+      "reactCompiler": false
     }
   }
 }

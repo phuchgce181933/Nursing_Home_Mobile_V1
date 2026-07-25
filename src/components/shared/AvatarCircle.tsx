@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 
 type Props = {
   name: string;
   size?: number;
   colorSeed?: string;
+  uri?: string | null;
 };
 
 const COLORS = ['#1B3A6B', '#0F5040', '#6B4200', '#7C3AED', '#B45309', '#0369A1'];
@@ -24,11 +25,20 @@ const getInitials = (name: string): string => {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
-export const AvatarCircle: React.FC<Props> = ({ name, size = 40, colorSeed }) => {
+export const AvatarCircle: React.FC<Props> = ({ name, size = 40, colorSeed, uri }) => {
   const seed = colorSeed ?? name;
   const bg = COLORS[hashCode(seed) % COLORS.length];
   const initials = getInitials(name);
   const fontSize = size * 0.38;
+
+  if (uri) {
+    return (
+      <Image
+        source={{ uri }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    );
+  }
 
   return (
     <View style={[styles.circle, { width: size, height: size, borderRadius: size / 2, backgroundColor: bg }]}>

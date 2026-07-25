@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, Dialog, Portal, Button, TextInput, IconButton, FAB } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { CARE_NOTES } from '../../api/endpoints';
 import { useDeleteCareNote } from '../../hooks/useCareNotes';
@@ -11,17 +12,27 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#0F5040';
-const TYPE_FILTERS = [{ value: '', label: 'Tất cả' }, { value: 'meal', label: 'Bữa ăn' }, { value: 'activity', label: 'Hoạt động' }, { value: 'daily_living', label: 'Sinh hoạt' }, { value: 'health', label: 'Sức khỏe' }, { value: 'general', label: 'Chung' }];
+const NS = 'nurse.careNotes';
 
 export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [search, setSearch] = useState('');
   const [searchDebounced, setSearchDebounced] = useState('');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const debounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const TYPE_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'meal', label: t(`${NS}.typeMeal`) },
+    { value: 'activity', label: t(`${NS}.typeActivity`) },
+    { value: 'daily_living', label: t(`${NS}.typeDailyLiving`) },
+    { value: 'health', label: t(`${NS}.typeHealth`) },
+    { value: 'general', label: t(`${NS}.typeGeneral`) },
+  ];
 
   const handleSearch = useCallback((text: string) => {
     setSearch(text);
@@ -40,22 +51,22 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
   const handleDelete = () => {
     if (!deleteId) return;
     deleteMut.mutate(deleteId, {
-      onSuccess: () => { setDeleteId(null); toast('Đã xóa ghi chú', 'success'); },
-      onError: () => toast('Không thể xóa', 'error'),
+      onSuccess: () => { setDeleteId(null); toast(t(`${NS}.toastDeleted`), 'success'); },
+      onError: () => toast(t(`${NS}.toastDeleteError`), 'error'),
     });
   };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <View style={styles.topBarRow}>
-          <Text style={styles.topTitle}>Ghi chú của tôi</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.listTitle`)}</Text>
           <IconButton icon="history" iconColor="#fff" size={22} onPress={() => navigation.navigate('NoteHistory')} />
         </View>
       </View>
 
       <View style={styles.searchRow}>
-        <TextInput placeholder="Tìm kiếm ghi chú..." mode="outlined" value={search}
+        <TextInput placeholder={t(`${NS}.searchPlaceholder`)} mode="outlined" value={search}
           onChangeText={handleSearch} dense style={styles.searchInput}
           left={<TextInput.Icon icon="magnify" />}
           right={search ? <TextInput.Icon icon="close" onPress={() => handleSearch('')} /> : undefined}
@@ -66,7 +77,7 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
         {TYPE_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: COLOR } : undefined} textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>)}
       </View>
 
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage="Chưa có ghi chú nào">
+      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined"
@@ -88,11 +99,11 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
 
       <Portal>
         <Dialog visible={!!deleteId} onDismiss={() => setDeleteId(null)}>
-          <Dialog.Title>Xóa ghi chú này?</Dialog.Title>
-          <Dialog.Content><Text>Hành động không thể hoàn tác.</Text></Dialog.Content>
+          <Dialog.Title>{t(`${NS}.deleteConfirmTitle`)}</Dialog.Title>
+          <Dialog.Content><Text>{t(`${NS}.deleteConfirmContent`)}</Text></Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setDeleteId(null)}>Hủy</Button>
-            <Button mode="contained" buttonColor="#991B1B" onPress={handleDelete} loading={deleteMut.isPending}>Xóa</Button>
+            <Button onPress={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+            <Button mode="contained" buttonColor="#991B1B" onPress={handleDelete} loading={deleteMut.isPending}>{t('common.delete')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

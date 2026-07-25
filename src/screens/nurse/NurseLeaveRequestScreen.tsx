@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, Button, FAB, Dialog, Portal, TextInput, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
 import { useLeaveRequests, useCreateLeaveRequest, useCancelLeaveRequest } from '../../hooks/useLeaveRequests';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
@@ -9,19 +10,7 @@ import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#0F5040';
-const STATUS_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'pending', label: 'Chờ duyệt' },
-  { value: 'approved', label: 'Đã duyệt' },
-  { value: 'rejected', label: 'Từ chối' },
-];
-const LEAVE_TYPES = [
-  { value: 'annual', label: 'Phép năm' },
-  { value: 'sick', label: 'Nghỉ bệnh' },
-  { value: 'emergency', label: 'Khẩn cấp' },
-  { value: 'unpaid', label: 'Không lương' },
-  { value: 'other', label: 'Khác' },
-];
+const NS = 'nurse.leaveRequests';
 
 const toDateStr = (d: Date) => d.toISOString().split('T')[0];
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d; };
@@ -30,10 +19,25 @@ const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.get
 export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [cancelId, setCancelId] = useState<string | null>(null);
   const [form, setForm] = useState({ type: 'annual', startDate: toDateStr(tomorrow()), endDate: toDateStr(addDays(tomorrow(), 1)), reason: '' });
+
+  const STATUS_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'pending', label: t(`${NS}.filterPending`) },
+    { value: 'approved', label: t(`${NS}.filterApproved`) },
+    { value: 'rejected', label: t(`${NS}.filterRejected`) },
+  ];
+  const LEAVE_TYPES = [
+    { value: 'annual', label: t(`${NS}.typeAnnual`) },
+    { value: 'sick', label: t(`${NS}.typeSick`) },
+    { value: 'emergency', label: t(`${NS}.typeEmergency`) },
+    { value: 'unpaid', label: t(`${NS}.typeUnpaid`) },
+    { value: 'other', label: t(`${NS}.typeOther`) },
+  ];
 
   const listQ = useLeaveRequests({ status: filter || undefined });
   const items = listQ.data?.data ?? listQ.data ?? [];
@@ -41,19 +45,19 @@ export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigat
   const cancelMut = useCancelLeaveRequest();
 
   const handleCreate = () => {
-    if (!form.startDate || !form.endDate) { toast('Vui lòng chọn ngày', 'warning'); return; }
-    if (!form.reason.trim()) { toast('Vui lòng nhập lý do', 'warning'); return; }
+    if (!form.startDate || !form.endDate) { toast(t(`${NS}.warnSelectDates`), 'warning'); return; }
+    if (!form.reason.trim()) { toast(t(`${NS}.warnReason`), 'warning'); return; }
     createMut.mutate(form, {
-      onSuccess: () => { setShowCreate(false); setForm({ type: 'annual', startDate: toDateStr(tomorrow()), endDate: toDateStr(addDays(tomorrow(), 1)), reason: '' }); toast('Đã gửi yêu cầu nghỉ phép', 'success'); },
-      onError: (e: any) => toast(e.response?.data?.message ?? 'Không thể gửi', 'error'),
+      onSuccess: () => { setShowCreate(false); setForm({ type: 'annual', startDate: toDateStr(tomorrow()), endDate: toDateStr(addDays(tomorrow(), 1)), reason: '' }); toast(t(`${NS}.toastSubmitted`), 'success'); },
+      onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastSubmitError`), 'error'),
     });
   };
 
   const handleCancel = () => {
     if (!cancelId) return;
     cancelMut.mutate(cancelId, {
-      onSuccess: () => { setCancelId(null); toast('Đã hủy yêu cầu', 'success'); },
-      onError: () => toast('Không thể hủy', 'error'),
+      onSuccess: () => { setCancelId(null); toast(t(`${NS}.toastCancelled`), 'success'); },
+      onError: () => toast(t(`${NS}.toastCancelError`), 'error'),
     });
   };
 
@@ -62,11 +66,11 @@ export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigat
     : 0;
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Nghỉ phép</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -80,7 +84,7 @@ export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigat
       </View>
 
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
-        onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage="Chưa có yêu cầu nghỉ phép">
+        onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
@@ -88,18 +92,18 @@ export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigat
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.type}>{LEAVE_TYPES.find(t => t.value === item.type)?.label ?? item.type}</Text>
+                    <Text style={styles.type}>{LEAVE_TYPES.find(lt => lt.value === item.type)?.label ?? item.type}</Text>
                     <Text style={styles.dates}>
                       {item.startDate ? new Date(item.startDate).toLocaleDateString('vi-VN') : ''} — {item.endDate ? new Date(item.endDate).toLocaleDateString('vi-VN') : ''}
                     </Text>
-                    {item.daysRequested ? <Text style={styles.daysCount}>{item.daysRequested} ngày</Text> : null}
+                    {item.daysRequested ? <Text style={styles.daysCount}>{t(`${NS}.daysCount`, { count: item.daysRequested })}</Text> : null}
                     <Text style={styles.reason} numberOfLines={2}>{item.reason}</Text>
                   </View>
                   <StatusBadge status={item.status} size="sm" />
                 </View>
               </Card.Content>
               {item.status === 'pending' ? (
-                <Card.Actions><Button compact textColor="#991B1B" onPress={() => setCancelId(item._id)}>Hủy</Button></Card.Actions>
+                <Card.Actions><Button compact textColor="#991B1B" onPress={() => setCancelId(item._id)}>{t(`${NS}.cancel`)}</Button></Card.Actions>
               ) : null}
             </Card>
           )} />
@@ -108,24 +112,24 @@ export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigat
 
       <Portal>
         <Dialog visible={showCreate} onDismiss={() => setShowCreate(false)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>Gửi yêu cầu nghỉ phép</Dialog.Title>
+          <Dialog.Title>{t(`${NS}.createTitle`)}</Dialog.Title>
           <Dialog.ScrollArea style={{ maxHeight: 480 }}>
-            <Text style={styles.fieldLabel}>Loại nghỉ phép</Text>
+            <Text style={styles.fieldLabel}>{t(`${NS}.typeLabel`)}</Text>
             <View style={styles.chipRow2}>
-              {LEAVE_TYPES.map(t => (
-                <Chip key={t.value} selected={form.type === t.value}
-                  onPress={() => setForm(f => ({ ...f, type: t.value }))}
-                  style={form.type === t.value ? { backgroundColor: COLOR } : undefined}
-                  textStyle={form.type === t.value ? { color: '#fff' } : undefined} compact>{t.label}</Chip>
+              {LEAVE_TYPES.map(lt => (
+                <Chip key={lt.value} selected={form.type === lt.value}
+                  onPress={() => setForm(f => ({ ...f, type: lt.value }))}
+                  style={form.type === lt.value ? { backgroundColor: COLOR } : undefined}
+                  textStyle={form.type === lt.value ? { color: '#fff' } : undefined} compact>{lt.label}</Chip>
               ))}
             </View>
 
-            <CalendarPicker label="Ngày bắt đầu" value={form.startDate}
+            <CalendarPicker label={t(`${NS}.startDate`)} value={form.startDate}
               onChange={v => setForm(f => ({ ...f, startDate: v, endDate: v > f.endDate ? v : f.endDate }))}
               minDate={form.type === 'emergency' ? toDateStr(new Date()) : toDateStr(tomorrow())}
               color={COLOR} />
 
-            <CalendarPicker label="Ngày kết thúc" value={form.endDate}
+            <CalendarPicker label={t(`${NS}.endDate`)} value={form.endDate}
               onChange={v => setForm(f => ({ ...f, endDate: v }))}
               minDate={form.startDate || toDateStr(tomorrow())}
               color={COLOR} />
@@ -133,26 +137,26 @@ export const NurseLeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigat
             {daysCount > 0 && (
               <View style={styles.daysPreview}>
                 <Text style={[styles.daysPreviewText, { color: COLOR }]}>
-                  {daysCount} ngày nghỉ
+                  {t(`${NS}.daysPreview`, { count: daysCount })}
                 </Text>
               </View>
             )}
 
-            <TextInput label="Lý do *" mode="outlined" value={form.reason}
+            <TextInput label={t(`${NS}.reasonLabel`)} mode="outlined" value={form.reason}
               onChangeText={v => setForm(f => ({ ...f, reason: v }))} dense multiline
               numberOfLines={3} style={styles.input} />
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setShowCreate(false)}>Hủy</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleCreate} loading={createMut.isPending}>Gửi</Button>
+            <Button onPress={() => setShowCreate(false)}>{t('common.cancel')}</Button>
+            <Button mode="contained" buttonColor={COLOR} onPress={handleCreate} loading={createMut.isPending}>{t(`${NS}.submit`)}</Button>
           </Dialog.Actions>
         </Dialog>
 
         <Dialog visible={!!cancelId} onDismiss={() => setCancelId(null)}>
-          <Dialog.Title>Hủy yêu cầu nghỉ phép?</Dialog.Title>
+          <Dialog.Title>{t(`${NS}.cancelConfirmTitle`)}</Dialog.Title>
           <Dialog.Actions>
-            <Button onPress={() => setCancelId(null)}>Đóng</Button>
-            <Button mode="contained" buttonColor="#991B1B" onPress={handleCancel} loading={cancelMut.isPending}>Hủy yêu cầu</Button>
+            <Button onPress={() => setCancelId(null)}>{t('common.close')}</Button>
+            <Button mode="contained" buttonColor="#991B1B" onPress={handleCancel} loading={cancelMut.isPending}>{t(`${NS}.cancelConfirmButton`)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

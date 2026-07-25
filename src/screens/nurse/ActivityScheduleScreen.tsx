@@ -1,38 +1,107 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, IconButton, Dialog, Portal, Button } from 'react-native-paper';
+import { Text, Card, Chip, IconButton, Dialog, Portal, Button, TextInput } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useActivities, useActivityDetail } from '../../hooks/useActivities';
+import { useTranslation } from 'react-i18next';
+import { useActivities, useActivityDetail, useRecordActivityParticipation } from '../../hooks/useActivities';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { useToast } from '../../utils/toast';
 
 const COLOR = '#0F5040';
-const STATUS_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'scheduled', label: 'Lên lịch' },
-  { value: 'ongoing', label: 'Đang diễn ra' },
-  { value: 'completed', label: 'Hoàn thành' },
-  { value: 'cancelled', label: 'Đã hủy' },
-];
+const NS = 'nurse.activities';
+
+type AttendanceState = { status: string; note: string };
+type ParticipationState = { participationLevel: string; comment: string; incident: string };
 
 export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [attendance, setAttendance] = useState<Record<string, AttendanceState>>({});
+  const [participation, setParticipation] = useState<Record<string, ParticipationState>>({});
+  const [overallNotes, setOverallNotes] = useState('');
+
+  const STATUS_FILTERS = [
+    { value: '', label: t('common.all') },
+    { value: 'scheduled', label: t(`${NS}.filterScheduled`) },
+    { value: 'ongoing', label: t(`${NS}.filterOngoing`) },
+    { value: 'completed', label: t(`${NS}.filterCompleted`) },
+    { value: 'cancelled', label: t(`${NS}.filterCancelled`) },
+  ];
+
+  const ATTENDANCE_OPTIONS = [
+    { value: 'present', label: t('status.present') },
+    { value: 'absent', label: t('status.absent') },
+    { value: 'late', label: t('status.late') },
+    { value: 'left_early', label: t('status.left_early') },
+  ];
+
+  const PARTICIPATION_OPTIONS = [
+    { value: 'active', label: t('status.active') },
+    { value: 'partial', label: t('status.partial') },
+    { value: 'passive', label: t('status.passive') },
+  ];
 
   const activitiesQ = useActivities({ status: filter || undefined });
   const items = activitiesQ.data?.data ?? activitiesQ.data ?? [];
 
   const detailQ = useActivityDetail(selectedId ?? undefined);
   const detail = detailQ.data?.data ?? detailQ.data;
+  const recordMut = useRecordActivityParticipation();
+
+  useEffect(() => {
+    if (!detail) return;
+    const nextAttendance: Record<string, AttendanceState> = {};
+    const nextParticipation: Record<string, ParticipationState> = {};
+    (detail.participants ?? []).forEach((p: any) => {
+      const rid = p.residentId?._id ?? p.residentId ?? p._id;
+      if (!rid) return;
+      const existingAttendance = (detail.attendanceRecords ?? []).find((a: any) => (a.residentId?._id ?? a.residentId) === rid);
+      const existingParticipation = (detail.participationRecords ?? []).find((a: any) => (a.residentId?._id ?? a.residentId) === rid);
+      nextAttendance[rid] = { status: existingAttendance?.status ?? 'present', note: existingAttendance?.note ?? '' };
+      nextParticipation[rid] = {
+        participationLevel: existingParticipation?.participationLevel ?? 'active',
+        comment: existingParticipation?.comment ?? '',
+        incident: existingParticipation?.incident ?? '',
+      };
+    });
+    setAttendance(nextAttendance);
+    setParticipation(nextParticipation);
+    setOverallNotes(detail.participantResultNotes ?? '');
+  }, [detail?._id]);
+
+  const now = new Date();
+  const activityStatus = String(detail?.status ?? '').toLowerCase();
+  const startAt = detail?.startAt ? new Date(detail.startAt) : detail?.scheduledAt ? new Date(detail.scheduledAt) : null;
+  const endAt = detail?.endAt ? new Date(detail.endAt) : null;
+  const canRecord = !!detail && !['draft', 'cancelled', 'completed'].includes(activityStatus)
+    && !!startAt && !!endAt && now >= startAt && now <= endAt;
+
+  const handleSaveAttendance = () => {
+    if (!selectedId) return;
+    recordMut.mutate({
+      id: selectedId,
+      participantResultNotes: overallNotes || undefined,
+      attendanceRecords: Object.entries(attendance).map(([residentId, v]) => ({ residentId, status: v.status, note: v.note || undefined })),
+      participationRecords: Object.entries(participation).map(([residentId, v]) => ({
+        residentId, participationLevel: v.participationLevel, comment: v.comment || undefined, incident: v.incident || undefined,
+      })),
+    }, {
+      onSuccess: () => toast(t(`${NS}.toastAttendanceSaved`), 'success'),
+      onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastAttendanceError`), 'error'),
+    });
+  };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Hoạt động</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -46,7 +115,7 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
       </View>
 
       <ScreenLayout loading={activitiesQ.isLoading} error={activitiesQ.error ? (activitiesQ.error as Error).message : null}
-        onRetry={activitiesQ.refetch} isEmpty={items.length === 0} emptyMessage="Không có hoạt động nào">
+        onRetry={activitiesQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.title`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={activitiesQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
@@ -71,13 +140,13 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
                     {item.durationMinutes ? (
                       <View style={styles.infoRow}>
                         <MaterialCommunityIcons name="timer-outline" size={14} color="#6B7280" />
-                        <Text style={styles.info}>{item.durationMinutes} phút</Text>
+                        <Text style={styles.info}>{item.durationMinutes} {t(`${NS}.minutes`)}</Text>
                       </View>
                     ) : null}
                     {item.participants?.length > 0 && (
                       <View style={styles.infoRow}>
                         <MaterialCommunityIcons name="account-group-outline" size={14} color="#6B7280" />
-                        <Text style={styles.info}>{item.participants.length} người tham gia</Text>
+                        <Text style={styles.info}>{t(`${NS}.participants`, { count: item.participants.length })}</Text>
                       </View>
                     )}
                   </View>
@@ -90,27 +159,72 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
 
       <Portal>
         <Dialog visible={!!selectedId} onDismiss={() => setSelectedId(null)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>{detail?.title ?? 'Chi tiết hoạt động'}</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 400 }}>
+          <Dialog.Title>{detail?.title ?? t(`${NS}.detailTitle`)}</Dialog.Title>
+          <Dialog.ScrollArea style={{ maxHeight: 520 }}>
             {detail ? (
               <View style={{ padding: 4 }}>
-                {detail.category ? <Text style={styles.detailLabel}>Danh mục: <Text style={styles.detailValue}>{detail.category}</Text></Text> : null}
-                {detail.scheduledAt ? <Text style={styles.detailLabel}>Thời gian: <Text style={styles.detailValue}>{new Date(detail.scheduledAt).toLocaleString('vi-VN')}</Text></Text> : null}
-                {detail.location ? <Text style={styles.detailLabel}>Địa điểm: <Text style={styles.detailValue}>{detail.location}</Text></Text> : null}
-                {detail.durationMinutes ? <Text style={styles.detailLabel}>Thời lượng: <Text style={styles.detailValue}>{detail.durationMinutes} phút</Text></Text> : null}
-                {detail.description ? <Text style={[styles.detailLabel, { marginTop: 8 }]}>Mô tả:{'\n'}<Text style={styles.detailValue}>{detail.description}</Text></Text> : null}
+                {detail.category ? <Text style={styles.detailLabel}>{t(`${NS}.category`)}: <Text style={styles.detailValue}>{detail.category}</Text></Text> : null}
+                {detail.scheduledAt ? <Text style={styles.detailLabel}>{t(`${NS}.time`)}: <Text style={styles.detailValue}>{new Date(detail.scheduledAt).toLocaleString('vi-VN')}</Text></Text> : null}
+                {detail.location ? <Text style={styles.detailLabel}>{t(`${NS}.location`)}: <Text style={styles.detailValue}>{detail.location}</Text></Text> : null}
+                {detail.durationMinutes ? <Text style={styles.detailLabel}>{t(`${NS}.duration`)}: <Text style={styles.detailValue}>{detail.durationMinutes} {t(`${NS}.minutes`)}</Text></Text> : null}
+                {detail.description ? <Text style={[styles.detailLabel, { marginTop: 8 }]}>{t(`${NS}.description`)}:{'\n'}<Text style={styles.detailValue}>{detail.description}</Text></Text> : null}
+
                 {detail.participants?.length > 0 && (
                   <>
-                    <Text style={[styles.detailLabel, { marginTop: 8 }]}>Người tham gia ({detail.participants.length}):</Text>
-                    {detail.participants.slice(0, 10).map((p: any, i: number) => (
-                      <Text key={i} style={styles.participant}>• {p.residentId?.fullName ?? p.fullName ?? `Cư dân ${i + 1}`}</Text>
-                    ))}
+                    <Text style={[styles.detailLabel, { marginTop: 12, fontWeight: '700' }]}>{t(`${NS}.attendanceTitle`, { count: detail.participants.length })}</Text>
+                    {!canRecord ? (
+                      <Text style={styles.warning}>{t(`${NS}.attendanceLocked`)}</Text>
+                    ) : null}
+                    {detail.participants.map((p: any, i: number) => {
+                      const rid = p.residentId?._id ?? p.residentId ?? p._id;
+                      const name = p.residentId?.fullName ?? p.fullName ?? `${i + 1}`;
+                      const att = attendance[rid] ?? { status: 'present', note: '' };
+                      const part = participation[rid] ?? { participationLevel: 'active', comment: '', incident: '' };
+                      return (
+                        <Card key={rid ?? i} style={styles.participantCard} mode="outlined">
+                          <Card.Content>
+                            <Text style={styles.participantName}>{name}</Text>
+                            <View style={styles.chipRow}>
+                              {ATTENDANCE_OPTIONS.map(o => (
+                                <Chip key={o.value} compact selected={att.status === o.value} disabled={!canRecord}
+                                  onPress={() => setAttendance(prev => ({ ...prev, [rid]: { ...att, status: o.value } }))}
+                                  style={att.status === o.value ? { backgroundColor: COLOR } : undefined}
+                                  textStyle={att.status === o.value ? { color: '#fff' } : undefined}>{o.label}</Chip>
+                              ))}
+                            </View>
+                            <View style={styles.chipRow}>
+                              {PARTICIPATION_OPTIONS.map(o => (
+                                <Chip key={o.value} compact selected={part.participationLevel === o.value} disabled={!canRecord}
+                                  onPress={() => setParticipation(prev => ({ ...prev, [rid]: { ...part, participationLevel: o.value } }))}
+                                  style={part.participationLevel === o.value ? { backgroundColor: COLOR } : undefined}
+                                  textStyle={part.participationLevel === o.value ? { color: '#fff' } : undefined}>{o.label}</Chip>
+                              ))}
+                            </View>
+                            <TextInput mode="outlined" label={t(`${NS}.comment`)} dense value={part.comment} disabled={!canRecord}
+                              onChangeText={v => setParticipation(prev => ({ ...prev, [rid]: { ...part, comment: v } }))}
+                              style={styles.smallInput} />
+                            <TextInput mode="outlined" label={t(`${NS}.incident`)} dense value={part.incident} disabled={!canRecord}
+                              onChangeText={v => setParticipation(prev => ({ ...prev, [rid]: { ...part, incident: v } }))}
+                              style={styles.smallInput} />
+                          </Card.Content>
+                        </Card>
+                      );
+                    })}
+
+                    <TextInput mode="outlined" label={t(`${NS}.overallComment`)} multiline dense value={overallNotes} disabled={!canRecord}
+                      onChangeText={setOverallNotes} style={[styles.smallInput, { marginTop: 8 }]} />
                   </>
                 )}
               </View>
-            ) : <Text style={{ color: '#9CA3AF' }}>Đang tải...</Text>}
+            ) : <Text style={{ color: '#9CA3AF' }}>{t('common.loading')}</Text>}
           </Dialog.ScrollArea>
-          <Dialog.Actions><Button onPress={() => setSelectedId(null)}>Đóng</Button></Dialog.Actions>
+          <Dialog.Actions>
+            <Button onPress={() => setSelectedId(null)}>{t('common.close')}</Button>
+            {detail?.participants?.length > 0 ? (
+              <Button mode="contained" buttonColor={COLOR} disabled={!canRecord} loading={recordMut.isPending}
+                onPress={handleSaveAttendance}>{t(`${NS}.saveAttendance`)}</Button>
+            ) : null}
+          </Dialog.Actions>
         </Dialog>
       </Portal>
     </View>
@@ -132,5 +246,9 @@ const styles = StyleSheet.create({
   info: { fontSize: 12, color: '#6B7280' },
   detailLabel: { fontSize: 13, fontWeight: '500', color: '#6B7280', marginBottom: 4 },
   detailValue: { fontWeight: '400', color: '#111827' },
-  participant: { fontSize: 12, color: '#374151', marginLeft: 8 },
+  warning: { fontSize: 12, color: '#991B1B', marginTop: 4, marginBottom: 8, fontStyle: 'italic' },
+  participantCard: { marginTop: 8, borderRadius: 10 },
+  participantName: { fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 6 },
+  chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
+  smallInput: { marginBottom: 6, backgroundColor: '#fff' },
 });

@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axiosInstance';
 import { ACTIVITIES } from '../api/endpoints';
 
@@ -20,5 +20,19 @@ export const useActivityDetail = (id?: string) => {
       return res.data;
     },
     enabled: !!id,
+  });
+};
+
+export const useRecordActivityParticipation = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...body }: { id: string; [key: string]: any }) => {
+      const res = await api.post(ACTIVITIES.RECORD_RESULT(id), body);
+      return res.data;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ['activityDetail', variables.id] });
+      qc.invalidateQueries({ queryKey: ['activities'] });
+    },
   });
 };

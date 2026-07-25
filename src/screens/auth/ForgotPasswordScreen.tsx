@@ -1,0 +1,138 @@
+import React, { useState } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import { Text, TextInput, Button, IconButton } from 'react-native-paper';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTranslation } from 'react-i18next';
+import api from '../../api/axiosInstance';
+import { AUTH } from '../../api/endpoints';
+
+const COLOR = '#1B3A6B';
+const NS = 'forgotPassword';
+
+export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
+  const [email, setEmail] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!email.trim()) {
+      setError(t(`${NS}.warnEmailRequired`));
+      return;
+    }
+    setError('');
+    setLoading(true);
+    try {
+      await api.post(AUTH.FORGOT_PASSWORD, { email: email.trim().toLowerCase() });
+      setSent(true);
+    } catch (err: any) {
+      const status = err.response?.status;
+      if (status === 404) setError(t(`${NS}.errorEmailNotFound`));
+      else setError(t(`${NS}.errorGeneric`));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <IconButton icon="arrow-left" iconColor={COLOR} size={22} onPress={() => navigation.goBack()} />
+      </View>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+        <View style={styles.card}>
+          <Text style={styles.title}>{t(`${NS}.title`)}</Text>
+
+          {sent ? (
+            <>
+              <Text style={styles.successTitle}>{t(`${NS}.successTitle`)}</Text>
+              <Text style={styles.subtitle}>{t(`${NS}.successMessage`, { email: email.trim() })}</Text>
+
+              <Button
+                mode="text"
+                textColor={COLOR}
+                onPress={() => navigation.navigate('ResetPassword')}
+                style={{ marginTop: 16 }}
+              >
+                {t(`${NS}.haveTokenButton`)}
+              </Button>
+              <Button
+                mode="contained"
+                buttonColor={COLOR}
+                onPress={() => navigation.navigate('Login')}
+                style={styles.button}
+                contentStyle={{ height: 48 }}
+              >
+                {t(`${NS}.backToLogin`)}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Text style={styles.subtitle}>{t(`${NS}.subtitle`)}</Text>
+
+              <TextInput
+                label={t(`${NS}.emailLabel`)}
+                mode="outlined"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                left={<TextInput.Icon icon="email-outline" />}
+                style={styles.input}
+              />
+
+              {error ? (
+                <View style={styles.errorBanner}>
+                  <Text style={styles.errorText}>{error}</Text>
+                </View>
+              ) : null}
+
+              <Button
+                mode="contained"
+                onPress={handleSubmit}
+                loading={loading}
+                disabled={loading}
+                style={styles.button}
+                buttonColor={COLOR}
+                contentStyle={{ height: 48 }}
+              >
+                {t(`${NS}.submit`)}
+              </Button>
+
+              <Button
+                mode="text"
+                textColor={COLOR}
+                onPress={() => navigation.navigate('ResetPassword')}
+                style={{ marginTop: 8 }}
+              >
+                {t(`${NS}.haveTokenButton`)}
+              </Button>
+            </>
+          )}
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+};
+
+const styles = StyleSheet.create({
+  flex: { flex: 1, backgroundColor: '#FFFFFF' },
+  topBar: { paddingHorizontal: 4, paddingBottom: 4 },
+  container: { flexGrow: 1, justifyContent: 'center', padding: 24, paddingTop: 0 },
+  card: { alignItems: 'center' },
+  title: { fontSize: 20, fontWeight: '600', color: COLOR, marginBottom: 8, textAlign: 'center' },
+  subtitle: { fontSize: 14, color: '#6B7280', marginBottom: 24, textAlign: 'center' },
+  successTitle: { fontSize: 16, fontWeight: '600', color: '#065F46', marginTop: 8, textAlign: 'center' },
+  input: { width: '100%', marginBottom: 12 },
+  errorBanner: {
+    width: '100%',
+    backgroundColor: '#FEF2F2',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorText: { color: '#991B1B', fontSize: 13, textAlign: 'center' },
+  button: { width: '100%', marginTop: 12, borderRadius: 8 },
+});

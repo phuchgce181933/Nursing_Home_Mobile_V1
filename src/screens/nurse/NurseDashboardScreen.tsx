@@ -2,6 +2,7 @@ import React from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Card } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/useAuth';
 import { useMyShifts } from '../../hooks/useShifts';
 import { useDailyMedSchedule } from '../../hooks/useMedications';
@@ -10,24 +11,38 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 
 const COLOR = '#0F5040';
-
-type FeatureItem = { icon: string; label: string; screen: string; color: string };
-
-const FEATURES: FeatureItem[] = [
-  { icon: 'clock-outline', label: 'Ca trực', screen: 'MyShifts', color: '#1565C0' },
-  { icon: 'calendar-remove-outline', label: 'Nghỉ phép', screen: 'LeaveRequests', color: '#E65100' },
-  { icon: 'format-list-checks', label: 'Nhiệm vụ', screen: 'CareTasks', color: '#2E7D32' },
-  { icon: 'heart-pulse', label: 'Sinh hiệu', screen: 'Vitals', color: '#C62828' },
-  { icon: 'calendar-star', label: 'Hoạt động', screen: 'Activities', color: '#6A1B9A' },
-  { icon: 'silverware-fork-knife', label: 'Kế hoạch ăn', screen: 'MealPlans', color: '#F57F17' },
-  { icon: 'chart-bar', label: 'Dinh dưỡng', screen: 'NutritionReports', color: '#00838F' },
-  { icon: 'account-plus-outline', label: 'Nhập viện', screen: 'Admissions', color: '#4E342E' },
-  { icon: 'alert-outline', label: 'Sự cố', screen: 'IncidentScreen', color: '#991B1B' },
-  { icon: 'calendar-check-outline', label: 'Cuộc hẹn', screen: 'CareAppointments', color: '#0277BD' },
-];
+const NS = 'nurse.dashboard';
 
 export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { user } = useAuth();
+  const { t } = useTranslation();
+
+  const FEATURES = [
+    { icon: 'clock-outline', label: t(`${NS}.featureShifts`), screen: 'MyShifts', color: '#1565C0' },
+    { icon: 'calendar-remove-outline', label: t(`${NS}.featureLeave`), screen: 'LeaveRequests', color: '#E65100' },
+    { icon: 'format-list-checks', label: t(`${NS}.featureTasks`), screen: 'CareTasks', color: '#2E7D32' },
+    { icon: 'heart-pulse', label: t(`${NS}.featureVitals`), screen: 'Vitals', color: '#C62828' },
+    { icon: 'calendar-star', label: t(`${NS}.featureActivities`), screen: 'Activities', color: '#6A1B9A' },
+    { icon: 'silverware-fork-knife', label: t(`${NS}.featureMealPlans`), screen: 'MealPlans', color: '#F57F17' },
+    { icon: 'chart-bar', label: t(`${NS}.featureNutrition`), screen: 'NutritionReports', color: '#00838F' },
+    { icon: 'account-plus-outline', label: t(`${NS}.featureAdmissions`), screen: 'Admissions', color: '#4E342E' },
+    { icon: 'alert-outline', label: t(`${NS}.featureIncidents`), screen: 'IncidentScreen', color: '#991B1B' },
+    { icon: 'calendar-check-outline', label: t(`${NS}.featureAppointments`), screen: 'CareAppointments', color: '#0277BD' },
+    { icon: 'chat-outline', label: t(`${NS}.featureMessages`), screen: 'Messages', color: '#00695C' },
+    { icon: 'bell-outline', label: t(`${NS}.featureNotifications`), screen: 'Notifications', color: '#5D4037' },
+    ...(user?.role === 'nurse' || user?.role === 'doctor'
+      ? [{ icon: 'clipboard-pulse-outline', label: t(`${NS}.featureInitialHealth`), screen: 'InitialHealthRecord', color: '#0F5040' }]
+      : []),
+    ...(user?.role === 'doctor'
+      ? [{ icon: 'pill', label: t(`${NS}.featureDrugAllergies`), screen: 'DrugAllergies', color: '#B71C1C' }]
+      : []),
+    ...(user?.role === 'manager' || user?.role === 'admin'
+      ? [
+          { icon: 'account-heart-outline', label: t(`${NS}.featureVisitApprovals`), screen: 'VisitApprovals', color: '#00838F' },
+          { icon: 'lifebuoy', label: t(`${NS}.featureSupportRequests`), screen: 'SupportRequests', color: '#6A1B9A' },
+        ]
+      : []),
+  ];
 
   const shiftsQ = useMyShifts();
   const medsQ = useDailyMedSchedule();
@@ -44,11 +59,11 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
   return (
     <View style={styles.flex}>
       <RoleHeader
-        title={`Xin chào, ${user?.fullName ?? ''}`}
-        subtitle={`${user?.role === 'doctor' ? 'Bác sĩ' : 'Y tá'} · Nursing Home`}
+        title={t(`${NS}.greeting`, { name: user?.fullName ?? '' })}
+        subtitle={user?.role === 'doctor' ? t(`${NS}.subtitleDoctor`) : t(`${NS}.subtitleNurse`)}
         stats={[
-          { value: confirmedShifts, label: 'Ca trực' },
-          { value: pendingMeds, label: 'Thuốc chờ' },
+          { value: confirmedShifts, label: t(`${NS}.shiftsLabel`), icon: 'clock-outline' },
+          { value: pendingMeds, label: t(`${NS}.pendingMedsLabel`), icon: 'pill' },
         ]}
         roleColor={COLOR}
       />
@@ -56,7 +71,7 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
         refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
         <ScreenLayout loading={false} error={null} onRetry={refetch}>
-          <SectionHeader title="Chức năng" roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.featuresTitle`)} roleColor={COLOR} />
           <View style={styles.grid}>
             {FEATURES.map(f => (
               <Pressable key={f.screen} style={styles.featureCard}
@@ -71,13 +86,13 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
 
           {pendingMeds > 0 && (
             <>
-              <SectionHeader title="Cảnh báo" roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.alertsTitle`)} roleColor={COLOR} />
               <Card style={[styles.alertCard, { borderLeftColor: '#F59E0B' }]} mode="outlined">
                 <Card.Content style={styles.alertRow}>
                   <MaterialCommunityIcons name="pill" size={24} color="#F59E0B" />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.alertTitle}>{pendingMeds} thuốc cần phát</Text>
-                    <Text style={styles.alertSub}>Kiểm tra tab Thuốc để phát thuốc cho cư dân</Text>
+                    <Text style={styles.alertTitle}>{t(`${NS}.medsNeeded`, { count: pendingMeds })}</Text>
+                    <Text style={styles.alertSub}>{t(`${NS}.medsNeededSub`)}</Text>
                   </View>
                 </Card.Content>
               </Card>
@@ -86,7 +101,7 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
 
           {confirmedShifts > 0 && (
             <>
-              <SectionHeader title="Ca trực sắp tới" roleColor={COLOR} actionLabel="Xem tất cả"
+              <SectionHeader title={t(`${NS}.upcomingShifts`)} roleColor={COLOR} actionLabel={t(`${NS}.viewAll`)}
                 onAction={() => navigation.navigate('MyShifts')} />
               {upcomingShifts.slice(0, 3).map((s: any) => (
                 <Card key={s._id} style={styles.shiftCard} mode="outlined">
@@ -94,10 +109,10 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
                     <MaterialCommunityIcons name="clock-outline" size={20} color={COLOR} />
                     <View style={{ flex: 1 }}>
                       <Text style={styles.shiftTime}>{s.startTime ?? ''} - {s.endTime ?? ''}</Text>
-                      {s.date ? <Text style={styles.shiftDate}>{new Date(s.date).toLocaleDateString('vi-VN')}</Text> : null}
+                      {s.workDate ? <Text style={styles.shiftDate}>{new Date(s.workDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })}</Text> : null}
                       {s.location ? <Text style={styles.shiftLocation}>{s.location}</Text> : null}
                     </View>
-                    <Text style={styles.shiftStatus}>{s.status === 'confirmed' ? 'Đã xác nhận' : s.status === 'published' ? 'Chờ xác nhận' : s.status}</Text>
+                    <Text style={styles.shiftStatus}>{s.status === 'confirmed' ? t(`${NS}.shiftConfirmed`) : s.status === 'published' ? t(`${NS}.shiftPending`) : s.status}</Text>
                   </Card.Content>
                 </Card>
               ))}

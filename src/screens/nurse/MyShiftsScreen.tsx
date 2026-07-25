@@ -3,44 +3,64 @@ import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, Button, Dialog, Portal, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useMyShifts, useConfirmShift } from '../../hooks/useShifts';
+import { useTranslation } from 'react-i18next';
+import { useMyShifts, useConfirmShift, useCheckInShift, useCheckOutShift } from '../../hooks/useShifts';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#0F5040';
-const STATUS_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'published', label: 'Chờ xác nhận' },
-  { value: 'confirmed', label: 'Đã xác nhận' },
-  { value: 'completed', label: 'Hoàn thành' },
-  { value: 'cancelled', label: 'Đã hủy' },
-];
+const NS = 'nurse.myShifts';
 
 export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
   const [confirmId, setConfirmId] = useState<string | null>(null);
+
+  const STATUS_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'published', label: t(`${NS}.filterPublished`) },
+    { value: 'confirmed', label: t(`${NS}.filterConfirmed`) },
+    { value: 'completed', label: t(`${NS}.filterCompleted`) },
+    { value: 'cancelled', label: t(`${NS}.filterCancelled`) },
+  ];
 
   const shiftsQ = useMyShifts({ status: filter || undefined });
   const items = shiftsQ.data?.data?.data ?? [];
   const confirmMut = useConfirmShift();
+  const checkInMut = useCheckInShift();
+  const checkOutMut = useCheckOutShift();
 
   const handleConfirm = () => {
     if (!confirmId) return;
     confirmMut.mutate(confirmId, {
-      onSuccess: () => { setConfirmId(null); toast('Đã xác nhận ca trực', 'success'); },
-      onError: () => toast('Không thể xác nhận', 'error'),
+      onSuccess: () => { setConfirmId(null); toast(t(`${NS}.toastConfirmed`), 'success'); },
+      onError: () => toast(t(`${NS}.toastError`), 'error'),
+    });
+  };
+
+  const handleCheckIn = (id: string) => {
+    checkInMut.mutate(id, {
+      onSuccess: () => toast(t(`${NS}.toastCheckInSuccess`), 'success'),
+      onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastActionError`), 'error'),
+    });
+  };
+
+  const handleCheckOut = (id: string) => {
+    checkOutMut.mutate(id, {
+      onSuccess: () => toast(t(`${NS}.toastCheckOutSuccess`), 'success'),
+      onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastActionError`), 'error'),
     });
   };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Ca trực của tôi</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -54,7 +74,7 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       </View>
 
       <ScreenLayout loading={shiftsQ.isLoading} error={shiftsQ.error ? (shiftsQ.error as Error).message : null}
-        onRetry={shiftsQ.refetch} isEmpty={items.length === 0} emptyMessage="Không có ca trực nào">
+        onRetry={shiftsQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={shiftsQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
@@ -63,7 +83,7 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.date}>
-                      {item.date ? new Date(item.date).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit' }) : ''}
+                      {item.workDate ? new Date(item.workDate).toLocaleDateString('vi-VN', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }) : ''}
                     </Text>
                     <View style={styles.timeRow}>
                       <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
@@ -76,13 +96,35 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                       </View>
                     ) : null}
                     {item.shiftTemplateId?.name ? <Text style={styles.template}>{item.shiftTemplateId.name}</Text> : null}
+                    {item.checkInTime ? (
+                      <View style={styles.timeRow}>
+                        <MaterialCommunityIcons name="login" size={14} color="#065F46" />
+                        <Text style={styles.checkText}>{t(`${NS}.checkedInAt`, { time: new Date(item.checkInTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) })}</Text>
+                      </View>
+                    ) : null}
+                    {item.checkOutTime ? (
+                      <View style={styles.timeRow}>
+                        <MaterialCommunityIcons name="logout" size={14} color="#991B1B" />
+                        <Text style={styles.checkText}>{t(`${NS}.checkedOutAt`, { time: new Date(item.checkOutTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) })}</Text>
+                      </View>
+                    ) : null}
                   </View>
                   <StatusBadge status={item.status} size="sm" />
                 </View>
               </Card.Content>
               {item.status === 'published' ? (
                 <Card.Actions>
-                  <Button compact mode="contained" buttonColor={COLOR} onPress={() => setConfirmId(item._id)}>Xác nhận</Button>
+                  <Button compact mode="contained" buttonColor={COLOR} onPress={() => setConfirmId(item._id)}>{t(`${NS}.confirmButton`)}</Button>
+                </Card.Actions>
+              ) : null}
+              {item.status === 'confirmed' && !item.checkInTime ? (
+                <Card.Actions>
+                  <Button compact mode="contained" buttonColor={COLOR} icon="login" onPress={() => handleCheckIn(item._id)} loading={checkInMut.isPending}>{t(`${NS}.checkIn`)}</Button>
+                </Card.Actions>
+              ) : null}
+              {item.checkInTime && !item.checkOutTime ? (
+                <Card.Actions>
+                  <Button compact mode="contained" buttonColor="#991B1B" icon="logout" onPress={() => handleCheckOut(item._id)} loading={checkOutMut.isPending}>{t(`${NS}.checkOut`)}</Button>
                 </Card.Actions>
               ) : null}
             </Card>
@@ -91,11 +133,11 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
       <Portal>
         <Dialog visible={!!confirmId} onDismiss={() => setConfirmId(null)}>
-          <Dialog.Title>Xác nhận ca trực?</Dialog.Title>
-          <Dialog.Content><Text>Bạn xác nhận sẽ tham gia ca trực này.</Text></Dialog.Content>
+          <Dialog.Title>{t(`${NS}.confirmTitle`)}</Dialog.Title>
+          <Dialog.Content><Text>{t(`${NS}.confirmContent`)}</Text></Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setConfirmId(null)}>Hủy</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleConfirm} loading={confirmMut.isPending}>Xác nhận</Button>
+            <Button onPress={() => setConfirmId(null)}>{t('common.cancel')}</Button>
+            <Button mode="contained" buttonColor={COLOR} onPress={handleConfirm} loading={confirmMut.isPending}>{t(`${NS}.confirmButton`)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -117,4 +159,5 @@ const styles = StyleSheet.create({
   time: { fontSize: 13, color: '#374151' },
   location: { fontSize: 12, color: '#6B7280' },
   template: { fontSize: 12, color: COLOR, marginTop: 4, fontStyle: 'italic' },
+  checkText: { fontSize: 12, color: '#374151' },
 });

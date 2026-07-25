@@ -4,18 +4,13 @@ import { Text, Card, Chip, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 
 const COLOR = '#2E7D32';
-
-const TYPE_FILTERS = [
-  { value: '', label: 'Tất cả' },
-  { value: 'topup', label: 'Nạp tiền' },
-  { value: 'payment', label: 'Thanh toán' },
-  { value: 'refund', label: 'Hoàn tiền' },
-];
+const NS = 'family.paymentHistory';
 
 const TYPE_ICON: Record<string, { name: string; color: string }> = {
   topup: { name: 'arrow-down-circle', color: '#065F46' },
@@ -23,15 +18,23 @@ const TYPE_ICON: Record<string, { name: string; color: string }> = {
   refund: { name: 'arrow-left-circle', color: '#065F46' },
 };
 
-const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-  completed: { bg: '#D1FAE5', text: '#065F46', label: 'Hoàn thành' },
-  pending: { bg: '#FFEDD5', text: '#92400E', label: 'Đang chờ' },
-  failed: { bg: '#FEE2E2', text: '#991B1B', label: 'Thất bại' },
-};
-
 export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const [filter, setFilter] = useState('');
+
+  const TYPE_FILTERS = [
+    { value: '', label: t(`${NS}.filterAll`) },
+    { value: 'topup', label: t(`${NS}.filterTopup`) },
+    { value: 'payment', label: t(`${NS}.filterPayment`) },
+    { value: 'refund', label: t(`${NS}.filterRefund`) },
+  ];
+
+  const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
+    completed: { bg: '#D1FAE5', text: '#065F46', label: t(`${NS}.statusCompleted`) },
+    pending: { bg: '#FFEDD5', text: '#92400E', label: t(`${NS}.statusPending`) },
+    failed: { bg: '#FEE2E2', text: '#991B1B', label: t(`${NS}.statusFailed`) },
+  };
 
   const walletQ = useQuery({
     queryKey: ['familyWallet'],
@@ -48,11 +51,11 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
   const sorted = [...transactions].reverse();
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>Lịch sử giao dịch</Text>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
           <View style={{ width: 40 }} />
         </View>
       </View>
@@ -66,7 +69,7 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
       </View>
 
       <ScreenLayout loading={walletQ.isLoading} error={walletQ.error ? (walletQ.error as Error).message : null}
-        onRetry={walletQ.refetch} isEmpty={sorted.length === 0} emptyMessage="Chưa có giao dịch nào">
+        onRetry={walletQ.refetch} isEmpty={sorted.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={sorted} keyExtractor={(item: any, i: number) => item._id ?? String(i)}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={walletQ.refetch} tintColor={COLOR} />}
@@ -80,9 +83,9 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
                 <Card.Content style={styles.txRow}>
                   <MaterialCommunityIcons name={icon.name as any} size={28} color={icon.color} />
                   <View style={styles.txInfo}>
-                    <Text style={styles.txDesc}>{item.description ?? (item.type === 'topup' ? 'Nạp tiền' : item.type === 'refund' ? 'Hoàn tiền' : 'Thanh toán')}</Text>
+                    <Text style={styles.txDesc}>{item.description ?? (item.type === 'topup' ? t(`${NS}.defaultTopup`) : item.type === 'refund' ? t(`${NS}.defaultRefund`) : t(`${NS}.defaultPayment`))}</Text>
                     <Text style={styles.txDate}>{item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}</Text>
-                    {item.orderCode ? <Text style={styles.txOrder}>Mã GD: {item.orderCode}</Text> : null}
+                    {item.orderCode ? <Text style={styles.txOrder}>{t(`${NS}.orderCode`, { code: item.orderCode })}</Text> : null}
                   </View>
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={[styles.txAmount, { color: isPositive ? '#065F46' : '#991B1B' }]}>

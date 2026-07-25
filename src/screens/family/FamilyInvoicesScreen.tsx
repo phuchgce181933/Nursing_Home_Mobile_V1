@@ -3,6 +3,7 @@ import { View, FlatList, StyleSheet, RefreshControl, Linking } from 'react-nativ
 import { Text, Card, Button, Chip, Dialog, Portal } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
@@ -10,11 +11,13 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#2E7D32';
+const NS = 'family.invoices';
 
 export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
+  const { t } = useTranslation();
 
   const residentsQ = useQuery({
     queryKey: ['familyResidents'],
@@ -43,11 +46,15 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
       qc.invalidateQueries({ queryKey: ['familyInvoices'] });
       qc.invalidateQueries({ queryKey: ['familyWallet'] });
       setPayInvoice(null);
-      toast('Thanh toán thành công!', 'success');
+      toast(t(`${NS}.toastPaySuccess`), 'success');
     },
     onError: (e: any) => {
       setPayInvoice(null);
-      toast(e.response?.data?.message ?? 'Thanh toán thất bại', 'error');
+      if (e.response?.status === 400) {
+        toast(t(`${NS}.toastInsufficientBalance`), 'error');
+      } else {
+        toast(t(`${NS}.toastPayError`), 'error');
+      }
     },
   });
 
@@ -55,27 +62,27 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
     setPayInvoice(null);
     try {
       const res = await api.get(FAMILY.PAYMENT_URL(activeId, invoiceId));
-      const url = res.data?.checkoutUrl ?? res.data?.paymentUrl ?? res.data?.data?.checkoutUrl;
+      const url = res.data?.data?.paymentUrl ?? res.data?.checkoutUrl ?? res.data?.paymentUrl ?? res.data?.data?.checkoutUrl;
       if (url) await Linking.openURL(url);
-      else toast('Không nhận được URL thanh toán', 'error');
+      else toast(t(`${NS}.toastNoPaymentUrl`), 'error');
     } catch {
-      toast('Không thể tạo thanh toán. Thử lại.', 'error');
+      toast(t(`${NS}.toastPaymentCreateError`), 'error');
     }
   };
 
   const refetch = () => { residentsQ.refetch(); invoicesQ.refetch(); };
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <Text style={styles.topTitle}>Hóa đơn</Text>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
       </View>
 
       {activeResident && (
         <View style={styles.summaryRow}>
           <Button mode="text" icon="chart-box-outline" textColor={COLOR} compact
             onPress={() => navigation?.navigate('BillingSummary', { residentId: activeId, residentName: activeResident.fullName })}>
-            Tổng quan tài chính
+            {t(`${NS}.billingSummaryLink`)}
           </Button>
         </View>
       )}
@@ -94,7 +101,7 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
 
       <ScreenLayout loading={invoicesQ.isLoading || residentsQ.isLoading}
         error={invoicesQ.error ? (invoicesQ.error as Error).message : null}
-        onRetry={refetch} isEmpty={invoices.length === 0} emptyMessage="Không có hóa đơn nào">
+        onRetry={refetch} isEmpty={invoices.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={invoices} keyExtractor={(item: any) => item._id}
           contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}
@@ -119,7 +126,7 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
                 </Card.Content>
                 {isPending ? (
                   <Card.Actions>
-                    <Button compact textColor={COLOR} onPress={() => setPayInvoice(item)}>Thanh toán</Button>
+                    <Button compact textColor={COLOR} onPress={() => setPayInvoice(item)}>{t(`${NS}.pay`)}</Button>
                   </Card.Actions>
                 ) : null}
               </Card>
@@ -130,22 +137,22 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
 
       <Portal>
         <Dialog visible={!!payInvoice} onDismiss={() => setPayInvoice(null)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>Chọn phương thức</Dialog.Title>
+          <Dialog.Title>{t(`${NS}.chooseMethodTitle`)}</Dialog.Title>
           <Dialog.Content>
             <Text style={{ fontSize: 14, color: '#374151', marginBottom: 16 }}>
-              Số tiền: {(payInvoice?.totalAmount ?? payInvoice?.amount ?? 0).toLocaleString('vi-VN')} ₫
+              {t(`${NS}.amountLabel`, { amount: (payInvoice?.totalAmount ?? payInvoice?.amount ?? 0).toLocaleString('vi-VN') })}
             </Text>
             <Button mode="outlined" icon="wallet-outline" style={styles.methodBtn}
               onPress={() => walletPayMut.mutate()} loading={walletPayMut.isPending}>
-              Thanh toán bằng ví
+              {t(`${NS}.payWithWallet`)}
             </Button>
             <Button mode="outlined" icon="credit-card-outline" style={styles.methodBtn}
               onPress={() => handlePayOnline(payInvoice?._id)}>
-              Thanh toán online (PayOS)
+              {t(`${NS}.payOnline`)}
             </Button>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setPayInvoice(null)}>Hủy</Button>
+            <Button onPress={() => setPayInvoice(null)}>{t('common.cancel')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>

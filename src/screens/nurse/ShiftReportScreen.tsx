@@ -1,8 +1,9 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card } from 'react-native-paper';
+import { Text, Card, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
 import { useShifts } from '../../hooks/useShifts';
 import { useManagerTasks } from '../../hooks/useTasks';
 import { useIncidents } from '../../hooks/useIncidents';
@@ -11,10 +12,12 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 
 const COLOR = '#1B3A6B';
+const NS = 'nurse.shiftReport';
 const today = () => new Date().toISOString().split('T')[0];
 
-export const ShiftReportScreen: React.FC = () => {
+export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
+  const { t } = useTranslation();
   const shiftsQ = useShifts({ fromDate: today(), toDate: today() });
   const tasksQ = useManagerTasks({ workDate: today() });
   const incidentsQ = useIncidents({ status: 'open' });
@@ -23,7 +26,7 @@ export const ShiftReportScreen: React.FC = () => {
   const tasks = tasksQ.data?.data ?? [];
   const incidents = incidentsQ.data?.items ?? [];
 
-  const completedTasks = tasks.filter((t: any) => t.status === 'completed').length;
+  const completedTasks = tasks.filter((tk: any) => tk.status === 'completed').length;
   const totalTasks = tasks.length;
   const activeIncidents = incidents.length;
 
@@ -37,17 +40,20 @@ export const ShiftReportScreen: React.FC = () => {
   };
 
   const stats = [
-    { label: 'Ca hôm nay', value: shifts.length, icon: 'calendar-clock' as const, color: '#1E40AF' },
-    { label: 'Nhiệm vụ hoàn thành', value: `${completedTasks}/${totalTasks}`, icon: 'check-circle-outline' as const, color: '#065F46' },
-    { label: 'Sự cố mở', value: activeIncidents, icon: 'alert-circle-outline' as const, color: '#991B1B' },
-    { label: 'Nhân viên', value: new Set(shifts.map((s: any) => typeof s.assignedStaffId === 'object' ? s.assignedStaffId?._id : s.assignedStaffId)).size, icon: 'account-group-outline' as const, color: '#92400E' },
+    { label: t(`${NS}.shiftsToday`), value: shifts.length, icon: 'calendar-clock' as const, color: '#1E40AF' },
+    { label: t(`${NS}.tasksCompleted`), value: `${completedTasks}/${totalTasks}`, icon: 'check-circle-outline' as const, color: '#065F46' },
+    { label: t(`${NS}.openIncidents`), value: activeIncidents, icon: 'alert-circle-outline' as const, color: '#991B1B' },
+    { label: t(`${NS}.staffCount`), value: new Set(shifts.map((s: any) => typeof s.assignedStaffId === 'object' ? s.assignedStaffId?._id : s.assignedStaffId)).size, icon: 'account-group-outline' as const, color: '#92400E' },
   ];
 
   return (
-    <View style={[styles.flex, { paddingTop: insets.top }]}>
-      <View style={styles.topBar}>
-        <Text style={styles.topTitle}>Báo cáo ca</Text>
-        <Text style={styles.topSub}>{today()}</Text>
+    <View style={styles.flex}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+        <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
+        <View>
+          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
+          <Text style={styles.topSub}>{today()}</Text>
+        </View>
       </View>
 
       <ScrollView
@@ -68,21 +74,21 @@ export const ShiftReportScreen: React.FC = () => {
             ))}
           </View>
 
-          <SectionHeader title="Sự kiện trong ca" roleColor={COLOR} />
-          {tasks.filter((t: any) => t.status !== 'pending').slice(0, 20).map((t: any) => (
-            <View key={t._id} style={styles.eventRow}>
-              <StatusBadge status={t.status} size="sm" />
+          <SectionHeader title={t(`${NS}.eventsTitle`)} roleColor={COLOR} />
+          {tasks.filter((tk: any) => tk.status !== 'pending').slice(0, 20).map((tk: any) => (
+            <View key={tk._id} style={styles.eventRow}>
+              <StatusBadge status={tk.status} size="sm" />
               <View style={styles.eventInfo}>
                 <Text style={styles.eventTitle} numberOfLines={1}>
-                  {t.taskType ? t.taskType.replace(/_/g, ' ') : 'Task'} — {t.residentId?.fullName ?? ''}
+                  {tk.taskType ? tk.taskType.replace(/_/g, ' ') : 'Task'} — {tk.residentId?.fullName ?? ''}
                 </Text>
-                <Text style={styles.eventTime}>{t.scheduledTime}</Text>
+                <Text style={styles.eventTime}>{tk.scheduledTime}</Text>
               </View>
             </View>
           ))}
 
           {tasks.length === 0 ? (
-            <Text style={styles.emptyText}>Chưa có sự kiện nào</Text>
+            <Text style={styles.emptyText}>{t(`${NS}.empty`)}</Text>
           ) : null}
         </ScreenLayout>
       </ScrollView>
@@ -92,7 +98,8 @@ export const ShiftReportScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 16, paddingTop: 8 },
+  topBar: { backgroundColor: COLOR, paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' },
+  backBtn: { margin: 0 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
   body: { padding: 16, paddingBottom: 32 },
