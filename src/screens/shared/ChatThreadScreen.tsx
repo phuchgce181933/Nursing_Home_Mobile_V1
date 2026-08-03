@@ -12,6 +12,7 @@ import { CONVERSATIONS } from '../../api/endpoints';
 import { useAuth } from '../../auth/useAuth';
 import { getRoleColor } from '../../theme/theme';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
 import useSocket from '../../hooks/useSocket';
 
@@ -55,13 +56,21 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
     }
   }, [conversationId]);
 
+  const markRead = useCallback(() => {
+    if (!conversationId) return;
+    api.patch(CONVERSATIONS.MARK_READ(conversationId)).catch(() => {});
+  }, [conversationId]);
+
   useEffect(() => {
     if (!conversationId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial page load on mount/conversation change
     loadMessages(1);
+    markRead();
     useSocket.joinRoom(`conversation:${conversationId}`);
     const handler = (payload: any) => {
       if (String(payload.conversationId) === String(conversationId)) {
         setMessages((prev) => [payload.message, ...prev]);
+        markRead();
       }
     };
     useSocket.on('message:new', handler);
@@ -69,7 +78,27 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
       useSocket.leaveRoom(`conversation:${conversationId}`);
       useSocket.off('message:new', handler);
     };
-  }, [conversationId, loadMessages]);
+  }, [conversationId, loadMessages, markRead]);
+
+  // Library photos are frequently several MB at full camera resolution, which made
+  // sending feel very slow over mobile data. Downscaling to a max width before upload
+  // (chat bubbles only ever render these at thumbnail size) cuts that down drastically
+  // without a visible quality loss.
+  const MAX_ATTACHMENT_IMAGE_WIDTH = 1600;
+
+  const resizeForUpload = async (uri: string, width?: number): Promise<string> => {
+    if (width && width <= MAX_ATTACHMENT_IMAGE_WIDTH) return uri;
+    try {
+      /* eslint-disable @typescript-eslint/no-require-imports -- loaded lazily: not supported on web, and not needed unless the user actually attaches an oversized image */
+      const { ImageManipulator, SaveFormat } = require('expo-image-manipulator');
+      /* eslint-enable @typescript-eslint/no-require-imports */
+      const rendered = await ImageManipulator.manipulate(uri).resize({ width: MAX_ATTACHMENT_IMAGE_WIDTH }).renderAsync();
+      const saved = await rendered.saveAsync({ compress: 0.7, format: SaveFormat.JPEG });
+      return saved.uri;
+    } catch {
+      return uri;
+    }
+  };
 
   const pickImages = async () => {
     setAttachSheetVisible(false);
@@ -80,13 +109,16 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.8 });
     if (!result.canceled && result.assets?.length) {
+      const incoming = await Promise.all(result.assets.map(async (a, i) => {
+        const name = a.fileName || a.uri.split('/').pop() || `photo_${Date.now()}_${i}.jpg`;
+        const ext = name.split('.').pop()?.toLowerCase();
+        const mimeType = a.mimeType || (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
+        const resizedUri = await resizeForUpload(a.uri, a.width);
+        const resizedName = resizedUri === a.uri ? name : name.replace(/\.\w+$/, '.jpg');
+        const resizedMimeType = resizedUri === a.uri ? mimeType : 'image/jpeg';
+        return { uri: resizedUri, name: resizedName, mimeType: resizedMimeType };
+      }));
       setPickedFiles((prev) => {
-        const incoming = result.assets.map((a, i) => {
-          const name = a.fileName || a.uri.split('/').pop() || `photo_${Date.now()}_${i}.jpg`;
-          const ext = name.split('.').pop()?.toLowerCase();
-          const mimeType = a.mimeType || (ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg');
-          return { uri: a.uri, name, mimeType };
-        });
         const combined = [...prev, ...incoming];
         if (combined.length > 6) toast(t(`${NS}.toastTooManyAttachments`), 'warning');
         return combined.slice(0, 6);
@@ -130,7 +162,7 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
       // (we're a member of the room too) — no local append needed here.
       setText('');
       setPickedFiles([]);
-    } catch (err) {
+    } catch {
       toast(t(`${NS}.toastSendError`), 'error');
     } finally {
       setSending(false);
@@ -139,13 +171,7 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top}>
-      <View style={[styles.topBar, { backgroundColor: COLOR, paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle} numberOfLines={1}>{title ?? t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={title ?? t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScreenLayout loading={loading} error={error} onRetry={() => loadMessages(1)} isEmpty={messages.length === 0} emptyMessage={t(`${NS}.threadEmpty`)}>
         <FlatList
@@ -241,7 +267,16 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
         </Modal>
 
         <Modal visible={!!previewUri} onDismiss={() => setPreviewUri(null)} contentContainerStyle={styles.lightbox}>
-          {previewUri ? <Image source={{ uri: previewUri }} style={styles.lightboxImage} resizeMode="contain" /> : null}
+          <Pressable style={styles.lightboxBackdrop} onPress={() => setPreviewUri(null)}>
+            {previewUri ? <Image source={{ uri: previewUri }} style={styles.lightboxImage} resizeMode="contain" /> : null}
+          </Pressable>
+          <IconButton
+            icon="close"
+            iconColor="#fff"
+            size={26}
+            onPress={() => setPreviewUri(null)}
+            style={[styles.lightboxClose, { top: insets.top + 8 }]}
+          />
         </Modal>
       </Portal>
     </KeyboardAvoidingView>
@@ -250,9 +285,6 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { flex: 1, color: '#fff', fontSize: 15, fontWeight: '500', textAlign: 'center' },
   list: { padding: 16, flexGrow: 1 },
   senderLabel: { fontSize: 11, color: '#6B7280', marginBottom: 2, marginLeft: 2 },
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },
@@ -274,6 +306,8 @@ const styles = StyleSheet.create({
   sheet: { backgroundColor: '#fff', margin: 20, padding: 12, borderRadius: 12 },
   sheetOption: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14, paddingHorizontal: 8 },
   sheetOptionText: { fontSize: 14, color: '#111827' },
-  lightbox: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', margin: 0, justifyContent: 'center', alignItems: 'center' },
+  lightbox: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', margin: 0 },
+  lightboxBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   lightboxImage: { width: '100%', height: '100%' },
+  lightboxClose: { position: 'absolute', right: 8, backgroundColor: 'rgba(0,0,0,0.4)' },
 });

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, Pressable } from 'react-native';
-import { Text, Card, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -13,6 +12,7 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ResidentSwitcher } from '../../components/shared/ResidentSwitcher';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.dailyCare';
@@ -20,7 +20,6 @@ const NS = 'family.dailyCare';
 const toDateStr = (d: Date) => d.toISOString().split('T')[0];
 
 export const FamilyDailyCareScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [date, setDate] = useState(toDateStr(new Date()));
@@ -51,17 +50,12 @@ export const FamilyDailyCareScreen: React.FC<{ navigation: any }> = ({ navigatio
   const daily = dailyQ.data?.data ?? dailyQ.data ?? {};
   const scheduleDays = scheduleQ.data?.data ?? scheduleQ.data ?? [];
   const loading = residentsQ.isLoading || dailyQ.isLoading || scheduleQ.isLoading;
+  const isFetching = residentsQ.isFetching || dailyQ.isFetching || scheduleQ.isFetching;
   const refetch = () => { dailyQ.refetch(); scheduleQ.refetch(); };
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ResidentSwitcher residents={residents} activeId={activeId} onChange={setSelectedId} color={COLOR} />
 
@@ -70,7 +64,7 @@ export const FamilyDailyCareScreen: React.FC<{ navigation: any }> = ({ navigatio
       </View>
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={COLOR} />}>
         <ScreenLayout loading={loading} error={dailyQ.error ? (dailyQ.error as Error).message : null} onRetry={refetch}>
           <SectionHeader title={t(`${NS}.careScheduleTitle`)} roleColor={COLOR} />
           {scheduleDays.length === 0 ? <Text style={styles.empty}>{t(`${NS}.noCareSchedule`)}</Text> : null}
@@ -156,9 +150,6 @@ export const FamilyDailyCareScreen: React.FC<{ navigation: any }> = ({ navigatio
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   dateBox: { paddingHorizontal: 16, paddingTop: 8 },
   body: { padding: 16, paddingTop: 0, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },

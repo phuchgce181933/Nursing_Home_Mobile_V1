@@ -12,13 +12,14 @@ export const useShifts = (params?: { status?: string; fromDate?: string; toDate?
   });
 };
 
-export const useMyShifts = (params?: { status?: string; fromDate?: string; toDate?: string; page?: number }) => {
+export const useMyShifts = (params?: { status?: string; fromDate?: string; toDate?: string; page?: number }, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['myShifts', params],
     queryFn: async () => {
       const res = await api.get(SHIFTS.MY, { params });
       return res.data;
     },
+    enabled: options?.enabled ?? true,
   });
 };
 
@@ -66,6 +67,20 @@ export const useCheckOutShift = () => {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.put(SHIFTS.CHECK_OUT(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['myShifts'] });
+      qc.invalidateQueries({ queryKey: ['shifts'] });
+    },
+  });
+};
+
+export const useCompleteShift = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.put(SHIFTS.COMPLETE(id));
       return res.data;
     },
     onSuccess: () => {

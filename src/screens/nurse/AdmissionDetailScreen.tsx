@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, Dialog, Portal, TextInput, IconButton, Chip } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Button, Dialog, Portal, TextInput, Chip } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -9,18 +8,22 @@ import { ADMIN_ADMISSIONS, MEDICAL_ADMISSIONS } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useAuth } from '../../auth/useAuth';
 import { useToast } from '../../utils/toast';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.admissions';
 const MAX_TEXT_LENGTH = 500;
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
-const InfoRow: React.FC<{ label: string; value?: string | null }> = ({ label, value }) => {
+type ScreenStyles = ReturnType<typeof createStyles>;
+
+const InfoRow: React.FC<{ label: string; value?: string | null; styles: ScreenStyles }> = ({ label, value, styles }) => {
   if (!value) return null;
   return (
     <View style={styles.infoRow}>
@@ -31,11 +34,12 @@ const InfoRow: React.FC<{ label: string; value?: string | null }> = ({ label, va
 };
 
 export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isDoctor = user?.role === 'doctor';
   const admissionId = route.params?.admissionId;
 
@@ -146,16 +150,10 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.detailTitle`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.detailTitle`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={detailQ.refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={detailQ.isFetching} onRefresh={detailQ.refetch} tintColor={roleColor} />}>
         <ScreenLayout loading={detailQ.isLoading} error={detailQ.error ? (detailQ.error as Error).message : null} onRetry={detailQ.refetch}>
           {item ? (
             <>
@@ -171,38 +169,38 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
                 </Card.Content>
               </Card>
 
-              <SectionHeader title={t(`${NS}.fullName`)} roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.fullName`)} roleColor={roleColor} />
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
-                  <InfoRow label={t(`${NS}.fullName`)} value={item.applicant?.fullName} />
-                  <InfoRow label={t(`${NS}.relationship`)} value={item.applicant?.relationshipToRequester} />
-                  <InfoRow label={t(`${NS}.dob`)} value={item.applicant?.dateOfBirth ? new Date(item.applicant.dateOfBirth).toLocaleDateString('vi-VN') : null} />
-                  <InfoRow label={t(`${NS}.gender`)} value={item.applicant?.gender === 'male' ? t(`${NS}.male`) : item.applicant?.gender === 'female' ? t(`${NS}.female`) : item.applicant?.gender} />
-                  {item.applicant?.allergies?.length > 0 && <InfoRow label={t(`${NS}.allergies`)} value={item.applicant.allergies.join(', ')} />}
-                  {item.applicant?.chronicConditions?.length > 0 && <InfoRow label={t(`${NS}.chronicConditions`)} value={item.applicant.chronicConditions.join(', ')} />}
+                  <InfoRow label={t(`${NS}.fullName`)} value={item.applicant?.fullName} styles={styles} />
+                  <InfoRow label={t(`${NS}.relationship`)} value={item.applicant?.relationshipToRequester} styles={styles} />
+                  <InfoRow label={t(`${NS}.dob`)} value={item.applicant?.dateOfBirth ? new Date(item.applicant.dateOfBirth).toLocaleDateString('vi-VN') : null} styles={styles} />
+                  <InfoRow label={t(`${NS}.gender`)} value={item.applicant?.gender === 'male' ? t(`${NS}.male`) : item.applicant?.gender === 'female' ? t(`${NS}.female`) : item.applicant?.gender} styles={styles} />
+                  {item.applicant?.allergies?.length > 0 && <InfoRow label={t(`${NS}.allergies`)} value={item.applicant.allergies.join(', ')} styles={styles} />}
+                  {item.applicant?.chronicConditions?.length > 0 && <InfoRow label={t(`${NS}.chronicConditions`)} value={item.applicant.chronicConditions.join(', ')} styles={styles} />}
                 </Card.Content>
               </Card>
 
-              <SectionHeader title={t(`${NS}.reason`)} roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.reason`)} roleColor={roleColor} />
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
-                  <InfoRow label={t(`${NS}.preferredDate`)} value={item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : null} />
-                  <InfoRow label={t(`${NS}.reason`)} value={item.reasonForAdmission} />
-                  <InfoRow label={t(`${NS}.phone`)} value={item.requestedByPhone} />
-                  <InfoRow label={t(`${NS}.notes`)} value={item.notes} />
-                  <InfoRow label={t(`${NS}.consultationNotes`)} value={item.consultationNotes} />
-                  <InfoRow label={t(`${NS}.assessmentResultLabel`)} value={item.assessmentResult} />
+                  <InfoRow label={t(`${NS}.preferredDate`)} value={item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : null} styles={styles} />
+                  <InfoRow label={t(`${NS}.reason`)} value={item.reasonForAdmission} styles={styles} />
+                  <InfoRow label={t(`${NS}.phone`)} value={item.requestedByPhone} styles={styles} />
+                  <InfoRow label={t(`${NS}.notes`)} value={item.notes} styles={styles} />
+                  <InfoRow label={t(`${NS}.consultationNotes`)} value={item.consultationNotes} styles={styles} />
+                  <InfoRow label={t(`${NS}.assessmentResultLabel`)} value={item.assessmentResult} styles={styles} />
                 </Card.Content>
               </Card>
 
               <View style={styles.actionsRow}>
                 {canConsult && (
-                  <Button mode="contained" buttonColor={COLOR} onPress={() => setShowConsult(true)} style={styles.actionBtn}>
+                  <Button mode="contained" buttonColor={roleColor} onPress={() => setShowConsult(true)} style={styles.actionBtn}>
                     {t(`${NS}.actionConsultation`)}
                   </Button>
                 )}
                 {canSchedule && (
-                  <Button mode="contained" buttonColor={COLOR} onPress={() => setShowSchedule(true)} style={styles.actionBtn}>
+                  <Button mode="contained" buttonColor={roleColor} onPress={() => setShowSchedule(true)} style={styles.actionBtn}>
                     {t(`${NS}.actionScheduleAssessment`)}
                   </Button>
                 )}
@@ -229,7 +227,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setShowConsult(false)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={submitConsultation} loading={consultMut.isPending}>{t(`${NS}.save`)}</Button>
+            <Button mode="contained" buttonColor={roleColor} onPress={submitConsultation} loading={consultMut.isPending}>{t(`${NS}.save`)}</Button>
           </Dialog.Actions>
         </Dialog>
 
@@ -237,7 +235,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
         <Dialog visible={showSchedule} onDismiss={() => setShowSchedule(false)} style={{ borderRadius: 16 }}>
           <Dialog.Title>{t(`${NS}.actionScheduleAssessment`)}</Dialog.Title>
           <Dialog.ScrollArea style={{ maxHeight: 400 }}>
-            <CalendarPicker label={t(`${NS}.assessmentDateLabel`)} value={scheduleDate} onChange={setScheduleDate} minDate={todayStr()} color={COLOR} />
+            <CalendarPicker label={t(`${NS}.assessmentDateLabel`)} value={scheduleDate} onChange={setScheduleDate} minDate={todayStr()} color={roleColor} />
             {scheduleErrors.scheduleDate ? <Text style={styles.errText}>{scheduleErrors.scheduleDate}</Text> : null}
             <TextInput label={t(`${NS}.assessmentTimeLabel`)} mode="outlined" value={scheduleTime} onChangeText={setScheduleTime} dense style={styles.input} placeholder="09:00" error={!!scheduleErrors.scheduleTime} maxLength={5} />
             {scheduleErrors.scheduleTime ? <Text style={styles.errText}>{scheduleErrors.scheduleTime}</Text> : null}
@@ -246,7 +244,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setShowSchedule(false)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={submitSchedule} loading={scheduleMut.isPending}>{t(`${NS}.save`)}</Button>
+            <Button mode="contained" buttonColor={roleColor} onPress={submitSchedule} loading={scheduleMut.isPending}>{t(`${NS}.save`)}</Button>
           </Dialog.Actions>
         </Dialog>
 
@@ -257,7 +255,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
             <Text style={styles.chipLabel}>{t(`${NS}.eligibilityStatusLabel`)}</Text>
             <View style={styles.chipRow}>
               <Chip selected={eligibilityStatus === 'eligible'} onPress={() => setEligibilityStatus('eligible')}
-                style={eligibilityStatus === 'eligible' ? { backgroundColor: COLOR } : undefined}
+                style={eligibilityStatus === 'eligible' ? { backgroundColor: roleColor } : undefined}
                 textStyle={eligibilityStatus === 'eligible' ? { color: '#fff' } : undefined}>
                 {t(`${NS}.eligibleOption`)}
               </Chip>
@@ -288,24 +286,21 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   body: { padding: 16, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
+  card: { borderRadius: 12, marginBottom: 12, backgroundColor: c.surface },
   headerRow: { flexDirection: 'row', alignItems: 'center' },
-  requestCode: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  statusLabel: { fontSize: 13, color: '#6B7280', marginTop: 2 },
+  requestCode: { fontSize: 18, fontWeight: '700', color: c.text },
+  statusLabel: { fontSize: 13, color: c.textSecondary, marginTop: 2 },
   infoRow: { marginBottom: 10 },
-  infoLabel: { fontSize: 11, color: '#9CA3AF', marginBottom: 2 },
-  infoValue: { fontSize: 14, color: '#111827' },
+  infoLabel: { fontSize: 11, color: c.textMuted, marginBottom: 2 },
+  infoValue: { fontSize: 14, color: c.text },
   actionsRow: { gap: 8, marginTop: 8 },
   actionBtn: { borderRadius: 8 },
   input: { marginBottom: 8 },
   errText: { color: '#DC2626', fontSize: 11, marginTop: -4, marginBottom: 8 },
-  charCount: { color: '#9CA3AF', fontSize: 10, textAlign: 'right', marginTop: -4, marginBottom: 8 },
-  chipLabel: { fontSize: 11, color: '#6B7280', marginBottom: 6, marginTop: 2 },
+  charCount: { color: c.textMuted, fontSize: 10, textAlign: 'right', marginTop: -4, marginBottom: 8 },
+  chipLabel: { fontSize: 11, color: c.textSecondary, marginBottom: 6, marginTop: 2 },
   chipRow: { flexDirection: 'row', gap: 8, marginBottom: 12 },
 });

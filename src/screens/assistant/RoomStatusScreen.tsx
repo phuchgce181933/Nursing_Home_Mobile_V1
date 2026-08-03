@@ -2,7 +2,6 @@ import React from 'react';
 import { ScrollView, View, StyleSheet, Pressable, RefreshControl } from 'react-native';
 import { Text, Card, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -59,7 +58,7 @@ export const RoomStatusScreen: React.FC<{ navigation?: any }> = ({ navigation })
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={roomsQ.refetch} tintColor={COLOR} />}
+        refreshControl={<RefreshControl refreshing={roomsQ.isFetching} onRefresh={roomsQ.refetch} tintColor={COLOR} />}
       >
         <ScreenLayout
           loading={roomsQ.isLoading}

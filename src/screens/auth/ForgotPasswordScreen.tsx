@@ -81,6 +81,9 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
                 autoCapitalize="none"
                 left={<TextInput.Icon icon="email-outline" />}
                 style={styles.input}
+                returnKeyType="done"
+                submitBehavior="blurAndSubmit"
+                onSubmitEditing={handleSubmit}
               />
 
               {error ? (

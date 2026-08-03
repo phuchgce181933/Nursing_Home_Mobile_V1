@@ -1,7 +1,6 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import api from '../api/axiosInstance';
-import { setLogoutCallback } from '../api/axiosInstance';
+import api, { setLogoutCallback } from '../api/axiosInstance';
 import { AUTH } from '../api/endpoints';
 import { unregisterPushToken } from '../hooks/usePushNotifications';
 

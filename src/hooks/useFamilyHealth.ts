@@ -13,6 +13,28 @@ export const useFamilyMedications = (residentId?: string, params?: { status?: st
   });
 };
 
+export const useFamilyDailyMedicationSchedule = (residentId?: string, params?: { date?: string; status?: string }) => {
+  return useQuery({
+    queryKey: ['familyDailyMedicationSchedule', residentId, params],
+    queryFn: async () => {
+      const res = await api.get(FAMILY.DAILY_MEDICATION_SCHEDULE(residentId!), { params });
+      return res.data;
+    },
+    enabled: !!residentId,
+  });
+};
+
+export const useFamilyMedicationHistory = (residentId?: string, params?: { from?: string; to?: string }) => {
+  return useQuery({
+    queryKey: ['familyMedicationHistory', residentId, params],
+    queryFn: async () => {
+      const res = await api.get(FAMILY.MEDICATION_HISTORY(residentId!), { params });
+      return res.data;
+    },
+    enabled: !!residentId,
+  });
+};
+
 export const useFamilyPrescriptions = (residentId?: string) => {
   return useQuery({
     queryKey: ['familyPrescriptions', residentId],

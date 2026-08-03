@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet } from 'react-native';
-import { Text, Card, IconButton, Chip } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -10,6 +9,7 @@ import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.residentProfile';
@@ -42,7 +42,6 @@ const TagList: React.FC<{ items: string[] }> = ({ items }) => (
 
 export const FamilyResidentProfileScreen: React.FC<{ navigation: any; route: any }> = ({ navigation, route }) => {
   const residentId = route.params?.residentId;
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
   const residentQ = useQuery({
@@ -55,13 +54,7 @@ export const FamilyResidentProfileScreen: React.FC<{ navigation: any; route: any
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}>
         <ScreenLayout loading={residentQ.isLoading} error={residentQ.error ? (residentQ.error as Error).message : null} onRetry={residentQ.refetch}>
@@ -113,9 +106,6 @@ export const FamilyResidentProfileScreen: React.FC<{ navigation: any; route: any
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   body: { padding: 16, paddingBottom: 32 },
   headerSection: { alignItems: 'center', marginBottom: 16, gap: 4 },
   name: { fontSize: 18, fontWeight: '700', color: '#111827', marginTop: 8 },

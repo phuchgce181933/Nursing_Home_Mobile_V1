@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, Button, FAB, Dialog, Portal, TextInput, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip, Button, FAB, Dialog, Portal, TextInput } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useLeaveRequests, useCreateLeaveRequest, useCancelLeaveRequest } from '../../hooks/useLeaveRequests';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.leaveRequests';
@@ -17,7 +17,6 @@ const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); retur
 const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 
 export const LeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
@@ -67,13 +66,7 @@ export const LeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigation }
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => (
@@ -86,7 +79,7 @@ export const LeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigation }
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
         onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined">
               <Card.Content>
@@ -166,9 +159,6 @@ export const LeaveRequestScreen: React.FC<{ navigation: any }> = ({ navigation }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 80 },
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },

@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, Button, Dialog, Portal, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip, Button, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -9,16 +8,19 @@ import api from '../../api/axiosInstance';
 import { CARE_TASKS } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.careTasks';
 
 export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState('');
   const [actionTask, setActionTask] = useState<any>(null);
 
@@ -55,18 +57,12 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}
-            style={filter === f.value ? { backgroundColor: COLOR } : undefined}
+            style={filter === f.value ? { backgroundColor: roleColor } : undefined}
             textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
         ))}
       </View>
@@ -74,14 +70,14 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <ScreenLayout loading={tasksQ.isLoading} error={tasksQ.error ? (tasksQ.error as Error).message : null}
         onRetry={tasksQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={tasksQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => setActionTask(item)}>
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.title}>{item.taskType ?? item.title ?? t(`${NS}.defaultTitle`)}</Text>
-                    <Text style={styles.resident}>{item.residentId?.fullName ?? ''}</Text>
+                    <Text style={[styles.resident, { color: roleColor }]}>{item.residentId?.fullName ?? ''}</Text>
                     <View style={styles.timeRow}>
                       <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
                       <Text style={styles.time}>
@@ -112,7 +108,7 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 loading={updateMut.isPending}>{t(`${NS}.start`)}</Button>
             )}
             {(actionTask?.status === 'pending' || actionTask?.status === 'in_progress') && (
-              <Button mode="contained" buttonColor={COLOR} onPress={() => updateMut.mutate({ id: actionTask._id, status: 'completed' })}
+              <Button mode="contained" buttonColor={roleColor} onPress={() => updateMut.mutate({ id: actionTask._id, status: 'completed' })}
                 loading={updateMut.isPending}>{t(`${NS}.complete`)}</Button>
             )}
           </Dialog.Actions>
@@ -122,18 +118,15 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
+  card: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface },
   row: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 14, fontWeight: '600', color: '#111827', textTransform: 'capitalize' },
-  resident: { fontSize: 12, color: COLOR, marginTop: 2 },
+  title: { fontSize: 14, fontWeight: '600', color: c.text, textTransform: 'capitalize' },
+  resident: { fontSize: 12, marginTop: 2 },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  time: { fontSize: 12, color: '#6B7280' },
-  notes: { fontSize: 12, color: '#374151', marginTop: 4 },
+  time: { fontSize: 12, color: c.textSecondary },
+  notes: { fontSize: 12, color: c.text, marginTop: 4 },
 });

@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Searchbar, IconButton, Dialog, Portal, Divider } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useCaregiverResidents, useCaregiverResidentDetail } from '../../hooks/useResidents';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.residents';
 
 export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -24,12 +23,8 @@ export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigat
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
+      <View style={styles.searchBarWrap}>
         <Searchbar
           placeholder={t(`${NS}.searchPlaceholder`)}
           value={search}
@@ -42,7 +37,7 @@ export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigat
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
         onRetry={listQ.refetch} isEmpty={residents.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={residents} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => setDetailId(item._id)}>
               <Card.Content style={styles.row}>
@@ -105,9 +100,7 @@ export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigat
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 12 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+  searchBarWrap: { backgroundColor: COLOR, paddingBottom: 12 },
   searchbar: { marginHorizontal: 12, marginTop: 4, borderRadius: 10, elevation: 0 },
   list: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },

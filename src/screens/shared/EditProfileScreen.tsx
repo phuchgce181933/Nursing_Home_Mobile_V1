@@ -1,13 +1,13 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView, Pressable } from 'react-native';
-import { Text, Button, TextInput, Chip, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useRef, useState } from 'react';
+import { View, StyleSheet, ScrollView, Pressable, Platform, KeyboardAvoidingView, TextInput as RNTextInput } from 'react-native';
+import { Text, Button, TextInput, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/useAuth';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { getRoleColor } from '../../theme/theme';
 import { useToast } from '../../utils/toast';
 import api from '../../api/axiosInstance';
@@ -18,7 +18,6 @@ const NS = 'editProfile';
 export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
   const { user, refreshUser } = useAuth();
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const roleColor = getRoleColor(user?.role);
 
@@ -29,6 +28,8 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
   const [address, setAddress] = useState(user?.address ?? '');
   const [avatarUri, setAvatarUri] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const phoneRef = useRef<RNTextInput>(null);
+  const addressRef = useRef<RNTextInput>(null);
 
   if (!user) return null;
 
@@ -91,90 +92,96 @@ export const EditProfileScreen: React.FC<{ navigation: any }> = ({ navigation })
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { backgroundColor: roleColor, paddingTop: insets.top + 8 }]}>
-        <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
-        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation?.goBack()} />
 
-      <ScrollView style={styles.flex} contentContainerStyle={styles.body}>
-        <Pressable onPress={pickImage} style={styles.avatarWrap}>
-          <AvatarCircle name={fullName || user.fullName} size={88} uri={avatarUri ?? user.avatarUrl} />
-          <View style={[styles.avatarEditBadge, { backgroundColor: roleColor }]}>
-            <MaterialCommunityIcons name="camera" size={16} color="#fff" />
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+          <Pressable onPress={pickImage} style={styles.avatarWrap}>
+            <AvatarCircle name={fullName || user.fullName} size={88} uri={avatarUri ?? user.avatarUrl} />
+            <View style={[styles.avatarEditBadge, { backgroundColor: roleColor }]}>
+              <MaterialCommunityIcons name="camera" size={16} color="#fff" />
+            </View>
+          </Pressable>
+          <Text style={[styles.changePhotoText, { color: roleColor }]} onPress={pickImage}>
+            {t(`${NS}.changePhoto`)}
+          </Text>
+
+          <TextInput
+            label={t(`${NS}.fullNameLabel`)}
+            mode="outlined"
+            value={fullName}
+            onChangeText={setFullName}
+            style={styles.input}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => phoneRef.current?.focus()}
+          />
+          <TextInput
+            ref={phoneRef}
+            label={t(`${NS}.phoneLabel`)}
+            mode="outlined"
+            value={phone}
+            onChangeText={setPhone}
+            keyboardType="phone-pad"
+            style={styles.input}
+            returnKeyType="next"
+            submitBehavior="submit"
+            onSubmitEditing={() => addressRef.current?.focus()}
+          />
+
+          <Text style={styles.label}>{t(`${NS}.genderLabel`)}</Text>
+          <View style={styles.chipRow}>
+            {(['male', 'female', 'other'] as const).map((g) => (
+              <Chip
+                key={g}
+                selected={gender === g}
+                onPress={() => setGender(g)}
+                style={gender === g ? { backgroundColor: roleColor } : undefined}
+                textStyle={gender === g ? { color: '#fff' } : undefined}
+              >
+                {g === 'male' ? t(`${NS}.male`) : g === 'female' ? t(`${NS}.female`) : t(`${NS}.otherGender`)}
+              </Chip>
+            ))}
           </View>
-        </Pressable>
-        <Text style={[styles.changePhotoText, { color: roleColor }]} onPress={pickImage}>
-          {t(`${NS}.changePhoto`)}
-        </Text>
 
-        <TextInput
-          label={t(`${NS}.fullNameLabel`)}
-          mode="outlined"
-          value={fullName}
-          onChangeText={setFullName}
-          style={styles.input}
-        />
-        <TextInput
-          label={t(`${NS}.phoneLabel`)}
-          mode="outlined"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          style={styles.input}
-        />
+          <CalendarPicker
+            label={t(`${NS}.dateOfBirthLabel`)}
+            value={dateOfBirth}
+            onChange={setDateOfBirth}
+            color={roleColor}
+          />
 
-        <Text style={styles.label}>{t(`${NS}.genderLabel`)}</Text>
-        <View style={styles.chipRow}>
-          {(['male', 'female', 'other'] as const).map((g) => (
-            <Chip
-              key={g}
-              selected={gender === g}
-              onPress={() => setGender(g)}
-              style={gender === g ? { backgroundColor: roleColor } : undefined}
-              textStyle={gender === g ? { color: '#fff' } : undefined}
-            >
-              {g === 'male' ? t(`${NS}.male`) : g === 'female' ? t(`${NS}.female`) : t(`${NS}.otherGender`)}
-            </Chip>
-          ))}
-        </View>
+          <TextInput
+            ref={addressRef}
+            label={t(`${NS}.addressLabel`)}
+            mode="outlined"
+            value={address}
+            onChangeText={setAddress}
+            multiline
+            style={styles.input}
+            returnKeyType="done"
+            submitBehavior="blurAndSubmit"
+          />
 
-        <CalendarPicker
-          label={t(`${NS}.dateOfBirthLabel`)}
-          value={dateOfBirth}
-          onChange={setDateOfBirth}
-          color={roleColor}
-        />
-
-        <TextInput
-          label={t(`${NS}.addressLabel`)}
-          mode="outlined"
-          value={address}
-          onChangeText={setAddress}
-          multiline
-          style={styles.input}
-        />
-
-        <Button
-          mode="contained"
-          buttonColor={roleColor}
-          onPress={handleSave}
-          loading={saving}
-          disabled={saving}
-          style={styles.saveBtn}
-          contentStyle={{ height: 48 }}
-        >
-          {t(`${NS}.save`)}
-        </Button>
-      </ScrollView>
+          <Button
+            mode="contained"
+            buttonColor={roleColor}
+            onPress={handleSave}
+            loading={saving}
+            disabled={saving}
+            style={styles.saveBtn}
+            contentStyle={{ height: 48 }}
+          >
+            {t(`${NS}.save`)}
+          </Button>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { paddingHorizontal: 8, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' },
-  backBtn: { margin: 0 },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   body: { padding: 16, paddingBottom: 32, alignItems: 'center' },
   avatarWrap: { marginTop: 8 },
   avatarEditBadge: {

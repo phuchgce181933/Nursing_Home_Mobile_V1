@@ -33,6 +33,7 @@ export const SHIFTS = {
   CHECK_IN: (id: string) => `/api/shifts/${id}/check-in`,
   CHECK_OUT: (id: string) => `/api/shifts/${id}/check-out`,
   CANCEL: (id: string) => `/api/shifts/${id}/cancel`,
+  COMPLETE: (id: string) => `/api/shifts/${id}/complete`,
   SCHEDULE: '/api/shifts/schedule',
   CHECK_CONFLICTS: '/api/shifts/check-conflicts',
 } as const;
@@ -112,6 +113,10 @@ export const NOTIFICATIONS = {
   LIST: '/api/notifications',
   CATEGORIES: '/api/notifications/categories',
   READ: (id: string) => `/api/notifications/${id}/read`,
+  SETTINGS: '/api/notifications/settings',
+  MARK_READ_BULK: '/api/notifications/mark-read',
+  DELETE: (id: string) => `/api/notifications/${id}`,
+  DELETE_BULK: '/api/notifications/delete',
   PUSH_TOKEN: '/api/notifications/push-token',
 } as const;
 
@@ -181,11 +186,15 @@ export const FAMILY = {
   WALLET_BALANCE: '/api/family/wallet/balance',
   WALLET_TOPUP: '/api/family/wallet/topup',
   WALLET_TOPUP_VERIFY: '/api/family/wallet/topup/verify',
+  WALLET_PAYMENT_INITIATE: '/api/family/wallet/payments/initiate',
+  WALLET_PAYMENT_VERIFY: '/api/family/wallet/payments/verify',
   VITALS: (residentId: string) => `/api/family/residents/${residentId}/vitals`,
   HEALTH_HISTORY: (residentId: string) => `/api/family/residents/${residentId}/health-history`,
   HEALTH_CHART: (residentId: string) => `/api/family/residents/${residentId}/health-chart`,
   CARE_NOTES: (residentId: string) => `/api/family/residents/${residentId}/care-notes`,
   MEDICATIONS: (residentId: string) => `/api/family/residents/${residentId}/medications`,
+  DAILY_MEDICATION_SCHEDULE: (residentId: string) => `/api/family/residents/${residentId}/daily-medication-schedule`,
+  MEDICATION_HISTORY: (residentId: string) => `/api/family/residents/${residentId}/medication-history`,
   PRESCRIPTIONS: (residentId: string) => `/api/family/residents/${residentId}/prescriptions`,
   DAILY_ACTIVITIES: (residentId: string) => `/api/family/residents/${residentId}/daily-activities`,
   CARE_SCHEDULE: (residentId: string) => `/api/family/residents/${residentId}/care-schedule`,
@@ -196,6 +205,7 @@ export const FAMILY = {
   ADMISSION_DETAIL: (id: string) => `/api/family/admission-requests/${id}`,
   ADMISSION_CANCEL: (id: string) => `/api/family/admission-requests/${id}/cancel`,
   PAY_INVOICE: (residentId: string, invoiceId: string) => `/api/residents/${residentId}/invoices/${invoiceId}/pay`,
+  BATCH_PAY_INVOICES: (residentId: string) => `/api/residents/${residentId}/invoices/batch-pay`,
   TOURS: '/api/family/tours',
   TOUR_CANCEL: (id: string) => `/api/family/tours/${id}/cancel`,
   SUPPORT_REQUESTS: '/api/family/support-requests',
@@ -205,6 +215,19 @@ export const FAMILY = {
   VISITS: '/api/family/visits',
   VISIT_CANCEL: (id: string) => `/api/family/visits/${id}/cancel`,
   RESIDENT_PHOTOS: (residentId: string) => `/api/family/residents/${residentId}/photos`,
+} as const;
+
+export const PUBLIC_ADMISSIONS = {
+  SUBMIT: '/api/public/admission-requests',
+} as const;
+
+export const CONSULTATION = {
+  SUBMIT: '/api/consultation-requests',
+} as const;
+
+export const MEDICAL_SERVICE_PACKAGES = {
+  LIST: '/api/medical/service-packages',
+  DETAIL: (id: string) => `/api/medical/service-packages/${id}`,
 } as const;
 
 export const STAFF_VISITS = {
@@ -218,8 +241,11 @@ export const CONVERSATIONS = {
   CREATE: '/api/conversations',
   DETAIL: (id: string) => `/api/conversations/${id}`,
   MESSAGES: (id: string) => `/api/conversations/${id}/messages`,
+  MARK_READ: (id: string) => `/api/conversations/${id}/messages/read`,
   SEARCH: '/api/conversations/search',
   STAFF_DIRECTORY: '/api/conversations/staff-directory',
+  GUEST_CREATE: '/api/conversations/guest',
+  GUEST_MESSAGES: (id: string) => `/api/conversations/guest/${id}/messages`,
 } as const;
 
 export const ACTIVITIES = {

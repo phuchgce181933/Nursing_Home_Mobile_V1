@@ -1,21 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, Button, TextInput } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { IconButton } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useNoteHistory } from '../../hooks/useCareNotes';
 import { useResidents } from '../../hooks/useResidents';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
+import { useAuth } from '../../auth/useAuth';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.careNotes';
 
 export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const isNurse = user?.role === 'nurse';
   const [selectedResidentId, setSelectedResidentId] = useState('');
   const [filter, setFilter] = useState('');
   const [showPicker, setShowPicker] = useState(false);
@@ -43,13 +47,7 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.historyTitle`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.historyTitle`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <View style={styles.section}>
         <Text style={styles.label}>{t(`${NS}.selectResident`)}</Text>
@@ -61,11 +59,11 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
                 <Text style={styles.residentName}>{selectedResident.fullName}</Text>
                 <Text style={styles.residentCode}>{selectedResident.residentCode}</Text>
               </View>
-              <Button compact mode="text" textColor={COLOR} onPress={() => { setSelectedResidentId(''); setShowPicker(true); }}>{t(`${NS}.change`)}</Button>
+              <Button compact mode="text" textColor={roleColor} onPress={() => { setSelectedResidentId(''); setShowPicker(true); }}>{t(`${NS}.change`)}</Button>
             </Card.Content>
           </Card>
         ) : (
-          <Button mode="outlined" onPress={() => setShowPicker(!showPicker)} style={styles.selectBtn}>
+          <Button mode="outlined" onPress={() => setShowPicker(!showPicker)} style={[styles.selectBtn, { borderColor: roleColor }]}>
             {t(`${NS}.historySelectResident`)}
           </Button>
         )}
@@ -92,7 +90,7 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
           <View style={styles.filterRow}>
             {TYPE_FILTERS.map(f => (
               <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}
-                style={filter === f.value ? { backgroundColor: COLOR } : undefined}
+                style={filter === f.value ? { backgroundColor: roleColor } : undefined}
                 textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
             ))}
           </View>
@@ -100,10 +98,10 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
           <ScreenLayout loading={historyQ.isLoading} error={historyQ.error ? (historyQ.error as Error).message : null}
             onRetry={historyQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.historyEmpty`)}>
             <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-              refreshControl={<RefreshControl refreshing={false} onRefresh={historyQ.refetch} tintColor={COLOR} />}
+              refreshControl={<RefreshControl refreshing={historyQ.isFetching} onRefresh={historyQ.refetch} tintColor={roleColor} />}
               renderItem={({ item }) => (
                 <Card style={styles.card} mode="outlined"
-                  onPress={() => navigation.navigate('EditNote', { note: item })}>
+                  onPress={() => navigation.navigate('EditNote', { note: item, readOnly: !isNurse })}>
                   <Card.Content>
                     <View style={styles.row}>
                       <StatusBadge status={item.noteType} size="sm" />
@@ -124,25 +122,22 @@ export const CareNoteHistoryScreen: React.FC<{ navigation: any }> = ({ navigatio
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   section: { padding: 16, paddingBottom: 8 },
-  label: { fontSize: 13, fontWeight: '500', color: '#374151', marginBottom: 8 },
-  residentCard: { borderRadius: 12, backgroundColor: '#fff' },
+  label: { fontSize: 13, fontWeight: '500', color: c.text, marginBottom: 8 },
+  residentCard: { borderRadius: 12, backgroundColor: c.surface },
   residentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  residentName: { fontSize: 14, fontWeight: '500', color: '#111827' },
-  residentCode: { fontSize: 12, color: '#6B7280' },
-  selectBtn: { borderRadius: 8, borderColor: COLOR },
+  residentName: { fontSize: 14, fontWeight: '500', color: c.text },
+  residentCode: { fontSize: 12, color: c.textSecondary },
+  selectBtn: { borderRadius: 8 },
   pickerCard: { marginTop: 8, borderRadius: 12, maxHeight: 250 },
   pickerItem: { justifyContent: 'flex-start' },
   filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingBottom: 8, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
+  card: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  time: { fontSize: 11, color: '#9CA3AF' },
-  content: { fontSize: 13, color: '#374151', lineHeight: 18 },
-  author: { fontSize: 12, color: '#6B7280', marginTop: 6, fontStyle: 'italic' },
+  time: { fontSize: 11, color: c.textMuted },
+  content: { fontSize: 13, color: c.text, lineHeight: 18 },
+  author: { fontSize: 12, color: c.textSecondary, marginTop: 6, fontStyle: 'italic' },
 });

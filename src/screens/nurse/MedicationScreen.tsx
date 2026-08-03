@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Chip, Card, Button, Dialog, Portal, TextInput, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,8 +12,9 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { getStatusEntry } from '../../utils/statusMap';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.medications';
 const toDateStr = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -29,6 +30,8 @@ export const MedicationScreen: React.FC = () => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const { t } = useTranslation();
+  const { colors, roleColor, scheme } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [tab, setTab] = useState<'schedule' | 'prescriptions'>('schedule');
   const [selectedDate, setSelectedDate] = useState(today());
   const [filter, setFilter] = useState('');
@@ -117,14 +120,14 @@ export const MedicationScreen: React.FC = () => {
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.topBar, { backgroundColor: roleColor, paddingTop: insets.top + 8 }]}>
         <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
       </View>
 
       <View style={styles.tabRow}>
         {TABS.map((tb) => (
           <Chip key={tb.value} selected={tab === tb.value} onPress={() => setTab(tb.value)}
-            style={tab === tb.value ? { backgroundColor: COLOR } : undefined}
+            style={tab === tb.value ? { backgroundColor: roleColor } : undefined}
             textStyle={tab === tb.value ? { color: '#fff' } : undefined}>{tb.label}</Chip>
         ))}
       </View>
@@ -132,16 +135,16 @@ export const MedicationScreen: React.FC = () => {
       {tab === 'schedule' ? (
         <>
           <View style={styles.dateBar}>
-            <IconButton icon="chevron-left" size={22} iconColor={COLOR} onPress={() => setSelectedDate(d => shiftDay(d, -1))} style={styles.dateArrow} />
+            <IconButton icon="chevron-left" size={22} iconColor={roleColor} onPress={() => setSelectedDate(d => shiftDay(d, -1))} style={styles.dateArrow} />
             <View style={styles.dateLabelWrap}>
-              <CalendarPicker label={t('common.today')} value={selectedDate} onChange={setSelectedDate} color={COLOR} />
+              <CalendarPicker label={t('common.today')} value={selectedDate} onChange={setSelectedDate} color={roleColor} />
             </View>
-            <IconButton icon="chevron-right" size={22} iconColor={COLOR} onPress={() => setSelectedDate(d => shiftDay(d, 1))} style={styles.dateArrow} />
+            <IconButton icon="chevron-right" size={22} iconColor={roleColor} onPress={() => setSelectedDate(d => shiftDay(d, 1))} style={styles.dateArrow} />
           </View>
 
           {!isToday && (
             <View style={styles.todayBtnRow}>
-              <Button compact mode="text" textColor={COLOR} icon="calendar-today" onPress={() => setSelectedDate(today())}>
+              <Button compact mode="text" textColor={roleColor} icon="calendar-today" onPress={() => setSelectedDate(today())}>
                 {t('common.backToToday')}
               </Button>
             </View>
@@ -153,7 +156,7 @@ export const MedicationScreen: React.FC = () => {
                 key={f.value}
                 selected={filter === f.value}
                 onPress={() => setFilter(f.value)}
-                style={[styles.chip, filter === f.value && { backgroundColor: COLOR }]}
+                style={[styles.chip, filter === f.value && { backgroundColor: roleColor }]}
                 textStyle={filter === f.value ? { color: '#fff' } : undefined}
                 compact
               >
@@ -179,16 +182,16 @@ export const MedicationScreen: React.FC = () => {
               data={groups}
               keyExtractor={(item: any) => item.residentId}
               contentContainerStyle={styles.list}
-              refreshControl={<RefreshControl refreshing={false} onRefresh={scheduleQ.refetch} tintColor={COLOR} />}
+              refreshControl={<RefreshControl refreshing={scheduleQ.isFetching} onRefresh={scheduleQ.refetch} tintColor={roleColor} />}
               renderItem={({ item: group }) => (
                 <View style={styles.groupSection}>
                   <View style={styles.groupHeader}>
-                    <MaterialCommunityIcons name="account" size={18} color={COLOR} />
+                    <MaterialCommunityIcons name="account" size={18} color={roleColor} />
                     <Text style={styles.groupName}>{group.residentName}</Text>
                     {group.room ? <Text style={styles.groupRoom}>{t(`${NS}.room`, { room: group.room })}</Text> : null}
                   </View>
                   {(group.schedules ?? []).map((item: any) => {
-                    const entry = getStatusEntry(item.status);
+                    const entry = getStatusEntry(item.status, scheme);
                     const time = item.scheduledTime ? new Date(item.scheduledTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '';
                     const isPending = item.status === 'PENDING' || item.status === 'OVERDUE';
 
@@ -199,7 +202,7 @@ export const MedicationScreen: React.FC = () => {
                             <Text style={styles.medName} numberOfLines={1}>{item.medicationName}</Text>
                             <Text style={styles.medDosage}>{item.dosage} · {item.route} · {time}</Text>
                             {item.administrationTiming ? (
-                              <Text style={styles.timingTag}>
+                              <Text style={[styles.timingTag, { color: roleColor }]}>
                                 {t(`${NS}.timing${item.administrationTiming === 'early' ? 'Early' : item.administrationTiming === 'late' ? 'Late' : 'OnTime'}`)}
                               </Text>
                             ) : null}
@@ -211,7 +214,7 @@ export const MedicationScreen: React.FC = () => {
                         </Card.Content>
                         {isPending ? (
                           <View style={styles.actionRow}>
-                            <Button mode="outlined" compact style={styles.actionBtn} textColor={COLOR}
+                            <Button mode="outlined" compact style={[styles.actionBtn, { borderColor: roleColor }]} textColor={roleColor}
                               onPress={() => setConfirmDialog(item.id)}>{t(`${NS}.markTaken`)}</Button>
                             <Button mode="outlined" compact style={[styles.actionBtn, styles.actionBtnDanger]} textColor="#991B1B"
                               onPress={() => setMissedDialog(item.id)}>{t(`${NS}.markMissed`)}</Button>
@@ -234,14 +237,14 @@ export const MedicationScreen: React.FC = () => {
           <View style={styles.filterRow}>
             {PRESCRIPTION_STATUS_FILTERS.map((f) => (
               <Chip key={f.value} selected={prescriptionStatus === f.value} onPress={() => setPrescriptionStatus(f.value)}
-                style={prescriptionStatus === f.value ? { backgroundColor: COLOR } : undefined}
+                style={prescriptionStatus === f.value ? { backgroundColor: roleColor } : undefined}
                 textStyle={prescriptionStatus === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
             ))}
           </View>
           <ScreenLayout loading={prescriptionsQ.isLoading} error={prescriptionsQ.error ? (prescriptionsQ.error as Error).message : null}
             onRetry={prescriptionsQ.refetch} isEmpty={prescriptions.length === 0} emptyMessage={t(`${NS}.emptyPrescriptions`)}>
             <FlatList data={prescriptions} keyExtractor={(item: any) => item._id} contentContainerStyle={styles.list}
-              refreshControl={<RefreshControl refreshing={false} onRefresh={prescriptionsQ.refetch} tintColor={COLOR} />}
+              refreshControl={<RefreshControl refreshing={prescriptionsQ.isFetching} onRefresh={prescriptionsQ.refetch} tintColor={roleColor} />}
               renderItem={({ item }) => {
                 const expanded = expandedPrescriptionId === item._id;
                 return (
@@ -253,7 +256,7 @@ export const MedicationScreen: React.FC = () => {
                             <Text style={styles.medName}>{item.residentId?.fullName ?? t(`${NS}.resident`)}</Text>
                             <Text style={styles.medDosage}>{item.diagnosisNote || t(`${NS}.noDiagnosis`)}</Text>
                           </View>
-                          <MaterialCommunityIcons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color="#9CA3AF" />
+                          <MaterialCommunityIcons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={colors.textMuted} />
                         </View>
                         <Text style={styles.medDosage}>
                           {t(`${NS}.doctorLabel`, { name: item.doctorId?.fullName ?? '—' })} · {t(`${NS}.validUntil`, { date: item.validUntil ? new Date(item.validUntil).toLocaleDateString('vi-VN') : '--' })} · {t(`${NS}.medicationCount`, { count: item.items?.length ?? 0 })}
@@ -297,14 +300,14 @@ export const MedicationScreen: React.FC = () => {
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => { setConfirmDialog(null); setTakenNotes(''); }}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={() => handleMarkTaken(confirmDialog!)}>{t('common.confirm')}</Button>
+            <Button mode="contained" buttonColor={roleColor} onPress={() => handleMarkTaken(confirmDialog!)}>{t('common.confirm')}</Button>
           </Dialog.Actions>
         </Dialog>
 
         <Dialog visible={!!missedDialog} onDismiss={() => setMissedDialog(null)}>
           <Dialog.Title>{t(`${NS}.confirmMissedTitle`)}</Dialog.Title>
           <Dialog.Content>
-            <Text style={{ marginBottom: 8, color: '#6B7280' }}>{t(`${NS}.confirmMissedIrreversible`)}</Text>
+            <Text style={{ marginBottom: 8, color: colors.textSecondary }}>{t(`${NS}.confirmMissedIrreversible`)}</Text>
             <View style={styles.reasonRow}>
               {MISSED_REASONS.map((r) => (
                 <Chip
@@ -337,14 +340,14 @@ export const MedicationScreen: React.FC = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8 },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
+  topBar: { paddingHorizontal: 16, paddingBottom: 12, paddingTop: 8 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 8 },
   searchBar: { paddingHorizontal: 16, paddingTop: 8 },
-  prescriptionItemsBox: { paddingTop: 0, borderTopWidth: 1, borderTopColor: '#F0F0F0', marginTop: 4 },
-  prescriptionItemRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F5F5F5' },
+  prescriptionItemsBox: { paddingTop: 0, borderTopWidth: 1, borderTopColor: c.border, marginTop: 4 },
+  prescriptionItemRow: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.background },
   dateBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4, paddingTop: 8 },
   dateArrow: { margin: 0 },
   dateLabelWrap: { flex: 1 },
@@ -352,19 +355,19 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, paddingBottom: 4, flexWrap: 'wrap' },
   chip: { borderRadius: 20 },
   list: { padding: 16, paddingBottom: 32 },
-  medCard: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff', overflow: 'hidden' },
+  medCard: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface, overflow: 'hidden' },
   medRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   medInfo: { flex: 1 },
-  medName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  medDosage: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  timingTag: { fontSize: 11, color: COLOR, marginTop: 2, fontStyle: 'italic' },
-  medNotes: { fontSize: 11, color: '#6B7280', marginTop: 2 },
+  medName: { fontSize: 14, fontWeight: '600', color: c.text },
+  medDosage: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
+  timingTag: { fontSize: 11, marginTop: 2, fontStyle: 'italic' },
+  medNotes: { fontSize: 11, color: c.textSecondary, marginTop: 2 },
   actionRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
-  actionBtn: { flex: 1, borderRadius: 8, borderColor: COLOR },
+  actionBtn: { flex: 1, borderRadius: 8 },
   actionBtnDanger: { borderColor: '#991B1B' },
   reasonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   groupSection: { marginBottom: 16 },
   groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
-  groupName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  groupRoom: { fontSize: 12, color: '#6B7280', marginLeft: 'auto' },
+  groupName: { fontSize: 14, fontWeight: '600', color: c.text },
+  groupRoom: { fontSize: 12, color: c.textSecondary, marginLeft: 'auto' },
 });

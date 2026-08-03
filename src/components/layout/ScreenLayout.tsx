@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Text, Button, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
 type Props = {
   children: React.ReactNode;
@@ -13,6 +16,11 @@ type Props = {
 };
 
 export const ScreenLayout: React.FC<Props> = ({ children, loading, error, onRetry, emptyMessage, isEmpty }) => {
+  const { colors, isDark } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const errorColor = isDark ? '#FCA5A5' : '#EF4444';
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -29,12 +37,12 @@ export const ScreenLayout: React.FC<Props> = ({ children, loading, error, onRetr
   if (error) {
     return (
       <View style={styles.center}>
-        <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#EF4444" />
-        <Text style={styles.errorText}>Không thể tải dữ liệu</Text>
+        <MaterialCommunityIcons name="alert-circle-outline" size={48} color={errorColor} />
+        <Text style={[styles.errorText, { color: errorColor }]}>{t('common.loadErrorTitle')}</Text>
         <Text style={styles.errorSub}>{error}</Text>
         {onRetry ? (
           <Button mode="outlined" onPress={onRetry} style={styles.retryBtn}>
-            Thử lại
+            {t('common.retry')}
           </Button>
         ) : null}
       </View>
@@ -44,7 +52,7 @@ export const ScreenLayout: React.FC<Props> = ({ children, loading, error, onRetr
   if (isEmpty && emptyMessage) {
     return (
       <View style={styles.center}>
-        <MaterialCommunityIcons name="inbox-outline" size={48} color="#9CA3AF" />
+        <MaterialCommunityIcons name="inbox-outline" size={48} color={colors.textMuted} />
         <Text style={styles.emptyText}>{emptyMessage}</Text>
       </View>
     );
@@ -53,12 +61,12 @@ export const ScreenLayout: React.FC<Props> = ({ children, loading, error, onRetr
   return <>{children}</>;
 };
 
-const styles = StyleSheet.create({
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32, backgroundColor: c.background },
   skeletons: { marginTop: 24, width: '100%', gap: 12 },
-  skeleton: { height: 72, backgroundColor: '#E5E7EB', borderRadius: 12, width: '100%' },
-  errorText: { fontSize: 16, fontWeight: '600', color: '#EF4444', marginTop: 12 },
-  errorSub: { fontSize: 13, color: '#6B7280', marginTop: 4, textAlign: 'center' },
+  skeleton: { height: 72, backgroundColor: c.skeleton, borderRadius: 12, width: '100%' },
+  errorText: { fontSize: 16, fontWeight: '600', marginTop: 12 },
+  errorSub: { fontSize: 13, color: c.textSecondary, marginTop: 4, textAlign: 'center' },
   retryBtn: { marginTop: 16 },
-  emptyText: { fontSize: 14, color: '#9CA3AF', marginTop: 12, textAlign: 'center' },
+  emptyText: { fontSize: 14, color: c.textMuted, marginTop: 12, textAlign: 'center' },
 });

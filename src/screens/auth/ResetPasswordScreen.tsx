@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -16,9 +16,12 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const newPasswordRef = useRef<RNTextInput>(null);
+  const confirmPasswordRef = useRef<RNTextInput>(null);
 
   const handleSubmit = async () => {
     if (!token.trim()) {
@@ -84,9 +87,13 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
                 placeholder={t(`${NS}.tokenPlaceholder`)}
                 left={<TextInput.Icon icon="key-outline" />}
                 style={styles.input}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => newPasswordRef.current?.focus()}
               />
 
               <TextInput
+                ref={newPasswordRef}
                 label={t(`${NS}.newPasswordLabel`)}
                 mode="outlined"
                 value={newPassword}
@@ -100,16 +107,29 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
                   />
                 }
                 style={styles.input}
+                returnKeyType="next"
+                submitBehavior="submit"
+                onSubmitEditing={() => confirmPasswordRef.current?.focus()}
               />
 
               <TextInput
+                ref={confirmPasswordRef}
                 label={t(`${NS}.confirmPasswordLabel`)}
                 mode="outlined"
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
-                secureTextEntry={!showPassword}
+                secureTextEntry={!showConfirmPassword}
                 left={<TextInput.Icon icon="lock-check-outline" />}
+                right={
+                  <TextInput.Icon
+                    icon={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    onPress={() => setShowConfirmPassword((v) => !v)}
+                  />
+                }
                 style={styles.input}
+                returnKeyType="done"
+                submitBehavior="blurAndSubmit"
+                onSubmitEditing={handleSubmit}
               />
 
               {error ? (

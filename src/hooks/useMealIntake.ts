@@ -35,6 +35,32 @@ export const useCreateMealIntake = () => {
   });
 };
 
+export const useUpdateMealIntake = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, body }: { id: string; body: Record<string, unknown> }) => {
+      const res = await api.put(CAREGIVER.MEAL_INTAKE_DETAIL(id), body);
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mealIntake'] });
+    },
+  });
+};
+
+export const useDeleteMealIntake = () => {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.delete(CAREGIVER.MEAL_INTAKE_DETAIL(id));
+      return res.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mealIntake'] });
+    },
+  });
+};
+
 export const useHygieneRecords = (params?: { workDate?: string }) => {
   return useQuery({
     queryKey: ['hygiene', params],

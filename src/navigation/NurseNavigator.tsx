@@ -3,6 +3,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useAppTheme } from '../theme/useAppTheme';
 import { NurseDashboardScreen } from '../screens/nurse/NurseDashboardScreen';
 import { ResidentListScreen } from '../screens/nurse/ResidentListScreen';
 import { MedicationScreen } from '../screens/nurse/MedicationScreen';
@@ -18,6 +19,8 @@ import { CareTasksScreen } from '../screens/nurse/CareTasksScreen';
 import { ActivityScheduleScreen } from '../screens/nurse/ActivityScheduleScreen';
 import { MealPlansScreen } from '../screens/nurse/MealPlansScreen';
 import { NutritionReportsScreen } from '../screens/nurse/NutritionReportsScreen';
+import { ServicePackagesScreen } from '../screens/nurse/ServicePackagesScreen';
+import { ServicePackageDetailScreen } from '../screens/nurse/ServicePackageDetailScreen';
 import { AdmissionListScreen } from '../screens/nurse/AdmissionListScreen';
 import { AdmissionDetailScreen } from '../screens/nurse/AdmissionDetailScreen';
 import { InitialHealthRecordScreen } from '../screens/nurse/InitialHealthRecordScreen';
@@ -30,6 +33,7 @@ import { SupportThreadScreen } from '../screens/shared/SupportThreadScreen';
 import { ConversationListScreen } from '../screens/shared/ConversationListScreen';
 import { ChatThreadScreen } from '../screens/shared/ChatThreadScreen';
 import { NotificationsScreen } from '../screens/shared/NotificationsScreen';
+import { NotificationSettingsScreen } from '../screens/shared/NotificationSettingsScreen';
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
 import { EditProfileScreen } from '../screens/shared/EditProfileScreen';
 
@@ -38,8 +42,6 @@ const DashStack = createNativeStackNavigator();
 const NoteNavStack = createNativeStackNavigator();
 const MedNavStack = createNativeStackNavigator();
 const ProfileNavStack = createNativeStackNavigator();
-
-const COLOR = '#0F5040';
 
 const DashboardStack = () => (
   <DashStack.Navigator screenOptions={{ headerShown: false }}>
@@ -51,6 +53,8 @@ const DashboardStack = () => (
     <DashStack.Screen name="Activities" component={ActivityScheduleScreen} />
     <DashStack.Screen name="MealPlans" component={MealPlansScreen} />
     <DashStack.Screen name="NutritionReports" component={NutritionReportsScreen} />
+    <DashStack.Screen name="ServicePackages" component={ServicePackagesScreen} />
+    <DashStack.Screen name="ServicePackageDetail" component={ServicePackageDetailScreen} />
     <DashStack.Screen name="Admissions" component={AdmissionListScreen} />
     <DashStack.Screen name="AdmissionDetail" component={AdmissionDetailScreen} />
     <DashStack.Screen name="InitialHealthRecord" component={InitialHealthRecordScreen} />
@@ -64,6 +68,7 @@ const DashboardStack = () => (
     <DashStack.Screen name="Messages" component={ConversationListScreen} />
     <DashStack.Screen name="ChatThread" component={ChatThreadScreen} />
     <DashStack.Screen name="Notifications" component={NotificationsScreen} />
+    <DashStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
   </DashStack.Navigator>
 );
 
@@ -92,13 +97,14 @@ const ProfileStack = () => (
 
 export const NurseNavigator: React.FC = () => {
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
   return (
     <Tab.Navigator
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: COLOR,
-        tabBarInactiveTintColor: '#9CA3AF',
-        tabBarStyle: { borderTopColor: '#E5E7EB' },
+        tabBarActiveTintColor: roleColor,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
       }}
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ tabBarLabel: t('navigation.home'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="home-outline" size={size} color={color} /> }} />

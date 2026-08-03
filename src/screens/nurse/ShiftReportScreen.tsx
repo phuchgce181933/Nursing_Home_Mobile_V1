@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -10,14 +10,17 @@ import { useIncidents } from '../../hooks/useIncidents';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#1B3A6B';
 const NS = 'nurse.shiftReport';
 const today = () => new Date().toISOString().split('T')[0];
 
 export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const shiftsQ = useShifts({ fromDate: today(), toDate: today() });
   const tasksQ = useManagerTasks({ workDate: today() });
   const incidentsQ = useIncidents({ status: 'open' });
@@ -38,6 +41,7 @@ export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }
     tasksQ.refetch();
     incidentsQ.refetch();
   };
+  const isFetching = shiftsQ.isFetching || tasksQ.isFetching || incidentsQ.isFetching;
 
   const stats = [
     { label: t(`${NS}.shiftsToday`), value: shifts.length, icon: 'calendar-clock' as const, color: '#1E40AF' },
@@ -48,7 +52,7 @@ export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + 8, backgroundColor: roleColor }]}>
         <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
         <View>
           <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
@@ -59,7 +63,7 @@ export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={roleColor} />}
       >
         <ScreenLayout loading={loading} error={error ? (error as Error).message : null} onRetry={refetch}>
           <View style={styles.statsGrid}>
@@ -74,7 +78,7 @@ export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }
             ))}
           </View>
 
-          <SectionHeader title={t(`${NS}.eventsTitle`)} roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.eventsTitle`)} roleColor={roleColor} />
           {tasks.filter((tk: any) => tk.status !== 'pending').slice(0, 20).map((tk: any) => (
             <View key={tk._id} style={styles.eventRow}>
               <StatusBadge status={tk.status} size="sm" />
@@ -96,9 +100,9 @@ export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
+  topBar: { paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' },
   backBtn: { margin: 0 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
@@ -107,10 +111,10 @@ const styles = StyleSheet.create({
   statCard: { width: '48%', borderRadius: 12 },
   statContent: { alignItems: 'center', paddingVertical: 12 },
   statValue: { fontSize: 20, fontWeight: '700', marginTop: 4 },
-  statLabel: { fontSize: 11, color: '#6B7280', marginTop: 2 },
-  eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#F0F0F0' },
+  statLabel: { fontSize: 11, color: c.textSecondary, marginTop: 2 },
+  eventRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.border },
   eventInfo: { flex: 1 },
-  eventTitle: { fontSize: 13, color: '#111827' },
-  eventTime: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  emptyText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
+  eventTitle: { fontSize: 13, color: c.text },
+  eventTime: { fontSize: 11, color: c.textMuted, marginTop: 2 },
+  emptyText: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
 });

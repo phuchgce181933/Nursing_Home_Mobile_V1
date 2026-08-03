@@ -1,9 +1,19 @@
 import { MD3LightTheme, MD3DarkTheme } from 'react-native-paper';
 
 export const ROLE_COLORS = {
-  manager: '#1B3A6B',
-  nurse: '#0F5040',
-  caregiver: '#6B4200',
+  light: {
+    manager: '#1B3A6B',
+    nurse: '#0F5040',
+    caregiver: '#6B4200',
+    family: '#2E7D32',
+  },
+  // Lighter/more saturated tints so each role accent still reads clearly on a dark surface.
+  dark: {
+    manager: '#6B8CC7',
+    nurse: '#4F9A82',
+    caregiver: '#C79A5B',
+    family: '#66BB6A',
+  },
 } as const;
 
 export const STATUS_COLORS = {
@@ -79,10 +89,11 @@ export const shadeColor = (hex: string, percent: number): string => {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
 
-export const getRoleColor = (role?: string): string => {
-  if (role === 'manager' || role === 'admin') return ROLE_COLORS.manager;
-  if (role === 'nurse' || role === 'doctor') return ROLE_COLORS.nurse;
-  if (role === 'caregiver') return ROLE_COLORS.caregiver;
-  if (role === 'family') return '#2E7D32';
-  return ROLE_COLORS.manager;
+export const getRoleColor = (role?: string, scheme: 'light' | 'dark' = 'light'): string => {
+  const palette = ROLE_COLORS[scheme];
+  if (role === 'manager' || role === 'admin') return palette.manager;
+  if (role === 'nurse' || role === 'doctor') return palette.nurse;
+  if (role === 'caregiver') return palette.caregiver;
+  if (role === 'family') return palette.family;
+  return palette.manager;
 };

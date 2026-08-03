@@ -88,7 +88,7 @@ export const HygieneScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         <View><Text style={styles.topTitle}>{t(`${NS}.title`)}</Text><Text style={styles.topSub}>{today()}</Text></View>
       </View>
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
-        <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
+        <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => openEdit(item)} onLongPress={() => setDeleteId(item._id)}>
               <Card.Content style={styles.row}>

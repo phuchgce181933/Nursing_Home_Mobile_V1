@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ScrollView, View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
+import { ScrollView, View, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Card, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,9 +20,11 @@ export const FamilyHealthScreen: React.FC<{ navigation: any }> = ({ navigation }
 
   const SHORTCUTS = [
     { route: 'Medications', label: t(`${NS}.shortcutMedications`), icon: 'pill' },
+    { route: 'MedicationHistory', label: t(`${NS}.shortcutMedicationHistory`), icon: 'history' },
     { route: 'DailyCare', label: t(`${NS}.shortcutDailyCare`), icon: 'calendar-heart' },
     { route: 'Activities', label: t(`${NS}.shortcutActivities`), icon: 'run' },
     { route: 'Photos', label: t(`${NS}.shortcutPhotos`), icon: 'image-multiple-outline' },
+    { route: 'Appointments', label: t(`${NS}.shortcutAppointments`), icon: 'calendar-check-outline' },
   ] as const;
 
   const residentsQ = useQuery({
@@ -48,6 +50,7 @@ export const FamilyHealthScreen: React.FC<{ navigation: any }> = ({ navigation }
   const records = historyQ.data?.data ?? historyQ.data ?? [];
   const careNotes = careNotesQ.data?.data ?? careNotesQ.data ?? [];
   const loading = residentsQ.isLoading || historyQ.isLoading;
+  const isFetching = residentsQ.isFetching || historyQ.isFetching || careNotesQ.isFetching;
   const refetch = () => { historyQ.refetch(); careNotesQ.refetch(); };
 
   return (
@@ -67,7 +70,7 @@ export const FamilyHealthScreen: React.FC<{ navigation: any }> = ({ navigation }
       ) : null}
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={COLOR} />}>
         <View style={styles.shortcutRow}>
           {SHORTCUTS.map((s) => (
             <Pressable key={s.route} style={styles.shortcutItem} onPress={() => navigation.navigate(s.route)}>
@@ -130,8 +133,8 @@ const styles = StyleSheet.create({
   noteDate: { fontSize: 11, color: '#9CA3AF' },
   noteContent: { fontSize: 13, color: '#374151', marginTop: 6 },
   empty: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 },
-  shortcutRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  shortcutItem: { alignItems: 'center', flex: 1, gap: 6 },
+  shortcutRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', marginBottom: 8 },
+  shortcutItem: { alignItems: 'center', width: '20%', minWidth: 64, gap: 6, marginBottom: 8 },
   shortcutIcon: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center' },
   shortcutLabel: { fontSize: 11, color: '#374151', textAlign: 'center' },
 });

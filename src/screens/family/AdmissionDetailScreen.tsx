@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, Dialog, Portal, TextInput, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Button, Dialog, Portal, TextInput } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -10,6 +9,7 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { useToast } from '../../utils/toast';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.admissions';
@@ -39,7 +39,6 @@ const TimelineItem: React.FC<{ label: string; date?: string | null; isLast?: boo
 };
 
 export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
@@ -85,16 +84,10 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.detailTitle`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.detailTitle`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={detailQ.refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={detailQ.isFetching} onRefresh={detailQ.refetch} tintColor={COLOR} />}>
         <ScreenLayout loading={detailQ.isLoading} error={detailQ.error ? (detailQ.error as Error).message : null} onRetry={detailQ.refetch}>
           {item ? (
             <>
@@ -203,9 +196,6 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   body: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },

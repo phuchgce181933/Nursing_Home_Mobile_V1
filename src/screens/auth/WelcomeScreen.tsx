@@ -1,18 +1,31 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, ScrollView, StyleSheet, Image } from 'react-native';
-import { Text, Button } from 'react-native-paper';
+import { Text, Button, IconButton, Menu, Portal, Dialog } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
+import { GuestChatWidget } from '../../components/shared/GuestChatWidget';
 
 const NAVY = '#000666';
 const TEAL = '#003731';
 const NS = 'welcome';
 
+const MENU_ITEMS: { key: string; screen: string }[] = [
+  { key: 'menuIntro', screen: 'Intro' },
+  { key: 'menuServices', screen: 'Services' },
+  { key: 'menuTech', screen: 'Tech' },
+  { key: 'menuLiving', screen: 'Living' },
+  { key: 'menuPricing', screen: 'Pricing' },
+  { key: 'menuNews', screen: 'News' },
+  { key: 'menuContact', screen: 'Contact' },
+];
+
 export const WelcomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [popupVisible, setPopupVisible] = useState(true);
 
   const STATS = [
     { icon: 'medal-outline', value: '10+', label: t(`${NS}.statYears`), color: NAVY },
@@ -28,8 +41,26 @@ export const WelcomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
   ];
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
-      <View style={[styles.hero, { paddingTop: insets.top + 24 }]}>
+    <View style={styles.flex}>
+      <View style={[styles.menuBar, { paddingTop: insets.top + 4 }]}>
+        <Menu
+          visible={menuVisible}
+          onDismiss={() => setMenuVisible(false)}
+          anchor={<IconButton icon="menu" iconColor="#fff" size={26} onPress={() => setMenuVisible(true)} />}
+        >
+          <Menu.Item leadingIcon="home-outline" title={t(`${NS}.menuHome`)} onPress={() => setMenuVisible(false)} />
+          {MENU_ITEMS.map((item) => (
+            <Menu.Item
+              key={item.key}
+              title={t(`${NS}.${item.key}`)}
+              onPress={() => { setMenuVisible(false); navigation?.navigate(item.screen); }}
+            />
+          ))}
+        </Menu>
+      </View>
+
+      <ScrollView style={styles.flex} contentContainerStyle={{ paddingBottom: insets.bottom + 24 }}>
+      <View style={[styles.hero, { paddingTop: insets.top + 56 }]}>
         <Image
           source={require('../../../assets/images/logo-annhien.png')}
           style={styles.logo}
@@ -55,7 +86,7 @@ export const WelcomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
             textColor="#fff"
             style={[styles.ctaBtn, styles.ctaBtnOutline]}
             contentStyle={{ height: 48 }}
-            onPress={() => navigation?.navigate('Register')}
+            onPress={() => navigation?.navigate('Contact')}
           >
             {t(`${NS}.registerCta`)}
           </Button>
@@ -92,12 +123,42 @@ export const WelcomeScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
         <Text style={styles.footerText}>{t(`${NS}.footerText`)}</Text>
       </View>
-    </ScrollView>
+      </ScrollView>
+
+      <GuestChatWidget navigation={navigation} />
+
+      <Portal>
+        <Dialog visible={popupVisible} onDismiss={() => setPopupVisible(false)} style={styles.popup}>
+          <View style={styles.popupCloseRow}>
+            <IconButton icon="close" size={20} onPress={() => setPopupVisible(false)} />
+          </View>
+          <Dialog.Content>
+            <Text style={styles.popupTitle}>{t(`${NS}.popupTitle`)}</Text>
+            <Text style={styles.popupText}>{t(`${NS}.popupText`)}</Text>
+          </Dialog.Content>
+          <Dialog.Actions>
+            <Button onPress={() => setPopupVisible(false)}>{t(`${NS}.popupDismiss`)}</Button>
+            <Button
+              mode="contained"
+              buttonColor={NAVY}
+              onPress={() => { setPopupVisible(false); navigation?.navigate('Contact'); }}
+            >
+              {t(`${NS}.popupCta`)}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+      </Portal>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
+  menuBar: { position: 'absolute', top: 0, left: 0, zIndex: 10, paddingLeft: 8, paddingBottom: 8 },
+  popup: { backgroundColor: '#fff', borderRadius: 16 },
+  popupCloseRow: { flexDirection: 'row', justifyContent: 'flex-end', paddingTop: 4, paddingRight: 4 },
+  popupTitle: { fontSize: 17, fontWeight: '700', color: '#111827', marginBottom: 8 },
+  popupText: { fontSize: 13, color: '#6B7280', lineHeight: 19 },
   hero: { backgroundColor: NAVY, alignItems: 'center', paddingHorizontal: 24, paddingBottom: 32 },
   logo: { width: 64, height: 64, marginBottom: 8 },
   brand: { color: '#fff', fontSize: 15, fontWeight: '700', letterSpacing: 1, marginBottom: 16 },

@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Image } from 'react-native';
-import { Text, Chip, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Chip } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.photos';
 
 export const FamilyPhotosScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
 
   const residentsQ = useQuery({
@@ -32,10 +31,7 @@ export const FamilyPhotosScreen: React.FC<{ navigation?: any }> = ({ navigation 
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
-        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation?.goBack()} />
 
       {residents.length > 1 ? (
         <View style={styles.chipRow}>
@@ -59,7 +55,7 @@ export const FamilyPhotosScreen: React.FC<{ navigation?: any }> = ({ navigation 
           keyExtractor={(p: any) => p._id}
           numColumns={3}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={() => photosQ.refetch()} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={photosQ.isFetching} onRefresh={() => photosQ.refetch()} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <View style={styles.photoCell}>
               <Image source={{ uri: item.url }} style={styles.photoImage} />
@@ -75,9 +71,6 @@ export const FamilyPhotosScreen: React.FC<{ navigation?: any }> = ({ navigation 
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' },
-  backBtn: { margin: 0 },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   chipRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 12, paddingBottom: 32 },
   photoCell: { width: '33.33%', padding: 4 },
