@@ -33,6 +33,7 @@ export const CarePlansScreen: React.FC = () => {
   const summary = summaryQ.data?.data;
 
   const loading = mealPlansQ.isLoading || specialDietsQ.isLoading || summaryQ.isLoading;
+  const isFetching = mealPlansQ.isFetching || specialDietsQ.isFetching || summaryQ.isFetching;
   const refetch = () => { mealPlansQ.refetch(); specialDietsQ.refetch(); summaryQ.refetch(); };
 
   return (
@@ -45,7 +46,7 @@ export const CarePlansScreen: React.FC = () => {
       <ScrollView
         style={styles.flex}
         contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={COLOR} />}
       >
         <ScreenLayout loading={loading} error={null} onRetry={refetch}>
           {summary ? (

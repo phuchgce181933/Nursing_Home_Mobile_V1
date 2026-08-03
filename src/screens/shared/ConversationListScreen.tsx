@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, FAB, Dialog, Portal, TextInput, IconButton, Searchbar } from 'react-native-paper';
+import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Searchbar } from 'react-native-paper';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -51,7 +51,10 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
     setRefreshing(false);
   }, [loadConversations]);
 
-  useEffect(() => { loadConversations(); }, [loadConversations]);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial load on mount
+    loadConversations();
+  }, [loadConversations]);
 
   const openNewChat = async () => {
     setShowNewChat(true);
@@ -59,7 +62,7 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
       try {
         const res = await api.get(CONVERSATIONS.STAFF_DIRECTORY);
         setStaffDirectory(res.data?.data ?? []);
-      } catch (err) {
+      } catch {
         toast(t(`${NS}.toastLoadStaffError`), 'error');
       }
     }
@@ -77,7 +80,7 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
       setStaffQuery('');
       await loadConversations();
       if (conv?._id) openThread(conv);
-    } catch (err) {
+    } catch {
       toast(t(`${NS}.toastCreateError`), 'error');
     } finally {
       setCreating(false);
@@ -117,8 +120,9 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
               <Card style={styles.card} mode="outlined" onPress={() => openThread(item)}>
                 <Card.Content>
                   <View style={styles.row}>
+                    {item.unreadCount > 0 ? <View style={[styles.unreadDot, { backgroundColor: COLOR }]} /> : null}
                     <View style={{ flex: 1 }}>
-                      <Text style={styles.name}>{displayName(item)}</Text>
+                      <Text style={[styles.name, item.unreadCount > 0 && styles.nameUnread]}>{displayName(item)}</Text>
                       {item.subject ? <Text style={styles.sub} numberOfLines={1}>{item.subject}</Text> : null}
                     </View>
                     <Text style={styles.time}>
@@ -194,6 +198,8 @@ const styles = StyleSheet.create({
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center' },
   name: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  nameUnread: { fontWeight: '700' },
+  unreadDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
   sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
   time: { fontSize: 11, color: '#9CA3AF', marginLeft: 8 },
   fab: { position: 'absolute', bottom: 16, right: 16 },

@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, IconButton, Dialog, Portal } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useCaregiverRehabResidents, useCaregiverRehabOverview, useCaregiverRehabDetail } from '../../hooks/useCaregiverRehabSchedules';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.rehabSchedule';
 const today = () => new Date().toISOString().split('T')[0];
 
 export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [workDate, setWorkDate] = useState(today());
   const [residentId, setResidentId] = useState('');
@@ -30,13 +29,7 @@ export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ na
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <View style={styles.filters}>
         <CalendarPicker label={t(`${NS}.dateLabel`)} value={workDate} onChange={setWorkDate} color={COLOR} />
@@ -57,7 +50,7 @@ export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ na
       <ScreenLayout loading={overviewQ.isLoading} error={overviewQ.error ? (overviewQ.error as Error).message : null}
         onRetry={overviewQ.refetch} isEmpty={rows.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={rows} keyExtractor={(i: any) => i.residentId} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={overviewQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={overviewQ.isFetching} onRefresh={overviewQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => setDetailResidentId(item.residentId)}>
               <Card.Content>
@@ -115,9 +108,6 @@ export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ na
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   filters: { padding: 12 },
   chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginTop: 10 },
   list: { padding: 16, paddingBottom: 32 },

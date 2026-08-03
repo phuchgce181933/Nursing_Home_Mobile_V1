@@ -1,18 +1,20 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ScrollView, View, StyleSheet, Linking } from 'react-native';
-import { Text, Card, Button, Dialog, Portal, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Button, Dialog, Portal, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
+import { getStatusEntry } from '../../utils/statusMap';
 
 const COLOR = '#2E7D32';
 const NS = 'family.invoiceDetail';
+const OTP_RESEND_COOLDOWN_SECONDS = 30;
 
 const CostRow: React.FC<{ icon: string; label: string; amount: number; color?: string }> = ({ icon, label, amount, color }) => {
   if (!amount || amount <= 0) return null;
@@ -26,7 +28,6 @@ const CostRow: React.FC<{ icon: string; label: string; amount: number; color?: s
 };
 
 export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
@@ -34,44 +35,87 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const residentId = route.params?.residentId;
 
   const [showPayDialog, setShowPayDialog] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
 
-  const STATUS_LABELS: Record<string, string> = {
-    DRAFT: t('status.draft'),
-    ISSUED: t(`${NS}.statusIssued`),
-    PARTIALLY_PAID: t(`${NS}.statusPartiallyPaid`),
-    PAID: t('status.completed'),
-    CANCELLED: t('status.cancelled'),
-    issued: t(`${NS}.statusIssued`),
-    paid: t('status.completed'),
-    partially_paid: t(`${NS}.statusPartiallyPaid`),
-    overdue: t('status.OVERDUE'),
-    draft: t('status.draft'),
-    cancelled: t('status.cancelled'),
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [showOtpDialog, setShowOtpDialog] = useState(false);
+  const [otpId, setOtpId] = useState<string | null>(null);
+  const [maskedRecipient, setMaskedRecipient] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [otpVerifying, setOtpVerifying] = useState(false);
+  const [otpResending, setOtpResending] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+
+  useEffect(() => {
+    if (otpCooldown <= 0) return;
+    const id = setTimeout(() => setOtpCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(id);
+  }, [otpCooldown]);
+
+  const statusLabel = (status?: string | null) =>
+    t(getStatusEntry(status).i18nKey, { defaultValue: status ?? '' });
+
+  const totalAmount = invoice?.totalAmount ?? invoice?.total ?? invoice?.amount ?? 0;
+
+  // Matches web's dashboard wallet-payment flow: send OTP → user enters the code → verify
+  // (which performs the actual deduction+payment server-side). Replaces the old direct
+  // `POST .../pay` call, which skipped OTP entirely.
+  const sendOtp = async () => {
+    const res = await api.post(FAMILY.WALLET_PAYMENT_INITIATE, { amount: totalAmount, invoiceIds: [invoice._id] });
+    const data = res.data?.data ?? res.data;
+    setOtpId(data?.otpId ?? null);
+    setMaskedRecipient(data?.maskedRecipient ?? '');
+    setOtpCooldown(OTP_RESEND_COOLDOWN_SECONDS);
   };
 
-  const walletPayMut = useMutation({
-    mutationFn: async () => {
-      const res = await api.post(FAMILY.PAY_INVOICE(residentId, invoice._id), { paymentMethod: 'wallet' });
-      return res.data;
-    },
-    onSuccess: () => {
+  const handleInitiateOtp = async () => {
+    setOtpLoading(true);
+    try {
+      await sendOtp();
+      setOtpCode('');
+      setOtpError(null);
+      setShowOtpDialog(true);
+    } catch {
+      toast(t(`${NS}.toastOtpSendError`), 'error');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (otpCooldown > 0) return;
+    setOtpResending(true);
+    try {
+      await sendOtp();
+      setOtpError(null);
+    } catch {
+      setOtpError(t(`${NS}.toastOtpSendError`));
+    } finally {
+      setOtpResending(false);
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (!otpCode.trim() || !otpId) {
+      setOtpError(t(`${NS}.otpCodeRequired`));
+      return;
+    }
+    setOtpVerifying(true);
+    setOtpError(null);
+    try {
+      await api.post(FAMILY.WALLET_PAYMENT_VERIFY, { otpId, code: otpCode.trim() });
       qc.invalidateQueries({ queryKey: ['familyInvoices'] });
       qc.invalidateQueries({ queryKey: ['familyWallet'] });
-      setShowConfirm(false);
+      setShowOtpDialog(false);
       setPaySuccess(true);
       toast(t(`${NS}.toastPaySuccess`), 'success');
-    },
-    onError: (e: any) => {
-      setShowConfirm(false);
-      if (e.response?.status === 400) {
-        toast(t(`${NS}.toastInsufficientBalance`), 'error');
-      } else {
-        toast(t(`${NS}.toastPayError`), 'error');
-      }
-    },
-  });
+    } catch (e: any) {
+      setOtpError(e.response?.status === 400 ? t(`${NS}.toastInsufficientBalance`) : t(`${NS}.otpInvalid`));
+    } finally {
+      setOtpVerifying(false);
+    }
+  };
 
   const handlePayOnline = async () => {
     setShowPayDialog(false);
@@ -85,19 +129,12 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     }
   };
 
-  const totalAmount = invoice?.totalAmount ?? invoice?.total ?? invoice?.amount ?? 0;
   const isPending = ['issued', 'ISSUED', 'overdue', 'partially_paid', 'PARTIALLY_PAID'].includes(invoice?.status);
 
   if (paySuccess) {
     return (
       <View style={styles.flex}>
-        <View style={[styles.topBar, { paddingTop: insets.top }]}>
-          <View style={styles.topRow}>
-            <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-            <Text style={styles.topTitle}>{t(`${NS}.paymentTitle`)}</Text>
-            <View style={{ width: 40 }} />
-          </View>
-        </View>
+        <BackHeader title={t(`${NS}.paymentTitle`)} color={COLOR} onBack={() => navigation.goBack()} />
         <View style={styles.successBox}>
           <MaterialCommunityIcons name="check-circle" size={64} color="#065F46" />
           <Text style={styles.successText}>{t(`${NS}.paySuccessText`)}</Text>
@@ -112,13 +149,7 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}>
         <Card style={styles.card} mode="elevated">
@@ -126,7 +157,7 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             <View style={styles.headerRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.invoiceNumber}>{invoice?.invoiceNumber ?? `#${invoice?._id?.slice(-6)}`}</Text>
-                <Text style={styles.statusText}>{STATUS_LABELS[invoice?.status] ?? invoice?.status}</Text>
+                <Text style={styles.statusText}>{statusLabel(invoice?.status)}</Text>
               </View>
               <StatusBadge status={invoice?.status} size="md" />
             </View>
@@ -220,7 +251,8 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
               {t(`${NS}.amountLabel`, { amount: totalAmount.toLocaleString('vi-VN') })}
             </Text>
             <Button mode="outlined" icon="wallet-outline" style={styles.methodBtn}
-              onPress={() => { setShowPayDialog(false); setShowConfirm(true); }}>
+              loading={otpLoading} disabled={otpLoading}
+              onPress={() => { setShowPayDialog(false); handleInitiateOtp(); }}>
               {t(`${NS}.payWithWallet`)}
             </Button>
             <Button mode="outlined" icon="credit-card-outline" style={styles.methodBtn}
@@ -233,17 +265,26 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           </Dialog.Actions>
         </Dialog>
 
-        <Dialog visible={showConfirm} onDismiss={() => setShowConfirm(false)}>
-          <Dialog.Title>{t(`${NS}.confirmPayTitle`)}</Dialog.Title>
+        <Dialog visible={showOtpDialog} onDismiss={() => setShowOtpDialog(false)} dismissable={false}>
+          <Dialog.Title>{t(`${NS}.otpTitle`)}</Dialog.Title>
           <Dialog.Content>
-            <Text style={{ fontSize: 14, color: '#374151' }}>
-              {t(`${NS}.confirmPayContent`, { amount: totalAmount.toLocaleString('vi-VN') })}
+            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
+              {t(`${NS}.otpSentTo`, { recipient: maskedRecipient })}
             </Text>
+            <TextInput mode="outlined" keyboardType="number-pad" maxLength={6}
+              value={otpCode} onChangeText={setOtpCode}
+              label={t(`${NS}.otpCodeLabel`)} error={!!otpError} />
+            {otpError ? <Text style={{ color: '#B91C1C', fontSize: 12, marginTop: 4 }}>{otpError}</Text> : null}
+            <Button mode="text" textColor={COLOR} onPress={handleResendOtp} loading={otpResending}
+              disabled={otpResending || otpCooldown > 0} style={{ alignSelf: 'flex-end', marginTop: 4 }}>
+              {otpCooldown > 0 ? t(`${NS}.otpResendCooldown`, { seconds: otpCooldown }) : t(`${NS}.otpResend`)}
+            </Button>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowConfirm(false)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={() => walletPayMut.mutate()}
-              loading={walletPayMut.isPending}>{t('common.confirm')}</Button>
+            <Button onPress={() => setShowOtpDialog(false)}>{t('common.cancel')}</Button>
+            <Button mode="contained" buttonColor={COLOR} onPress={handleVerifyOtp} loading={otpVerifying}>
+              {t(`${NS}.otpVerify`)}
+            </Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -253,9 +294,6 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   body: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
   headerRow: { flexDirection: 'row', alignItems: 'center' },

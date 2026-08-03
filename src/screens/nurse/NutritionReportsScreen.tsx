@@ -1,15 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, IconButton, Dialog, Portal, Button, TextInput, Chip } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNutritionSummary, useNutritionResidents, useNutritionResidentDetail } from '../../hooks/useNutritionReports';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.nutritionReports';
 
 const toDateStr = (d: Date) =>
@@ -29,8 +30,9 @@ const fmtDate = (str?: string) => {
 };
 
 export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const KPI_CONFIG = [
     { key: 'totalAdmittedResidents',       label: t(`${NS}.kpiAdmitted`),        icon: 'account-group-outline',    color: '#3b5bdb' },
@@ -76,28 +78,28 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
   const detail    = detailQ.data?.data ?? detailQ.data;
 
   const refetch = () => { summaryQ.refetch(); residentsQ.refetch(); };
+  const isFetching = summaryQ.isFetching || residentsQ.isFetching;
 
   const setLast7 = () => { const t2 = today(); setToDate(t2); setFromDate(addDays(t2, -6)); };
   const setTodayOnly = () => { const t2 = today(); setFromDate(t2); setToDate(t2); };
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <IconButton icon="filter-variant" iconColor="#fff" size={22} onPress={() => setShowFilters(v => !v)} />
-        </View>
-      </View>
+      <BackHeader
+        title={t(`${NS}.title`)}
+        color={roleColor}
+        onBack={() => navigation.goBack()}
+        right={<IconButton icon="filter-variant" iconColor="#fff" size={22} onPress={() => setShowFilters(v => !v)} />}
+      />
 
       {showFilters && (
         <View style={styles.filterBox}>
           <View style={styles.dateRow}>
             <View style={{ flex: 1 }}>
-              <CalendarPicker label={t(`${NS}.fromDate`)} value={fromDate} onChange={setFromDate} color={COLOR} />
+              <CalendarPicker label={t(`${NS}.fromDate`)} value={fromDate} onChange={setFromDate} color={roleColor} />
             </View>
             <View style={{ flex: 1 }}>
-              <CalendarPicker label={t(`${NS}.toDate`)} value={toDate} onChange={setToDate} color={COLOR} />
+              <CalendarPicker label={t(`${NS}.toDate`)} value={toDate} onChange={setToDate} color={roleColor} />
             </View>
           </View>
           <TextInput
@@ -108,8 +110,8 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
             right={search ? <TextInput.Icon icon="close" onPress={() => setSearch('')} /> : undefined}
           />
           <View style={styles.presetRow}>
-            <Button compact mode="outlined" textColor={COLOR} style={styles.presetBtn} onPress={setLast7}>{t(`${NS}.last7Days`)}</Button>
-            <Button compact mode="outlined" textColor={COLOR} style={styles.presetBtn} onPress={setTodayOnly}>{t(`${NS}.today`)}</Button>
+            <Button compact mode="outlined" textColor={roleColor} style={styles.presetBtn} onPress={setLast7}>{t(`${NS}.last7Days`)}</Button>
+            <Button compact mode="outlined" textColor={roleColor} style={styles.presetBtn} onPress={setTodayOnly}>{t(`${NS}.today`)}</Button>
             <Chip selected={missingOnly} onPress={() => setMissingOnly(v => !v)} compact
               style={missingOnly ? { backgroundColor: '#FEE2E2' } : undefined}
               textStyle={missingOnly ? { color: '#991B1B' } : undefined}>
@@ -121,7 +123,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
       )}
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={roleColor} />}>
         <ScreenLayout loading={summaryQ.isLoading} error={summaryQ.error ? (summaryQ.error as Error).message : null} onRetry={refetch}>
 
           {/* KPI grid */}
@@ -156,9 +158,9 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                     <Text style={styles.resName}>{r.fullName ?? ''}</Text>
                     <Text style={styles.resCode}>{r.residentCode ?? ''}</Text>
                     <View style={styles.resBadges}>
-                      <ResBadge ok={r.hasMealPlan} label={t(`${NS}.badgeMealPlan`)} />
-                      <ResBadge ok={r.hasSpecialDiet} label={t(`${NS}.badgeSpecialDiet`)} neutral />
-                      <ResBadge ok={r.hasMealTimeSchedule} label={t(`${NS}.badgeMealTime`)} neutral />
+                      <ResBadge ok={r.hasMealPlan} label={t(`${NS}.badgeMealPlan`)} styles={styles} />
+                      <ResBadge ok={r.hasSpecialDiet} label={t(`${NS}.badgeSpecialDiet`)} neutral styles={styles} />
+                      <ResBadge ok={r.hasMealTimeSchedule} label={t(`${NS}.badgeMealTime`)} neutral styles={styles} />
                       {r.mealIntakeCount > 0 && (
                         <View style={styles.countBadge}>
                           <Text style={styles.countBadgeText}>{t(`${NS}.intakeCount`, { count: r.mealIntakeCount })}</Text>
@@ -219,10 +221,10 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                 {/* Summary chips */}
                 {detail.summary && (
                   <View style={styles.chipRow}>
-                    <InfoChip value={detail.summary.mealPlanMealCount ?? 0} label={t(`${NS}.mealsWithPlan`)} />
-                    <InfoChip value={detail.summary.mealIntakeCount ?? 0} label={t(`${NS}.intakeRecorded`)} />
-                    <InfoChip value={detail.summary.mealNotesCount ?? 0} label={t(`${NS}.mealNotesLabel`)} />
-                    <InfoChip value={detail.summary.daysWithData ?? 0} label={t(`${NS}.daysWithData`)} />
+                    <InfoChip value={detail.summary.mealPlanMealCount ?? 0} label={t(`${NS}.mealsWithPlan`)} styles={styles} />
+                    <InfoChip value={detail.summary.mealIntakeCount ?? 0} label={t(`${NS}.intakeRecorded`)} styles={styles} />
+                    <InfoChip value={detail.summary.mealNotesCount ?? 0} label={t(`${NS}.mealNotesLabel`)} styles={styles} />
+                    <InfoChip value={detail.summary.daysWithData ?? 0} label={t(`${NS}.daysWithData`)} styles={styles} />
                   </View>
                 )}
 
@@ -233,10 +235,10 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                   detail.days.map((day: any, i: number) => (
                     <Card key={day.workDate ?? i} style={styles.dayCard} mode="outlined">
                       <Card.Content>
-                        <Text style={styles.dayDate}>{fmtDate(day.workDate)}</Text>
+                        <Text style={[styles.dayDate, { color: roleColor }]}>{fmtDate(day.workDate)}</Text>
 
                         {day.mealTimeSchedule && (
-                          <DaySection title={t(`${NS}.mealTimeTitle`)}>
+                          <DaySection title={t(`${NS}.mealTimeTitle`)} styles={styles}>
                             <Text style={styles.dayText}>
                               {t(`${NS}.mealBreakfast`)}: {day.mealTimeSchedule.breakfastTime ?? '--'} · {t(`${NS}.mealLunch`)}: {day.mealTimeSchedule.lunchTime ?? '--'} · {t(`${NS}.mealDinner`)}: {day.mealTimeSchedule.dinnerTime ?? '--'}
                             </Text>
@@ -245,7 +247,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.mealPlanEntries?.length > 0 && (
-                          <DaySection title={t(`${NS}.mealPlanTitle`)}>
+                          <DaySection title={t(`${NS}.mealPlanTitle`)} styles={styles}>
                             {day.mealPlanEntries.map((m: any, j: number) => (
                               <Text key={j} style={styles.dayText}>
                                 {MEAL_TYPE_LABEL[m.mealType] ?? m.mealType}: {m.mealName ?? ''}
@@ -257,7 +259,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.specialDietEntries?.length > 0 && (
-                          <DaySection title={t(`${NS}.specialDietTitle`)}>
+                          <DaySection title={t(`${NS}.specialDietTitle`)} styles={styles}>
                             {day.specialDietEntries.map((s: any, j: number) => (
                               <Text key={j} style={styles.dayText}>
                                 {DIET_TYPE_LABEL[s.dietType] ?? s.dietType}
@@ -270,7 +272,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.mealIntakeNotes?.length > 0 && (
-                          <DaySection title={t(`${NS}.intakeTitle`)}>
+                          <DaySection title={t(`${NS}.intakeTitle`)} styles={styles}>
                             {day.mealIntakeNotes.map((n: any, j: number) => (
                               <View key={j} style={styles.noteCard}>
                                 <Text style={styles.noteTime}>
@@ -289,7 +291,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                         )}
 
                         {day.mealNotes?.length > 0 && (
-                          <DaySection title={t(`${NS}.mealNotesTitle`)}>
+                          <DaySection title={t(`${NS}.mealNotesTitle`)} styles={styles}>
                             {day.mealNotes.map((n: any, j: number) => (
                               <View key={j} style={styles.noteCard}>
                                 <Text style={styles.noteTime}>
@@ -310,7 +312,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
             )}
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setSelectedId(null)} textColor={COLOR}>{t('common.close')}</Button>
+            <Button onPress={() => setSelectedId(null)} textColor={roleColor}>{t('common.close')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -318,7 +320,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
   );
 };
 
-const ResBadge: React.FC<{ ok: boolean; label: string; neutral?: boolean }> = ({ ok, label, neutral }) => (
+const ResBadge: React.FC<{ ok: boolean; label: string; neutral?: boolean; styles: ReturnType<typeof createStyles> }> = ({ ok, label, neutral, styles }) => (
   ok ? (
     <View style={[styles.badge, { backgroundColor: '#D1FAE5' }]}>
       <MaterialCommunityIcons name="check-circle" size={10} color="#065F46" />
@@ -332,44 +334,41 @@ const ResBadge: React.FC<{ ok: boolean; label: string; neutral?: boolean }> = ({
   )
 );
 
-const InfoChip: React.FC<{ value: number; label: string }> = ({ value, label }) => (
+const InfoChip: React.FC<{ value: number; label: string; styles: ReturnType<typeof createStyles> }> = ({ value, label, styles }) => (
   <View style={styles.infoChip}>
     <Text style={styles.infoChipText}>{value} {label}</Text>
   </View>
 );
 
-const DaySection: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
+const DaySection: React.FC<{ title: string; children: React.ReactNode; styles: ReturnType<typeof createStyles> }> = ({ title, children, styles }) => (
   <View style={styles.daySection}>
     <Text style={styles.daySectionTitle}>{title}</Text>
     {children}
   </View>
 );
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500', flex: 1, textAlign: 'center' },
-  filterBox: { backgroundColor: '#fff', padding: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
+  filterBox: { backgroundColor: c.surface, padding: 12, borderBottomWidth: 1, borderBottomColor: c.border },
   dateRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  searchInput: { marginBottom: 8, backgroundColor: '#fff' },
+  searchInput: { marginBottom: 8, backgroundColor: c.surface },
   presetRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginBottom: 4 },
   presetBtn: { borderRadius: 20 },
-  rangeLabel: { fontSize: 11, color: '#9CA3AF', textAlign: 'right' },
+  rangeLabel: { fontSize: 11, color: c.textMuted, textAlign: 'right' },
   body: { padding: 12, paddingBottom: 32 },
   kpiGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   kpiCard: { width: '47.5%', borderRadius: 12 },
   kpiContent: { alignItems: 'center', paddingVertical: 10 },
   kpiValue: { fontSize: 22, fontWeight: '700', marginTop: 4 },
-  kpiLabel: { fontSize: 10, color: '#6B7280', marginTop: 2, textAlign: 'center' },
+  kpiLabel: { fontSize: 10, color: c.textSecondary, marginTop: 2, textAlign: 'center' },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  sectionTitle: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  sectionCount: { fontSize: 12, color: '#6B7280' },
-  empty: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 16 },
-  resCard: { borderRadius: 12, marginBottom: 6, backgroundColor: '#fff' },
+  sectionTitle: { fontSize: 14, fontWeight: '600', color: c.text },
+  sectionCount: { fontSize: 12, color: c.textSecondary },
+  empty: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 16 },
+  resCard: { borderRadius: 12, marginBottom: 6, backgroundColor: c.surface },
   resRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingRight: 0 },
-  resName: { fontSize: 13, fontWeight: '500', color: '#111827' },
-  resCode: { fontSize: 11, color: '#6B7280', marginBottom: 4 },
+  resName: { fontSize: 13, fontWeight: '500', color: c.text },
+  resCode: { fontSize: 11, color: c.textSecondary, marginBottom: 4 },
   resBadges: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   badge: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
   badgeText: { fontSize: 10, fontWeight: '500' },
@@ -377,23 +376,23 @@ const styles = StyleSheet.create({
   countBadgeText: { fontSize: 10, color: '#0369A1', fontWeight: '500' },
   // Detail dialog
   detailHeader: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 10, paddingTop: 4 },
-  dName: { fontSize: 15, fontWeight: '700', color: '#111827' },
-  dCode: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  detailInfo: { backgroundColor: '#F9FAFB', padding: 10, borderRadius: 8, marginBottom: 10 },
-  dLabel: { fontSize: 12, color: '#6B7280', marginBottom: 3 },
-  dValue: { fontWeight: '500', color: '#111827' },
+  dName: { fontSize: 15, fontWeight: '700', color: c.text },
+  dCode: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
+  detailInfo: { backgroundColor: c.surfaceAlt, padding: 10, borderRadius: 8, marginBottom: 10 },
+  dLabel: { fontSize: 12, color: c.textSecondary, marginBottom: 3 },
+  dValue: { fontWeight: '500', color: c.text },
   dAllergyValue: { fontWeight: '600', color: '#DC2626' },
   dChronicValue: { fontWeight: '600', color: '#D97706' },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
   infoChip: { backgroundColor: '#E0F2FE', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
   infoChipText: { fontSize: 11, color: '#0369A1', fontWeight: '500' },
-  dayCard: { marginTop: 8, borderRadius: 10, backgroundColor: '#fff' },
-  dayDate: { fontSize: 14, fontWeight: '700', color: COLOR, marginBottom: 6 },
-  daySection: { marginTop: 8, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: '#E5E7EB' },
-  daySectionTitle: { fontSize: 10, fontWeight: '700', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
-  dayText: { fontSize: 12, color: '#374151', marginBottom: 2 },
-  dayNote: { fontSize: 11, color: '#6B7280', fontStyle: 'italic' },
+  dayCard: { marginTop: 8, borderRadius: 10, backgroundColor: c.surface },
+  dayDate: { fontSize: 14, fontWeight: '700', marginBottom: 6 },
+  daySection: { marginTop: 8, paddingLeft: 8, borderLeftWidth: 2, borderLeftColor: c.border },
+  daySectionTitle: { fontSize: 10, fontWeight: '700', color: c.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 },
+  dayText: { fontSize: 12, color: c.text, marginBottom: 2 },
+  dayNote: { fontSize: 11, color: c.textSecondary, fontStyle: 'italic' },
   noteCard: { backgroundColor: '#FFFBEB', borderRadius: 6, padding: 6, marginTop: 4 },
-  noteTime: { fontSize: 10, color: '#9CA3AF' },
-  noteContent: { fontSize: 12, color: '#374151', marginTop: 2 },
+  noteTime: { fontSize: 10, color: c.textMuted },
+  noteContent: { fontSize: 12, color: c.text, marginTop: 2 },
 });

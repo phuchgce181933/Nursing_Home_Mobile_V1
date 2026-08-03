@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
-import { Text, Card, Chip, IconButton, TextInput } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -11,6 +10,7 @@ import { useFamilyMedications, useFamilyPrescriptions } from '../../hooks/useFam
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ResidentSwitcher } from '../../components/shared/ResidentSwitcher';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.medications';
@@ -18,7 +18,6 @@ const NS = 'family.medications';
 const toDateStr = (d: Date) => d.toISOString().split('T')[0];
 
 export const FamilyMedicationsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [tab, setTab] = useState<'schedule' | 'prescriptions'>('schedule');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -61,16 +60,11 @@ export const FamilyMedicationsScreen: React.FC<{ navigation: any }> = ({ navigat
 
   const loading = residentsQ.isLoading || (tab === 'schedule' ? scheduleQ.isLoading : prescriptionsQ.isLoading);
   const refetch = () => (tab === 'schedule' ? scheduleQ.refetch() : prescriptionsQ.refetch());
+  const isFetching = tab === 'schedule' ? scheduleQ.isFetching : prescriptionsQ.isFetching;
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ResidentSwitcher residents={residents} activeId={activeId} onChange={setSelectedId} color={COLOR} />
 
@@ -86,7 +80,7 @@ export const FamilyMedicationsScreen: React.FC<{ navigation: any }> = ({ navigat
         <ScreenLayout loading={loading} error={scheduleQ.error ? (scheduleQ.error as Error).message : null}
           onRetry={refetch} isEmpty={schedules.length === 0} emptyMessage={t(`${NS}.emptySchedule`)}>
           <FlatList data={schedules} keyExtractor={(item: any) => item._id} contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}
+            refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={COLOR} />}
             renderItem={({ item }) => (
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
@@ -119,7 +113,7 @@ export const FamilyMedicationsScreen: React.FC<{ navigation: any }> = ({ navigat
             ))}
           </View>
           <FlatList data={prescriptions} keyExtractor={(item: any) => item._id} contentContainerStyle={styles.list}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}
+            refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={COLOR} />}
             renderItem={({ item }) => {
               const expanded = expandedId === item._id;
               return (
@@ -162,9 +156,6 @@ export const FamilyMedicationsScreen: React.FC<{ navigation: any }> = ({ navigat
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 8 },
   filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingBottom: 8, flexWrap: 'wrap' },
   searchBar: { paddingHorizontal: 16, paddingBottom: 8 },

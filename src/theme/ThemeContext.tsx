@@ -19,14 +19,19 @@ const ThemeContext = createContext<ThemeState>({
 
 export const useThemeMode = () => useContext(ThemeContext);
 
-const resolveScheme = (mode: ThemeMode, system: ColorSchemeName): 'light' | 'dark' => {
+const resolveScheme = (
+  mode: ThemeMode,
+  system: ColorSchemeName | null | undefined
+): 'light' | 'dark' => {
   if (mode === 'system') return system === 'dark' ? 'dark' : 'light';
   return mode;
 };
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setModeState] = useState<ThemeMode>('system');
-  const [systemScheme, setSystemScheme] = useState<ColorSchemeName>(Appearance.getColorScheme());
+  const [systemScheme, setSystemScheme] = useState<ColorSchemeName | null | undefined>(
+    Appearance.getColorScheme()
+  );
 
   useEffect(() => {
     (async () => {

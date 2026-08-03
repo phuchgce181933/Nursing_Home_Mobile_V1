@@ -1,24 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
-import { Text, TextInput, Button, Chip, Card, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, TextInput, Button, Chip, Card } from 'react-native-paper';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/useAuth';
 import { useCreateCareNote } from '../../hooks/useCareNotes';
 import { useResidents } from '../../hooks/useResidents';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
+import { BackHeader } from '../../components/layout/BackHeader';
+import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.careNotes';
 
-const ChipGroup: React.FC<{ label: string; options: { value: string; label: string }[]; selected: string; onSelect: (v: string) => void }> = ({ label, options, selected, onSelect }) => (
+const ChipGroup: React.FC<{ label: string; options: { value: string; label: string }[]; selected: string; onSelect: (v: string) => void; color: string; styles: ReturnType<typeof createStyles> }> = ({ label, options, selected, onSelect, color, styles }) => (
   <View style={{ marginBottom: 12 }}>
     <Text style={styles.metaLabel}>{label}</Text>
     <View style={styles.chipRow}>
       {options.map(o => (
         <Chip key={o.value} selected={selected === o.value} onPress={() => onSelect(o.value)}
-          style={selected === o.value ? { backgroundColor: COLOR } : undefined}
+          style={selected === o.value ? { backgroundColor: color } : undefined}
           textStyle={selected === o.value ? { color: '#fff' } : undefined} compact>{o.label}</Chip>
       ))}
     </View>
@@ -26,10 +28,11 @@ const ChipGroup: React.FC<{ label: string; options: { value: string; label: stri
 );
 
 export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const toast = useToast();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const createNote = useCreateCareNote();
   const residentsQ = useResidents({ status: 'admitted' });
   const residents = Array.isArray(residentsQ.data) ? residentsQ.data : (residentsQ.data?.data ?? []);
@@ -52,12 +55,13 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
   const DL_ACTIVITY_TYPES = [{ value: 'bathing', label: t(`${NS}.dlBathing`) }, { value: 'grooming', label: t(`${NS}.dlGrooming`) }, { value: 'dressing', label: t(`${NS}.dlDressing`) }, { value: 'eating', label: t(`${NS}.dlEating`) }, { value: 'mobility', label: t(`${NS}.dlMobility`) }, { value: 'toileting', label: t(`${NS}.dlToileting`) }, { value: 'sleeping', label: t(`${NS}.dlSleeping`) }, { value: 'other', label: t(`${NS}.dlOther`) }];
   const ASSISTANCE = [{ value: 'independent', label: t(`${NS}.assistIndependent`) }, { value: 'supervised', label: t(`${NS}.assistSupervised`) }, { value: 'assisted', label: t(`${NS}.assistAssisted`) }, { value: 'total_care', label: t(`${NS}.assistTotalCare`) }];
   const COMPLETION = [{ value: 'completed', label: t(`${NS}.completeCompleted`) }, { value: 'partial', label: t(`${NS}.completePartial`) }, { value: 'refused', label: t(`${NS}.completeRefused`) }];
+  const PRIORITIES = [{ value: 'normal', label: t(`${NS}.priorityNormal`) }, { value: 'important', label: t(`${NS}.priorityImportant`) }, { value: 'urgent', label: t(`${NS}.priorityUrgent`) }];
 
   const [selectedResidentId, setSelectedResidentId] = useState('');
   const [noteType, setNoteType] = useState('general');
   const [content, setContent] = useState('');
   const [priority, setPriority] = useState('normal');
-  const [noteAt, setNoteAt] = useState('');
+  const [noteDate, setNoteDate] = useState('');
   const [showResidentPicker, setShowResidentPicker] = useState(false);
   const [metadata, setMetadata] = useState<Record<string, any>>({});
 
@@ -76,7 +80,11 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
     try {
       const meta = { ...metadata, priority };
       const body: any = { residentId: selectedResidentId, content: content.trim(), noteType, metadata: meta };
-      if (noteAt) body.noteAt = new Date(noteAt).toISOString();
+      if (noteDate) {
+        const now = new Date();
+        const [y, m, d] = noteDate.split('-').map(Number);
+        body.noteAt = new Date(y, m - 1, d, now.getHours(), now.getMinutes(), now.getSeconds()).toISOString();
+      }
       await createNote.mutateAsync(body);
       toast(t(`${NS}.toastSaved`), 'success');
       navigation.goBack();
@@ -87,13 +95,7 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.createTitle`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.createTitle`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.label}>{t(`${NS}.residentLabel`)}</Text>
@@ -105,11 +107,11 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
                 <Text style={styles.residentName}>{selectedResident.fullName}</Text>
                 <Text style={styles.residentCode}>{selectedResident.residentCode}</Text>
               </View>
-              <Button compact mode="text" textColor={COLOR} onPress={() => setSelectedResidentId('')}>{t(`${NS}.change`)}</Button>
+              <Button compact mode="text" textColor={roleColor} onPress={() => setSelectedResidentId('')}>{t(`${NS}.change`)}</Button>
             </Card.Content>
           </Card>
         ) : (
-          <Button mode="outlined" onPress={() => setShowResidentPicker(!showResidentPicker)} style={styles.selectBtn}>
+          <Button mode="outlined" onPress={() => setShowResidentPicker(!showResidentPicker)} style={[styles.selectBtn, { borderColor: roleColor }]}>
             {t(`${NS}.selectResident`)}
           </Button>
         )}
@@ -133,7 +135,7 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
           {NOTE_TYPES.map((nt) => (
             <Chip key={nt.value} selected={noteType === nt.value}
               onPress={() => { setNoteType(nt.value); setMetadata({}); }}
-              style={noteType === nt.value ? { backgroundColor: COLOR } : undefined}
+              style={noteType === nt.value ? { backgroundColor: roleColor } : undefined}
               textStyle={noteType === nt.value ? { color: '#fff' } : undefined} compact>
               {nt.label}
             </Chip>
@@ -144,13 +146,17 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
           multiline numberOfLines={5} style={styles.textarea} maxLength={500} />
         <Text style={styles.charCount}>{content.length}/500</Text>
 
+        <ChipGroup label={t(`${NS}.priorityLabel`)} options={PRIORITIES} selected={priority} onSelect={setPriority} color={roleColor} styles={styles} />
+
+        <CalendarPicker label={t(`${NS}.noteDateLabel`)} value={noteDate} onChange={setNoteDate} color={roleColor} />
+
         {noteType === 'meal' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>{t(`${NS}.mealDetailTitle`)}</Text>
-              <ChipGroup label={t(`${NS}.mealLabel`)} options={MEAL_TYPES} selected={metadata.mealType ?? ''} onSelect={v => updateMeta('mealType', v)} />
-              <ChipGroup label={t(`${NS}.intakeLabel`)} options={INTAKE_AMOUNTS} selected={metadata.intakeAmount ?? ''} onSelect={v => updateMeta('intakeAmount', v)} />
-              <ChipGroup label={t(`${NS}.appetiteLabel`)} options={APPETITES} selected={metadata.appetite ?? ''} onSelect={v => updateMeta('appetite', v)} />
+              <Text style={[styles.metaTitle, { color: roleColor }]}>{t(`${NS}.mealDetailTitle`)}</Text>
+              <ChipGroup label={t(`${NS}.mealLabel`)} options={MEAL_TYPES} selected={metadata.mealType ?? ''} onSelect={v => updateMeta('mealType', v)} color={roleColor} styles={styles} />
+              <ChipGroup label={t(`${NS}.intakeLabel`)} options={INTAKE_AMOUNTS} selected={metadata.intakeAmount ?? ''} onSelect={v => updateMeta('intakeAmount', v)} color={roleColor} styles={styles} />
+              <ChipGroup label={t(`${NS}.appetiteLabel`)} options={APPETITES} selected={metadata.appetite ?? ''} onSelect={v => updateMeta('appetite', v)} color={roleColor} styles={styles} />
             </Card.Content>
           </Card>
         )}
@@ -158,12 +164,12 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
         {noteType === 'activity' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>{t(`${NS}.activityDetailTitle`)}</Text>
-              <ChipGroup label={t(`${NS}.activityTypeLabel`)} options={ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} />
+              <Text style={[styles.metaTitle, { color: roleColor }]}>{t(`${NS}.activityDetailTitle`)}</Text>
+              <ChipGroup label={t(`${NS}.activityTypeLabel`)} options={ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} color={roleColor} styles={styles} />
               <TextInput label={t(`${NS}.durationLabel`)} mode="outlined" value={String(metadata.duration ?? '')}
-                onChangeText={v => updateMeta('duration', Number(v) || 0)} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
-              <ChipGroup label={t(`${NS}.participationLabel`)} options={PARTICIPATION} selected={metadata.participationLevel ?? ''} onSelect={v => updateMeta('participationLevel', v)} />
-              <ChipGroup label={t(`${NS}.moodLabel`)} options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} />
+                onChangeText={v => updateMeta('duration', Math.max(0, Number(v) || 0))} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
+              <ChipGroup label={t(`${NS}.participationLabel`)} options={PARTICIPATION} selected={metadata.participationLevel ?? ''} onSelect={v => updateMeta('participationLevel', v)} color={roleColor} styles={styles} />
+              <ChipGroup label={t(`${NS}.moodLabel`)} options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} color={roleColor} styles={styles} />
             </Card.Content>
           </Card>
         )}
@@ -171,20 +177,24 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
         {noteType === 'health' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>{t(`${NS}.healthDetailTitle`)}</Text>
+              <Text style={[styles.metaTitle, { color: roleColor }]}>{t(`${NS}.healthDetailTitle`)}</Text>
               <TextInput label={t(`${NS}.symptomsLabel`)} mode="outlined" value={metadata.symptoms?.join(', ') ?? ''}
                 onChangeText={v => updateMeta('symptoms', v.split(',').map((s: string) => s.trim()).filter(Boolean))}
                 dense multiline style={{ marginBottom: 12 }} placeholder={t(`${NS}.symptomsPlaceholder`)} />
-              <ChipGroup label={t(`${NS}.consciousnessLabel`)} options={CONSCIOUSNESS} selected={metadata.consciousness ?? ''} onSelect={v => updateMeta('consciousness', v)} />
-              <ChipGroup label={t(`${NS}.fallRiskLabel`)} options={FALL_RISK} selected={metadata.fallRisk ?? ''} onSelect={v => updateMeta('fallRisk', v)} />
+              <ChipGroup label={t(`${NS}.consciousnessLabel`)} options={CONSCIOUSNESS} selected={metadata.consciousness ?? ''} onSelect={v => updateMeta('consciousness', v)} color={roleColor} styles={styles} />
+              <ChipGroup label={t(`${NS}.fallRiskLabel`)} options={FALL_RISK} selected={metadata.fallRisk ?? ''} onSelect={v => updateMeta('fallRisk', v)} color={roleColor} styles={styles} />
               <TextInput label={t(`${NS}.painLevelLabel`)} mode="outlined" value={String(metadata.painLevel ?? '')}
                 onChangeText={v => updateMeta('painLevel', Math.min(10, Math.max(0, Number(v) || 0)))}
                 keyboardType="numeric" dense style={{ marginBottom: 12 }} />
               <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
                 <TextInput label={t(`${NS}.temperatureLabel`)} mode="outlined" value={String(metadata.temperature ?? '')}
-                  onChangeText={v => updateMeta('temperature', Number(v) || 0)} keyboardType="numeric" dense style={{ flex: 1 }} />
+                  onChangeText={v => updateMeta('temperature', Number(v) || 0)}
+                  onBlur={() => { if (metadata.temperature) updateMeta('temperature', Math.min(45, Math.max(30, metadata.temperature))); }}
+                  keyboardType="numeric" dense style={{ flex: 1 }} />
                 <TextInput label={t(`${NS}.pulseLabel`)} mode="outlined" value={String(metadata.pulse ?? '')}
-                  onChangeText={v => updateMeta('pulse', Number(v) || 0)} keyboardType="numeric" dense style={{ flex: 1 }} />
+                  onChangeText={v => updateMeta('pulse', Math.max(0, Number(v) || 0))}
+                  onBlur={() => { if (metadata.pulse) updateMeta('pulse', Math.min(250, metadata.pulse)); }}
+                  keyboardType="numeric" dense style={{ flex: 1 }} />
               </View>
               <TextInput label={t(`${NS}.observationsLabel`)} mode="outlined" value={metadata.observations ?? ''}
                 onChangeText={v => updateMeta('observations', v)} dense multiline style={{ marginBottom: 8 }} />
@@ -195,13 +205,13 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
         {noteType === 'daily_living' && (
           <Card style={styles.metaCard} mode="outlined">
             <Card.Content>
-              <Text style={styles.metaTitle}>{t(`${NS}.dlDetailTitle`)}</Text>
-              <ChipGroup label={t(`${NS}.dlActivityTypeLabel`)} options={DL_ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} />
-              <ChipGroup label={t(`${NS}.assistanceLabel`)} options={ASSISTANCE} selected={metadata.assistanceLevel ?? ''} onSelect={v => updateMeta('assistanceLevel', v)} />
-              <ChipGroup label={t(`${NS}.completionLabel`)} options={COMPLETION} selected={metadata.completionStatus ?? ''} onSelect={v => updateMeta('completionStatus', v)} />
+              <Text style={[styles.metaTitle, { color: roleColor }]}>{t(`${NS}.dlDetailTitle`)}</Text>
+              <ChipGroup label={t(`${NS}.dlActivityTypeLabel`)} options={DL_ACTIVITY_TYPES} selected={metadata.activityType ?? ''} onSelect={v => updateMeta('activityType', v)} color={roleColor} styles={styles} />
+              <ChipGroup label={t(`${NS}.assistanceLabel`)} options={ASSISTANCE} selected={metadata.assistanceLevel ?? ''} onSelect={v => updateMeta('assistanceLevel', v)} color={roleColor} styles={styles} />
+              <ChipGroup label={t(`${NS}.completionLabel`)} options={COMPLETION} selected={metadata.completionStatus ?? ''} onSelect={v => updateMeta('completionStatus', v)} color={roleColor} styles={styles} />
               <TextInput label={t(`${NS}.durationLabel`)} mode="outlined" value={String(metadata.duration ?? '')}
-                onChangeText={v => updateMeta('duration', Number(v) || 0)} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
-              <ChipGroup label={t(`${NS}.moodLabel`)} options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} />
+                onChangeText={v => updateMeta('duration', Math.max(0, Number(v) || 0))} keyboardType="numeric" dense style={{ marginBottom: 12 }} />
+              <ChipGroup label={t(`${NS}.moodLabel`)} options={MOODS} selected={metadata.mood ?? ''} onSelect={v => updateMeta('mood', v)} color={roleColor} styles={styles} />
             </Card.Content>
           </Card>
         )}
@@ -215,7 +225,7 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
           </Card.Content>
         </Card>
 
-        <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit}
+        <Button mode="contained" buttonColor={roleColor} onPress={handleSubmit}
           loading={createNote.isPending} disabled={createNote.isPending} style={styles.submitBtn}>
           {t(`${NS}.save`)}
         </Button>
@@ -224,28 +234,25 @@ export const CreateCareNoteScreen: React.FC<{ navigation: any }> = ({ navigation
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   body: { padding: 16, paddingBottom: 32 },
-  label: { fontSize: 13, fontWeight: '500', color: '#374151', marginBottom: 8 },
-  residentCard: { borderRadius: 12, backgroundColor: '#fff' },
+  label: { fontSize: 13, fontWeight: '500', color: c.text, marginBottom: 8 },
+  residentCard: { borderRadius: 12, backgroundColor: c.surface },
   residentRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  residentName: { fontSize: 14, fontWeight: '500', color: '#111827' },
-  residentCode: { fontSize: 12, color: '#6B7280' },
-  selectBtn: { borderRadius: 8, borderColor: COLOR },
+  residentName: { fontSize: 14, fontWeight: '500', color: c.text },
+  residentCode: { fontSize: 12, color: c.textSecondary },
+  selectBtn: { borderRadius: 8 },
   pickerCard: { marginTop: 8, borderRadius: 12, maxHeight: 200 },
   pickerItem: { justifyContent: 'flex-start' },
   chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 16 },
   textarea: { marginTop: 0 },
-  charCount: { fontSize: 11, color: '#9CA3AF', textAlign: 'right', marginTop: 2 },
-  metaCard: { borderRadius: 12, marginTop: 8, backgroundColor: '#fff' },
-  metaTitle: { fontSize: 14, fontWeight: '600', color: COLOR, marginBottom: 12 },
-  metaLabel: { fontSize: 12, fontWeight: '500', color: '#6B7280', marginBottom: 6 },
-  autoCard: { borderRadius: 12, marginTop: 16, backgroundColor: '#F9FAFB' },
-  autoLabel: { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
-  autoValue: { fontSize: 13, color: '#111827' },
+  charCount: { fontSize: 11, color: c.textMuted, textAlign: 'right', marginTop: 2 },
+  metaCard: { borderRadius: 12, marginTop: 8, backgroundColor: c.surface },
+  metaTitle: { fontSize: 14, fontWeight: '600', marginBottom: 12 },
+  metaLabel: { fontSize: 12, fontWeight: '500', color: c.textSecondary, marginBottom: 6 },
+  autoCard: { borderRadius: 12, marginTop: 16, backgroundColor: c.surfaceAlt },
+  autoLabel: { fontSize: 11, color: c.textMuted, marginTop: 4 },
+  autoValue: { fontSize: 13, color: c.text },
   submitBtn: { marginTop: 20, borderRadius: 8 },
 });

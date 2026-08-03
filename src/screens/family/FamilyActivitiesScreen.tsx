@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, IconButton, Button } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View, FlatList, StyleSheet, RefreshControl, ScrollView, Pressable } from 'react-native';
+import { Text, Card, Button } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -11,12 +10,12 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ResidentSwitcher } from '../../components/shared/ResidentSwitcher';
 import { useToast } from '../../utils/toast';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.activities';
 
 export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const showToast = useToast();
   const { t } = useTranslation();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -61,28 +60,26 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ResidentSwitcher residents={residents} activeId={activeId} onChange={setSelectedId} color={COLOR} />
 
-      <View style={styles.filterRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll} contentContainerStyle={styles.filterRow}>
         {STATUS_FILTERS.map((f) => (
-          <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}
-            style={filter === f.value ? { backgroundColor: COLOR } : undefined}
-            textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
+          <Pressable
+            key={f.value}
+            onPress={() => setFilter(f.value)}
+            style={[styles.filterChip, filter === f.value && { backgroundColor: COLOR, borderColor: COLOR }]}
+          >
+            <Text style={[styles.filterChipText, filter === f.value && { color: '#fff' }]}>{f.label}</Text>
+          </Pressable>
         ))}
-      </View>
+      </ScrollView>
 
       <ScreenLayout loading={loading} error={activitiesQ.error ? (activitiesQ.error as Error).message : null}
         onRetry={activitiesQ.refetch} isEmpty={activities.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={activities} keyExtractor={(item: any) => item._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={activitiesQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={activitiesQ.isFetching} onRefresh={activitiesQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => {
             const isRegistered = activeId ? (item.participantResidentIds ?? []).some((id: any) =>
               (typeof id === 'string' ? id : id?._id) === activeId) : false;
@@ -90,10 +87,12 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
 
             return (
               <Card style={styles.card} mode="outlined">
-                <Card.Content>
-                  <View style={styles.rowBetween}>
+                <Card.Content style={styles.cardContent}>
+                  <View style={styles.headerRow}>
                     <Text style={styles.title}>{item.title}</Text>
-                    <StatusBadge status={item.status} size="sm" />
+                    <View style={styles.badgeWrap}>
+                      <StatusBadge status={item.status} size="md" />
+                    </View>
                   </View>
                   {item.category ? <Text style={styles.category}>{item.category}</Text> : null}
                   {item.description ? <Text style={styles.desc} numberOfLines={2}>{item.description}</Text> : null}
@@ -108,6 +107,7 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
                     loading={isRegistered ? unregisterMut.isPending : registerMut.isPending}
                     onPress={() => (isRegistered ? handleUnregister(item._id) : handleRegister(item._id))}
                     style={styles.registerBtn}
+                    contentStyle={styles.registerBtnContent}
                     buttonColor={isRegistered ? undefined : COLOR}
                     textColor={isRegistered ? '#991B1B' : undefined}
                   >
@@ -125,16 +125,28 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
-  filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 16, paddingBottom: 8, flexWrap: 'wrap' },
+  filterScroll: { flexGrow: 0, marginBottom: 8 },
+  filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
+  filterChip: {
+    height: 40,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterChipText: { fontSize: 13, fontWeight: '500', color: '#374151' },
   list: { padding: 16, paddingTop: 0, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
-  rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  title: { fontSize: 14, fontWeight: '600', color: '#111827', flex: 1 },
-  category: { fontSize: 12, color: '#2E7D32', marginTop: 2 },
-  desc: { fontSize: 12, color: '#6B7280', marginTop: 4 },
-  meta: { fontSize: 11, color: '#9CA3AF', marginTop: 4 },
-  registerBtn: { marginTop: 10 },
+  card: { borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
+  cardContent: { padding: 20, gap: 8 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
+  title: { fontSize: 20, fontWeight: '600', color: '#111827', flex: 1, flexShrink: 1, lineHeight: 26 },
+  badgeWrap: { flexShrink: 0 },
+  category: { fontSize: 16, fontWeight: '500', color: '#2E7D32' },
+  desc: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
+  meta: { fontSize: 14, color: '#6B7280' },
+  registerBtn: { marginTop: 16, borderRadius: 24, width: '100%' },
+  registerBtnContent: { height: 48 },
 });

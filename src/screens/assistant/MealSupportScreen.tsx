@@ -3,7 +3,7 @@ import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-nat
 import { Text, Card, Button, Chip, Dialog, Portal, IconButton, TextInput, RadioButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
-import { useMealIntakeNotes, useCreateMealIntake } from '../../hooks/useMealIntake';
+import { useMealIntakeNotes, useCreateMealIntake, useUpdateMealIntake, useDeleteMealIntake } from '../../hooks/useMealIntake';
 import { useCaregiverResidents } from '../../hooks/useResidents';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { AlertBanner } from '../../components/shared/AlertBanner';
@@ -29,6 +29,8 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
   const { t } = useTranslation();
   const [mealType, setMealType] = useState(getCurrentMeal());
   const [recordingFor, setRecordingFor] = useState<any>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [intakeStatus, setIntakeStatus] = useState<typeof INTAKE_STATUSES[number]>('full');
   const [portionPercent, setPortionPercent] = useState('');
   const [notes, setNotes] = useState('');
@@ -50,6 +52,8 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
   const notesQ = useMealIntakeNotes({ workDate: today(), mealType });
   const residentsQ = useCaregiverResidents();
   const createIntake = useCreateMealIntake();
+  const updateIntake = useUpdateMealIntake();
+  const deleteIntake = useDeleteMealIntake();
 
   const notes_ = notesQ.data?.data ?? notesQ.data ?? [];
   const residents = residentsQ.data?.data ?? residentsQ.data ?? [];
@@ -68,11 +72,12 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
   const mealLabel = MEAL_TYPES.find((m) => m.value === mealType)?.label ?? mealType;
 
   const openRecordDialog = (resident: any) => {
-    if (resident.mealNote) return; // already recorded for this meal today
+    const note = resident.mealNote;
     setRecordingFor(resident);
-    setIntakeStatus('full');
-    setPortionPercent('');
-    setNotes('');
+    setEditingId(note?._id ?? null);
+    setIntakeStatus(note?.intakeStatus ?? 'full');
+    setPortionPercent(note?.portionPercent != null ? String(note.portionPercent) : '');
+    setNotes(note?.notes ?? '');
     setFormError('');
   };
 
@@ -89,19 +94,38 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
       setFormError(t(`${NS}.errNotesTooLong`, 'Ghi chú không được vượt quá 500 ký tự.'));
       return;
     }
+    const body = {
+      intakeStatus,
+      portionPercent: intakeStatus === 'partial' ? Number(portionPercent) : undefined,
+      notes: notes.trim() || undefined,
+    };
     try {
-      await createIntake.mutateAsync({
-        residentId: recordingFor._id,
-        workDate: today(),
-        mealType,
-        intakeStatus,
-        portionPercent: intakeStatus === 'partial' ? Number(portionPercent) : undefined,
-        notes: notes.trim() || undefined,
-      });
+      if (editingId) {
+        await updateIntake.mutateAsync({ id: editingId, body });
+      } else {
+        await createIntake.mutateAsync({
+          ...body,
+          residentId: recordingFor._id,
+          workDate: today(),
+          mealType,
+        });
+      }
       setRecordingFor(null);
+      setEditingId(null);
       toast(t(`${NS}.toastMealConfirmed`, { meal: mealLabel }), 'success');
     } catch (e: any) {
       setFormError(e?.response?.data?.message || t(`${NS}.toastSaveError`, 'Không thể lưu. Thử lại.'));
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    try {
+      await deleteIntake.mutateAsync(deleteId);
+      setDeleteId(null);
+      toast(t(`${NS}.toastDeleted`, 'Đã xóa ghi chú'), 'success');
+    } catch {
+      toast(t(`${NS}.toastSaveError`, 'Không thể lưu. Thử lại.'), 'error');
     }
   };
 
@@ -147,7 +171,7 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
           data={residentsWithNotes}
           keyExtractor={(item: any) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={() => { notesQ.refetch(); residentsQ.refetch(); }} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={notesQ.isFetching || residentsQ.isFetching} onRefresh={() => { notesQ.refetch(); residentsQ.refetch(); }} tintColor={COLOR} />}
           ListHeaderComponent={
             pendingCount > 0 ? (
               <Text style={styles.pendingHint}>{t(`${NS}.pendingHint`, { count: pendingCount, defaultValue: `${pendingCount} resident(s) still need this meal recorded — tap a card to record.` })}</Text>
@@ -159,7 +183,7 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
             const isRefused = status === 'refused';
 
             return (
-              <Pressable onPress={() => openRecordDialog(item)} disabled={!!note}>
+              <Pressable onPress={() => openRecordDialog(item)} onLongPress={() => note && setDeleteId(note._id)}>
                 <Card style={[styles.mealCard, isRefused && styles.refusedCard]} mode="outlined">
                   <Card.Content style={styles.cardRow}>
                     <AvatarCircle name={item.fullName} size={36} />
@@ -186,8 +210,9 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
       </ScreenLayout>
 
       <Portal>
-        <Dialog visible={!!recordingFor} onDismiss={() => setRecordingFor(null)}>
+        <Dialog visible={!!recordingFor} onDismiss={() => { setRecordingFor(null); setEditingId(null); }}>
           <Dialog.Title>{recordingFor?.fullName}</Dialog.Title>
+          {editingId ? <Text style={styles.editHint}>{t(`${NS}.editTitle`)}</Text> : null}
           <Dialog.ScrollArea style={{ maxHeight: 400 }}>
             <Text style={styles.radioLabel}>{t(`${NS}.intakeStatusLabel`, 'Tình trạng ăn uống')}</Text>
             <RadioButton.Group onValueChange={(v) => setIntakeStatus(v as any)} value={intakeStatus}>
@@ -219,9 +244,19 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
             {formError ? <Text style={styles.errorText}>{formError}</Text> : null}
           </Dialog.ScrollArea>
           <Dialog.Actions>
-            <Button onPress={() => setRecordingFor(null)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleSaveIntake} loading={createIntake.isPending}>
+            <Button onPress={() => { setRecordingFor(null); setEditingId(null); }}>{t('common.cancel')}</Button>
+            <Button mode="contained" buttonColor={COLOR} onPress={handleSaveIntake} loading={createIntake.isPending || updateIntake.isPending}>
               {t('common.save')}
+            </Button>
+          </Dialog.Actions>
+        </Dialog>
+
+        <Dialog visible={!!deleteId} onDismiss={() => setDeleteId(null)}>
+          <Dialog.Title>{t(`${NS}.deleteConfirmTitle`, 'Xóa ghi chú ăn uống?')}</Dialog.Title>
+          <Dialog.Actions>
+            <Button onPress={() => setDeleteId(null)}>{t('common.cancel')}</Button>
+            <Button mode="contained" buttonColor="#991B1B" onPress={handleDelete} loading={deleteIntake.isPending}>
+              {t('common.delete')}
             </Button>
           </Dialog.Actions>
         </Dialog>
@@ -232,6 +267,7 @@ export const MealSupportScreen: React.FC<{ navigation?: any }> = ({ navigation }
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
+  editHint: { fontSize: 12, color: '#6B7280', paddingHorizontal: 24, marginTop: -8, marginBottom: 4 },
   topBar: { backgroundColor: COLOR, paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' },
   backBtn: { margin: 0 },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },

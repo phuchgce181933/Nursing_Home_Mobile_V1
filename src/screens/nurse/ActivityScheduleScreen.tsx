@@ -1,24 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, IconButton, Dialog, Portal, Button, TextInput } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip, Dialog, Portal, Button, TextInput } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useActivities, useActivityDetail, useRecordActivityParticipation } from '../../hooks/useActivities';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.activities';
 
 type AttendanceState = { status: string; note: string };
 type ParticipationState = { participationLevel: string; comment: string; incident: string };
 
 export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [attendance, setAttendance] = useState<Record<string, AttendanceState>>({});
@@ -69,9 +71,11 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
         incident: existingParticipation?.incident ?? '',
       };
     });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrates the editable form from the freshly-fetched activity whenever selection changes
     setAttendance(nextAttendance);
     setParticipation(nextParticipation);
     setOverallNotes(detail.participantResultNotes ?? '');
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally keyed on the activity id, not the (unstable) query object identity
   }, [detail?._id]);
 
   const now = new Date();
@@ -98,18 +102,12 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}
-            style={filter === f.value ? { backgroundColor: COLOR } : undefined}
+            style={filter === f.value ? { backgroundColor: roleColor } : undefined}
             textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
         ))}
       </View>
@@ -117,14 +115,14 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
       <ScreenLayout loading={activitiesQ.isLoading} error={activitiesQ.error ? (activitiesQ.error as Error).message : null}
         onRetry={activitiesQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.title`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={activitiesQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={activitiesQ.isFetching} onRefresh={activitiesQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => setSelectedId(item._id)}>
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.title}>{item.title}</Text>
-                    {item.category ? <Text style={styles.category}>{item.category}</Text> : null}
+                    {item.category ? <Text style={[styles.category, { color: roleColor }]}>{item.category}</Text> : null}
                     <View style={styles.infoRow}>
                       <MaterialCommunityIcons name="calendar-outline" size={14} color="#6B7280" />
                       <Text style={styles.info}>
@@ -188,7 +186,7 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
                               {ATTENDANCE_OPTIONS.map(o => (
                                 <Chip key={o.value} compact selected={att.status === o.value} disabled={!canRecord}
                                   onPress={() => setAttendance(prev => ({ ...prev, [rid]: { ...att, status: o.value } }))}
-                                  style={att.status === o.value ? { backgroundColor: COLOR } : undefined}
+                                  style={att.status === o.value ? { backgroundColor: roleColor } : undefined}
                                   textStyle={att.status === o.value ? { color: '#fff' } : undefined}>{o.label}</Chip>
                               ))}
                             </View>
@@ -196,7 +194,7 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
                               {PARTICIPATION_OPTIONS.map(o => (
                                 <Chip key={o.value} compact selected={part.participationLevel === o.value} disabled={!canRecord}
                                   onPress={() => setParticipation(prev => ({ ...prev, [rid]: { ...part, participationLevel: o.value } }))}
-                                  style={part.participationLevel === o.value ? { backgroundColor: COLOR } : undefined}
+                                  style={part.participationLevel === o.value ? { backgroundColor: roleColor } : undefined}
                                   textStyle={part.participationLevel === o.value ? { color: '#fff' } : undefined}>{o.label}</Chip>
                               ))}
                             </View>
@@ -221,7 +219,7 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
           <Dialog.Actions>
             <Button onPress={() => setSelectedId(null)}>{t('common.close')}</Button>
             {detail?.participants?.length > 0 ? (
-              <Button mode="contained" buttonColor={COLOR} disabled={!canRecord} loading={recordMut.isPending}
+              <Button mode="contained" buttonColor={roleColor} disabled={!canRecord} loading={recordMut.isPending}
                 onPress={handleSaveAttendance}>{t(`${NS}.saveAttendance`)}</Button>
             ) : null}
           </Dialog.Actions>
@@ -231,24 +229,21 @@ export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigati
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
+  card: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface },
   row: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  category: { fontSize: 12, color: COLOR, marginTop: 2 },
+  title: { fontSize: 14, fontWeight: '600', color: c.text },
+  category: { fontSize: 12, marginTop: 2 },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  info: { fontSize: 12, color: '#6B7280' },
-  detailLabel: { fontSize: 13, fontWeight: '500', color: '#6B7280', marginBottom: 4 },
-  detailValue: { fontWeight: '400', color: '#111827' },
+  info: { fontSize: 12, color: c.textSecondary },
+  detailLabel: { fontSize: 13, fontWeight: '500', color: c.textSecondary, marginBottom: 4 },
+  detailValue: { fontWeight: '400', color: c.text },
   warning: { fontSize: 12, color: '#991B1B', marginTop: 4, marginBottom: 8, fontStyle: 'italic' },
   participantCard: { marginTop: 8, borderRadius: 10 },
-  participantName: { fontSize: 13, fontWeight: '600', color: '#111827', marginBottom: 6 },
+  participantName: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },
   chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 8 },
-  smallInput: { marginBottom: 6, backgroundColor: '#fff' },
+  smallInput: { marginBottom: 6, backgroundColor: c.surface },
 });

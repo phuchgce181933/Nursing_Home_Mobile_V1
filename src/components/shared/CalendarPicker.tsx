@@ -219,6 +219,7 @@ export const CalendarPicker: React.FC<Props> = ({ label, value, onChange, minDat
 
 const styles = StyleSheet.create({
   trigger: {
+    width: '100%',
     backgroundColor: '#fff',
     borderRadius: 12,
     borderWidth: 1,

@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
@@ -10,12 +9,12 @@ import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.billingSummary';
 
 export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const residentId = route.params?.residentId;
   const residentName = route.params?.residentName ?? '';
@@ -41,19 +40,14 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
   const wallet = walletQ.data;
   const latestInvoice = data?.latestInvoice;
   const refetch = () => { billingQ.refetch(); walletQ.refetch(); };
+  const isFetching = billingQ.isFetching || walletQ.isFetching;
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={COLOR} />}>
         <ScreenLayout loading={billingQ.isLoading} error={billingQ.error ? (billingQ.error as Error).message : null} onRetry={refetch}>
           <Card style={styles.card} mode="elevated">
             <Card.Content style={styles.residentHeader}>
@@ -80,7 +74,7 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
             <Card style={styles.statCard}>
               <Card.Content style={styles.statContent}>
                 <MaterialCommunityIcons name="wallet-outline" size={24} color={COLOR} />
-                <Text style={styles.statValue}>{wallet?.balance != null ? `${(wallet.balance / 1000).toFixed(0)}k` : '--'}</Text>
+                <Text style={styles.statValue}>{wallet?.balance != null ? `${wallet.balance.toLocaleString('vi-VN')} ₫` : '--'}</Text>
                 <Text style={styles.statLabel}>{t(`${NS}.walletBalance`)}</Text>
               </Card.Content>
             </Card>
@@ -132,9 +126,6 @@ export const BillingSummaryScreen: React.FC<{ route: any; navigation: any }> = (
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   body: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
   residentHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },

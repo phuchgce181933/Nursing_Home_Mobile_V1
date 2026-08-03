@@ -95,7 +95,7 @@ export const PhotoUploadScreen: React.FC = () => {
           keyExtractor={(p: any) => p._id}
           numColumns={3}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={() => photosQ.refetch()} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={photosQ.isFetching} onRefresh={() => photosQ.refetch()} tintColor={COLOR} />}
           ListHeaderComponent={
             <View style={{ marginBottom: 12 }}>
               <SectionHeader title={t(`${NS}.residentLabel`)} roleColor={COLOR} />

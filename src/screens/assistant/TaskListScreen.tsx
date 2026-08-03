@@ -103,7 +103,7 @@ export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
           sections={sections}
           keyExtractor={(item: any) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
           renderSectionHeader={({ section }) => (
             <Text style={styles.sectionTitle}>{section.title}</Text>
           )}

@@ -73,6 +73,8 @@ const AppContent: React.FC = () => {
             <OfflineBanner />
             <PushNotificationsGate />
             <RootNavigator />
+            {/* Every screen's top bar uses a solid role-accent color (see ROLE_COLORS in theme/theme.ts) in both
+                schemes, so white status bar content stays legible regardless of light/dark mode. */}
             <StatusBar style="light" />
           </ToastProvider>
         </AuthProvider>

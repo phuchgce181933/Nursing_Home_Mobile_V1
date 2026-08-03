@@ -1,17 +1,28 @@
-import React, { useState, useEffect } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import React, { useState, useEffect, useMemo } from 'react';
+import { NavigationContainer, DefaultTheme as NavLightTheme, DarkTheme as NavDarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { View, StyleSheet, Image } from 'react-native';
 import { Text, ActivityIndicator, Button } from 'react-native-paper';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTranslation } from 'react-i18next';
 import { useAuth } from '../auth/useAuth';
+import { useAppTheme } from '../theme/useAppTheme';
+import type { AppColors } from '../constants/theme';
 import { WelcomeScreen } from '../screens/auth/WelcomeScreen';
 import { LoginScreen } from '../screens/auth/LoginScreen';
 import { RegisterScreen } from '../screens/auth/RegisterScreen';
 import { VerifyRegisterOtpScreen } from '../screens/auth/VerifyRegisterOtpScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 import { ResetPasswordScreen } from '../screens/auth/ResetPasswordScreen';
+import { GuestAdmissionRequestScreen } from '../screens/auth/GuestAdmissionRequestScreen';
 import { PostRegisterAdmissionScreen } from '../screens/family/PostRegisterAdmissionScreen';
+import { IntroScreen } from '../screens/public/IntroScreen';
+import { ServicesScreen } from '../screens/public/ServicesScreen';
+import { TechScreen } from '../screens/public/TechScreen';
+import { LivingScreen } from '../screens/public/LivingScreen';
+import { PricingScreen } from '../screens/public/PricingScreen';
+import { NewsScreen } from '../screens/public/NewsScreen';
+import { ContactScreen } from '../screens/public/ContactScreen';
 import { NurseNavigator } from './NurseNavigator';
 import { FamilyNavigator } from './FamilyNavigator';
 import { AssistantNavigator } from './AssistantNavigator';
@@ -21,36 +32,42 @@ const JUST_REGISTERED_KEY = 'justRegistered';
 const AuthStack = createNativeStackNavigator();
 const AppStack = createNativeStackNavigator();
 
-const SplashView: React.FC = () => (
-  <View style={styles.splash}>
-    <Image
-      source={require('../../assets/images/logo-annhien.png')}
-      style={styles.splashLogo}
-      resizeMode="contain"
-    />
-    <ActivityIndicator size="large" style={{ marginTop: 24 }} />
-  </View>
-);
-
-const UnknownRoleView: React.FC = () => {
-  const { logout, user } = useAuth();
+const SplashView: React.FC = () => {
+  const { colors } = useAppTheme();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.splash}>
-      <Text style={{ fontSize: 16, marginBottom: 8 }}>Vai trò không được hỗ trợ</Text>
-      <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 24 }}>
-        Vai trò "{user?.role}" chưa có giao diện trên ứng dụng này.
-      </Text>
-      <Button mode="outlined" onPress={logout}>Đăng xuất</Button>
+      <Image
+        source={require('../../assets/images/logo-annhien.png')}
+        style={styles.splashLogo}
+        resizeMode="contain"
+      />
+      <ActivityIndicator size="large" style={{ marginTop: 24 }} />
     </View>
   );
 };
 
+const UnknownRoleView: React.FC = () => {
+  const { logout, user } = useAuth();
+  const { colors } = useAppTheme();
+  const { t } = useTranslation();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return (
+    <View style={styles.splash}>
+      <Text style={{ fontSize: 16, marginBottom: 8, color: colors.text }}>{t('common.unsupportedRoleTitle')}</Text>
+      <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 24 }}>
+        {t('common.unsupportedRoleMessage', { role: user?.role })}
+      </Text>
+      <Button mode="outlined" onPress={logout}>{t('common.logout')}</Button>
+    </View>
+  );
+};
+
+// Mobile only supports nurse, caregiver, and family — doctor/manager/admin (and anything
+// else) use the web system instead, so they fall through to UnknownRoleView below.
 const getRoleNavigator = (role?: string) => {
   switch (role) {
     case 'nurse':
-    case 'doctor':
-    case 'manager':
-    case 'admin':
       return { name: 'NurseNav', component: NurseNavigator };
     case 'family':
       return { name: 'FamilyNav', component: FamilyNavigator };
@@ -64,11 +81,24 @@ const getRoleNavigator = (role?: string) => {
 export const RootNavigator: React.FC = () => {
   const { token, user, isLoading } = useAuth();
   const [justRegistered, setJustRegistered] = useState<boolean | null>(null);
+  const { colors, isDark } = useAppTheme();
+
+  const navTheme = useMemo(() => ({
+    ...(isDark ? NavDarkTheme : NavLightTheme),
+    colors: {
+      ...(isDark ? NavDarkTheme.colors : NavLightTheme.colors),
+      background: colors.background,
+      card: colors.surface,
+      border: colors.border,
+      text: colors.text,
+    },
+  }), [isDark, colors]);
 
   const isAuthenticated = !!token && !!user;
+  const effectiveJustRegistered = isAuthenticated ? justRegistered : null;
 
   useEffect(() => {
-    if (!isAuthenticated) { setJustRegistered(null); return; }
+    if (!isAuthenticated) return;
     AsyncStorage.getItem(JUST_REGISTERED_KEY).then((v) => setJustRegistered(v === 'true'));
   }, [isAuthenticated, user?._id]);
 
@@ -78,13 +108,13 @@ export const RootNavigator: React.FC = () => {
   };
 
   if (isLoading) return <SplashView />;
-  if (isAuthenticated && justRegistered === null) return <SplashView />;
+  if (isAuthenticated && effectiveJustRegistered === null) return <SplashView />;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer theme={navTheme}>
       {isAuthenticated ? (
         <AppStack.Navigator screenOptions={{ headerShown: false }}>
-          {user.role === 'family' && justRegistered ? (
+          {user.role === 'family' && effectiveJustRegistered ? (
             <AppStack.Screen name="PostRegisterAdmission">
               {() => <PostRegisterAdmissionScreen onDone={handleAdmissionFlowDone} />}
             </AppStack.Screen>
@@ -101,13 +131,21 @@ export const RootNavigator: React.FC = () => {
           <AuthStack.Screen name="VerifyRegisterOtp" component={VerifyRegisterOtpScreen} />
           <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <AuthStack.Screen name="ResetPassword" component={ResetPasswordScreen} />
+          <AuthStack.Screen name="GuestAdmissionRequest" component={GuestAdmissionRequestScreen} />
+          <AuthStack.Screen name="Intro" component={IntroScreen} />
+          <AuthStack.Screen name="Services" component={ServicesScreen} />
+          <AuthStack.Screen name="Tech" component={TechScreen} />
+          <AuthStack.Screen name="Living" component={LivingScreen} />
+          <AuthStack.Screen name="Pricing" component={PricingScreen} />
+          <AuthStack.Screen name="News" component={NewsScreen} />
+          <AuthStack.Screen name="Contact" component={ContactScreen} />
         </AuthStack.Navigator>
       )}
     </NavigationContainer>
   );
 };
 
-const styles = StyleSheet.create({
-  splash: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#fff' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  splash: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.background },
   splashLogo: { width: 100, height: 100 },
 });

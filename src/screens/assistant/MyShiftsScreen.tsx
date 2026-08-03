@@ -1,19 +1,18 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, Button, Dialog, Portal, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip, Button, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
-import { useMyShifts, useConfirmShift, useCheckInShift, useCheckOutShift } from '../../hooks/useShifts';
+import { useMyShifts, useConfirmShift, useCheckInShift, useCheckOutShift, useCompleteShift } from '../../hooks/useShifts';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.myShifts';
 
 export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
@@ -32,6 +31,7 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
   const confirmMut = useConfirmShift();
   const checkInMut = useCheckInShift();
   const checkOutMut = useCheckOutShift();
+  const completeMut = useCompleteShift();
 
   const handleConfirm = () => {
     if (!confirmId) return;
@@ -55,15 +55,16 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
     });
   };
 
+  const handleComplete = (id: string) => {
+    completeMut.mutate(id, {
+      onSuccess: () => toast(t(`${NS}.toastCompleteSuccess`), 'success'),
+      onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastActionError`), 'error'),
+    });
+  };
+
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => (
@@ -76,7 +77,7 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
       <ScreenLayout loading={shiftsQ.isLoading} error={shiftsQ.error ? (shiftsQ.error as Error).message : null}
         onRetry={shiftsQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={shiftsQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={shiftsQ.isFetching} onRefresh={shiftsQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined">
               <Card.Content>
@@ -127,6 +128,11 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
                   <Button compact mode="contained" buttonColor="#991B1B" icon="logout" onPress={() => handleCheckOut(item._id)} loading={checkOutMut.isPending}>{t(`${NS}.checkOut`)}</Button>
                 </Card.Actions>
               ) : null}
+              {item.status === 'confirmed' ? (
+                <Card.Actions>
+                  <Button compact mode="contained" buttonColor={COLOR} icon="check-circle-outline" onPress={() => handleComplete(item._id)} loading={completeMut.isPending}>{t(`${NS}.complete`)}</Button>
+                </Card.Actions>
+              ) : null}
             </Card>
           )} />
       </ScreenLayout>
@@ -147,9 +153,6 @@ export const MyShiftsScreen: React.FC<{ navigation: any }> = ({ navigation }) =>
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },

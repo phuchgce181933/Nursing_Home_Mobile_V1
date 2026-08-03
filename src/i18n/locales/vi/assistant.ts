@@ -17,6 +17,7 @@ export default {
       featureRehab: 'Phục hồi chức năng',
       featureRoomStatus: 'Tình trạng phòng',
       featureVitals: 'Sinh hiệu',
+      featureCareNotes: 'Ghi chú chăm sóc',
       featureMessages: 'Tin nhắn',
       featureNotifications: 'Thông báo',
       tasksTitle: 'Công việc hôm nay',
@@ -40,6 +41,8 @@ export default {
       checkedOutAt: 'Đã tan ca lúc {{time}}',
       toastCheckInSuccess: 'Vào ca thành công',
       toastCheckOutSuccess: 'Tan ca thành công',
+      complete: 'Hoàn thành',
+      toastCompleteSuccess: 'Đã đánh dấu hoàn thành ca trực',
       toastActionError: 'Thao tác thất bại. Thử lại.',
     },
     leaveRequests: {
@@ -199,6 +202,7 @@ export default {
     },
     mealSupport: {
       title: 'Hỗ trợ bữa ăn',
+      pendingHint: 'Còn {{count}} cư dân chưa được ghi nhận bữa ăn này — chạm vào thẻ để ghi nhận.',
       mealBreakfast: 'Sáng',
       mealLunch: 'Trưa',
       mealDinner: 'Tối',
@@ -210,6 +214,9 @@ export default {
       refusedReported: '{{note}} — đã báo Y tá',
       confirmDialogTitle: 'Xác nhận bữa ăn hoàn tất cho tầng này?',
       toastMealConfirmed: 'Xác nhận bữa {{meal}} hoàn tất',
+      editTitle: 'Cập nhật ghi chú ăn uống',
+      deleteConfirmTitle: 'Xóa ghi chú ăn uống?',
+      toastDeleted: 'Đã xóa ghi chú',
     },
     dailyBehavior: {
       title: 'Theo dõi hành vi',

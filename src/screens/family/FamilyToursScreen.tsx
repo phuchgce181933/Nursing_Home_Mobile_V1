@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, FAB, Dialog, Portal, TextInput, IconButton, Chip } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import React, { useRef, useState } from 'react';
+import { View, FlatList, StyleSheet, RefreshControl, Platform, KeyboardAvoidingView, ScrollView, TextInput as RNTextInput } from 'react-native';
+import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Chip } from 'react-native-paper';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -10,6 +9,7 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.tours';
@@ -21,7 +21,6 @@ const TIME_SLOTS = ['08:00 - 10:00', '10:00 - 12:00', '14:00 - 16:00', '16:00 - 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
 export const FamilyToursScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
@@ -30,6 +29,10 @@ export const FamilyToursScreen: React.FC<{ navigation?: any }> = ({ navigation }
   const [cancelReason, setCancelReason] = useState('');
   const [form, setForm] = useState({ contactName: '', contactPhone: '', contactEmail: '', preferredDate: '', preferredTimeSlot: TIME_SLOTS[0], numberOfVisitors: '1', notes: '' });
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const phoneRef = useRef<RNTextInput>(null);
+  const emailRef = useRef<RNTextInput>(null);
+  const visitorsRef = useRef<RNTextInput>(null);
+  const notesRef = useRef<RNTextInput>(null);
 
   const listQ = useQuery({ queryKey: ['tours'], queryFn: async () => (await api.get(FAMILY.TOURS)).data });
   const items = listQ.data?.data ?? listQ.data ?? [];
@@ -77,12 +80,9 @@ export const FamilyToursScreen: React.FC<{ navigation?: any }> = ({ navigation }
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
-        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation?.goBack()} />
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
-        <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
+        <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined">
               <Card.Content>
@@ -104,40 +104,72 @@ export const FamilyToursScreen: React.FC<{ navigation?: any }> = ({ navigation }
       <FAB icon="plus" style={[styles.fab, { backgroundColor: COLOR }]} color="#fff" onPress={() => setShowCreate(true)} />
 
       <Portal>
-        <Dialog visible={showCreate} onDismiss={() => setShowCreate(false)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>{t(`${NS}.createTitle`)}</Dialog.Title>
-          <Dialog.ScrollArea style={{ maxHeight: 460 }}>
-            <TextInput label={t(`${NS}.contactNameLabel`)} mode="outlined" value={form.contactName} onChangeText={v => setForm(f => ({ ...f, contactName: v }))} dense style={styles.input} error={!!errors.contactName} maxLength={100} />
-            {errors.contactName ? <Text style={styles.errText}>{errors.contactName}</Text> : null}
-            <TextInput label={t(`${NS}.contactPhoneLabel`)} mode="outlined" value={form.contactPhone} onChangeText={v => setForm(f => ({ ...f, contactPhone: v }))} dense keyboardType="phone-pad" style={styles.input} error={!!errors.contactPhone} maxLength={13} />
-            {errors.contactPhone ? <Text style={styles.errText}>{errors.contactPhone}</Text> : null}
-            <TextInput label={t(`${NS}.emailLabel`)} mode="outlined" value={form.contactEmail} onChangeText={v => setForm(f => ({ ...f, contactEmail: v }))} dense keyboardType="email-address" style={styles.input} error={!!errors.contactEmail} />
-            {errors.contactEmail ? <Text style={styles.errText}>{errors.contactEmail}</Text> : null}
-            <CalendarPicker label={t(`${NS}.preferredDateLabel`)} value={form.preferredDate} onChange={v => setForm(f => ({ ...f, preferredDate: v }))} minDate={todayStr()} color={COLOR} />
-            {errors.preferredDate ? <Text style={styles.errText}>{errors.preferredDate}</Text> : null}
-            <Text style={styles.chipLabel}>{t(`${NS}.timeSlotLabel`)}</Text>
-            <View style={styles.chipRow}>
-              {TIME_SLOTS.map(slot => (
-                <Chip key={slot} selected={form.preferredTimeSlot === slot} onPress={() => setForm(f => ({ ...f, preferredTimeSlot: slot }))} style={styles.chip} selectedColor={COLOR}>
-                  {slot}
-                </Chip>
-              ))}
-            </View>
-            <TextInput label={t(`${NS}.visitorsLabel`)} mode="outlined" value={form.numberOfVisitors} onChangeText={v => setForm(f => ({ ...f, numberOfVisitors: v }))} dense keyboardType="numeric" style={styles.input} error={!!errors.numberOfVisitors} />
-            {errors.numberOfVisitors ? <Text style={styles.errText}>{errors.numberOfVisitors}</Text> : null}
-            <TextInput label={t(`${NS}.notesLabel`)} mode="outlined" value={form.notes} onChangeText={v => setForm(f => ({ ...f, notes: v }))} dense multiline style={styles.input} error={!!errors.notes} maxLength={MAX_TEXT_LENGTH} />
-            {errors.notes ? <Text style={styles.errText}>{errors.notes}</Text> : null}
-            <Text style={styles.charCount}>{form.notes.length}/{MAX_TEXT_LENGTH}</Text>
-          </Dialog.ScrollArea>
-          <Dialog.Actions>
-            <Button onPress={() => { setShowCreate(false); setErrors({}); }}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit} loading={createMut.isPending} disabled={!form.contactName || !form.contactPhone || !form.preferredDate}>{t(`${NS}.book`)}</Button>
-          </Dialog.Actions>
+        <Dialog visible={showCreate} onDismiss={() => setShowCreate(false)} dismissable={false} dismissableBackButton style={{ borderRadius: 16 }}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <Dialog.Title>{t(`${NS}.createTitle`)}</Dialog.Title>
+            <Dialog.ScrollArea style={{ maxHeight: 460 }}>
+              <ScrollView keyboardShouldPersistTaps="handled">
+                <TextInput
+                  label={t(`${NS}.contactNameLabel`)} mode="outlined" value={form.contactName}
+                  onChangeText={v => setForm(f => ({ ...f, contactName: v }))} dense style={styles.input} error={!!errors.contactName} maxLength={100}
+                  returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => phoneRef.current?.focus()}
+                />
+                {errors.contactName ? <Text style={styles.errText}>{errors.contactName}</Text> : null}
+                <TextInput
+                  ref={phoneRef}
+                  label={t(`${NS}.contactPhoneLabel`)} mode="outlined" value={form.contactPhone}
+                  onChangeText={v => setForm(f => ({ ...f, contactPhone: v }))} dense keyboardType="phone-pad" style={styles.input} error={!!errors.contactPhone} maxLength={13}
+                  returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => emailRef.current?.focus()}
+                />
+                {errors.contactPhone ? <Text style={styles.errText}>{errors.contactPhone}</Text> : null}
+                <TextInput
+                  ref={emailRef}
+                  label={t(`${NS}.emailLabel`)} mode="outlined" value={form.contactEmail}
+                  onChangeText={v => setForm(f => ({ ...f, contactEmail: v }))} dense keyboardType="email-address" style={styles.input} error={!!errors.contactEmail}
+                  returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => visitorsRef.current?.focus()}
+                />
+                {errors.contactEmail ? <Text style={styles.errText}>{errors.contactEmail}</Text> : null}
+                <CalendarPicker label={t(`${NS}.preferredDateLabel`)} value={form.preferredDate} onChange={v => setForm(f => ({ ...f, preferredDate: v }))} minDate={todayStr()} color={COLOR} />
+                {errors.preferredDate ? <Text style={styles.errText}>{errors.preferredDate}</Text> : null}
+                <Text style={styles.chipLabel}>{t(`${NS}.timeSlotLabel`)}</Text>
+                <View style={styles.chipRow}>
+                  {TIME_SLOTS.map(slot => (
+                    <Chip key={slot} selected={form.preferredTimeSlot === slot} onPress={() => setForm(f => ({ ...f, preferredTimeSlot: slot }))} style={styles.chip} selectedColor={COLOR}>
+                      {slot}
+                    </Chip>
+                  ))}
+                </View>
+                <TextInput
+                  ref={visitorsRef}
+                  label={t(`${NS}.visitorsLabel`)} mode="outlined" value={form.numberOfVisitors}
+                  onChangeText={v => setForm(f => ({ ...f, numberOfVisitors: v }))} dense keyboardType="numeric" style={styles.input} error={!!errors.numberOfVisitors}
+                  returnKeyType="next" submitBehavior="submit" onSubmitEditing={() => notesRef.current?.focus()}
+                />
+                {errors.numberOfVisitors ? <Text style={styles.errText}>{errors.numberOfVisitors}</Text> : null}
+                <TextInput
+                  ref={notesRef}
+                  label={t(`${NS}.notesLabel`)} mode="outlined" value={form.notes}
+                  onChangeText={v => setForm(f => ({ ...f, notes: v }))} dense multiline style={styles.input} error={!!errors.notes} maxLength={MAX_TEXT_LENGTH}
+                  returnKeyType="done" submitBehavior="blurAndSubmit"
+                />
+                {errors.notes ? <Text style={styles.errText}>{errors.notes}</Text> : null}
+                <Text style={styles.charCount}>{form.notes.length}/{MAX_TEXT_LENGTH}</Text>
+              </ScrollView>
+            </Dialog.ScrollArea>
+            <Dialog.Actions>
+              <Button onPress={() => { setShowCreate(false); setErrors({}); }}>{t('common.cancel')}</Button>
+              <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit} loading={createMut.isPending} disabled={!form.contactName || !form.contactPhone || !form.preferredDate}>{t(`${NS}.book`)}</Button>
+            </Dialog.Actions>
+          </KeyboardAvoidingView>
         </Dialog>
-        <Dialog visible={!!cancelId} onDismiss={() => setCancelId(null)}>
-          <Dialog.Title>{t(`${NS}.cancelConfirmTitle`)}</Dialog.Title>
-          <Dialog.Content><TextInput label={t(`${NS}.cancelReasonLabel`)} mode="outlined" value={cancelReason} onChangeText={setCancelReason} dense multiline maxLength={MAX_TEXT_LENGTH} /></Dialog.Content>
-          <Dialog.Actions><Button onPress={() => setCancelId(null)}>{t(`${NS}.close`)}</Button><Button mode="contained" buttonColor="#991B1B" onPress={() => cancelMut.mutate()} loading={cancelMut.isPending}>{t(`${NS}.cancel`)}</Button></Dialog.Actions>
+        <Dialog visible={!!cancelId} onDismiss={() => setCancelId(null)} dismissable={false} dismissableBackButton>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <Dialog.Title>{t(`${NS}.cancelConfirmTitle`)}</Dialog.Title>
+            <Dialog.Content>
+              <TextInput label={t(`${NS}.cancelReasonLabel`)} mode="outlined" value={cancelReason} onChangeText={setCancelReason} dense multiline maxLength={MAX_TEXT_LENGTH} returnKeyType="done" submitBehavior="blurAndSubmit" />
+            </Dialog.Content>
+            <Dialog.Actions><Button onPress={() => setCancelId(null)}>{t(`${NS}.close`)}</Button><Button mode="contained" buttonColor="#991B1B" onPress={() => cancelMut.mutate()} loading={cancelMut.isPending}>{t(`${NS}.cancel`)}</Button></Dialog.Actions>
+          </KeyboardAvoidingView>
         </Dialog>
       </Portal>
     </View>
@@ -145,7 +177,7 @@ export const FamilyToursScreen: React.FC<{ navigation?: any }> = ({ navigation }
 };
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' }, topBar: { backgroundColor: COLOR, paddingHorizontal: 8, paddingBottom: 16, paddingTop: 8, flexDirection: 'row', alignItems: 'center' }, backBtn: { margin: 0 }, topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' }, list: { padding: 16, paddingBottom: 80 }, card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' }, row: { flexDirection: 'row', alignItems: 'center' }, name: { fontSize: 14, fontWeight: '600', color: '#111827' }, sub: { fontSize: 12, color: '#6B7280', marginTop: 2 }, fab: { position: 'absolute', bottom: 16, right: 16 }, input: { marginBottom: 8 },
+  flex: { flex: 1, backgroundColor: '#F5F5F5' }, list: { padding: 16, paddingBottom: 80 }, card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' }, row: { flexDirection: 'row', alignItems: 'center' }, name: { fontSize: 14, fontWeight: '600', color: '#111827' }, sub: { fontSize: 12, color: '#6B7280', marginTop: 2 }, fab: { position: 'absolute', bottom: 16, right: 16 }, input: { marginBottom: 8 },
   errText: { color: '#DC2626', fontSize: 11, marginTop: -4, marginBottom: 8 },
   charCount: { color: '#9CA3AF', fontSize: 10, textAlign: 'right', marginTop: -4, marginBottom: 8 },
   chipLabel: { fontSize: 11, color: '#6B7280', marginBottom: 6, marginTop: 2 },

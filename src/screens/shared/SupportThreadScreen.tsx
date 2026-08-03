@@ -10,6 +10,7 @@ import { useAuth } from '../../auth/useAuth';
 import { getRoleColor } from '../../theme/theme';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
 
 const NS = 'shared.supportThread';
@@ -54,16 +55,17 @@ export const SupportThreadScreen: React.FC<{ navigation: any; route: any }> = ({
 
   return (
     <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top}>
-      <View style={[styles.topBar, { backgroundColor: COLOR, paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <View style={{ flex: 1 }}>
-            <Text style={styles.topTitle} numberOfLines={1}>{request?.subject ?? request?.fullName ?? t(`${NS}.title`)}</Text>
-          </View>
-          {request ? <StatusBadge status={request.status} size="sm" /> : null}
-          {canClose ? <IconButton icon="check-circle-outline" iconColor="#fff" size={22} onPress={() => closeMut.mutate()} /> : <View style={{ width: 40 }} />}
-        </View>
-      </View>
+      <BackHeader
+        title={request?.subject ?? request?.fullName ?? t(`${NS}.title`)}
+        color={COLOR}
+        onBack={() => navigation.goBack()}
+        right={
+          <>
+            {request ? <StatusBadge status={request.status} size="sm" /> : null}
+            {canClose ? <IconButton icon="check-circle-outline" iconColor="#fff" size={22} onPress={() => closeMut.mutate()} /> : null}
+          </>
+        }
+      />
 
       <ScreenLayout loading={detailQ.isLoading} error={detailQ.error ? (detailQ.error as Error).message : null} onRetry={detailQ.refetch}>
         <FlatList
@@ -109,9 +111,6 @@ export const SupportThreadScreen: React.FC<{ navigation: any; route: any }> = ({
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center' },
-  topTitle: { color: '#fff', fontSize: 15, fontWeight: '500' },
   list: { padding: 16, flexGrow: 1 },
   emptyText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
   bubbleRow: { flexDirection: 'row', marginBottom: 8 },

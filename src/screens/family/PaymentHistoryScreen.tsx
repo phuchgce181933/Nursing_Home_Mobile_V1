@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.paymentHistory';
@@ -19,7 +19,6 @@ const TYPE_ICON: Record<string, { name: string; color: string }> = {
 };
 
 export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
 
@@ -52,13 +51,7 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <View style={styles.filterRow}>
         {TYPE_FILTERS.map(f => (
@@ -72,7 +65,7 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
         onRetry={walletQ.refetch} isEmpty={sorted.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={sorted} keyExtractor={(item: any, i: number) => item._id ?? String(i)}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={walletQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={walletQ.isFetching} onRefresh={walletQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => {
             const icon = TYPE_ICON[item.type] ?? TYPE_ICON.payment;
             const status = STATUS_COLORS[item.status] ?? STATUS_COLORS.pending;
@@ -107,9 +100,6 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 6, backgroundColor: '#fff' },

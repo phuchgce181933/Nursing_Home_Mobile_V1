@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Card, Button, TextInput, Portal, Dialog, IconButton, Chip } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,12 +7,14 @@ import { useTranslation } from 'react-i18next';
 import { useResidents, useResidentDetail } from '../../hooks/useResidents';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { useToast } from '../../utils/toast';
 import api from '../../api/axiosInstance';
 import { RESIDENTS } from '../../api/endpoints';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.drugAllergies';
 const MAX_ITEMS = 30;
 const MIN_ITEM_LEN = 2;
@@ -23,6 +25,8 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
 
   const [selectedId, setSelectedId] = useState<string | undefined>(route?.params?.residentId);
   const [search, setSearch] = useState('');
@@ -72,22 +76,16 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
   if (!selectedId) {
     return (
       <View style={styles.flex}>
-        <View style={[styles.topBar, { paddingTop: insets.top }]}>
-          <View style={styles.topRow}>
-            <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} />
-            <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-            <View style={{ width: 40 }} />
-          </View>
-        </View>
+        <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation?.goBack()} />
         <View style={{ padding: 12 }}>
           <TextInput placeholder={t(`${NS}.searchPlaceholder`)} mode="outlined" value={search}
-            onChangeText={setSearch} dense style={{ backgroundColor: '#fff', marginBottom: 8 }}
+            onChangeText={setSearch} dense style={{ backgroundColor: colors.surface, marginBottom: 8 }}
             left={<TextInput.Icon icon="magnify" />} />
         </View>
         <ScreenLayout loading={residentsQ.isLoading} error={residentsQ.error ? (residentsQ.error as Error).message : null}
           onRetry={residentsQ.refetch} isEmpty={allResidents.length === 0} emptyMessage={t(`${NS}.empty`)}>
           <FlatList data={allResidents} keyExtractor={(i: any) => i._id} contentContainerStyle={{ padding: 16 }}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={residentsQ.refetch} tintColor={COLOR} />}
+            refreshControl={<RefreshControl refreshing={residentsQ.isFetching} onRefresh={residentsQ.refetch} tintColor={roleColor} />}
             renderItem={({ item }) => (
               <Pressable onPress={() => setSelectedId(item._id)} style={styles.residentItem}>
                 <AvatarCircle name={item.fullName} size={40} />
@@ -104,7 +102,7 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
+      <View style={[styles.topBar, { paddingTop: insets.top, backgroundColor: roleColor }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => setSelectedId(undefined)} />
           <View style={{ flex: 1 }}>
@@ -116,7 +114,7 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
 
       <ScreenLayout loading={residentQ.isLoading} error={residentQ.error ? (residentQ.error as Error).message : null} onRetry={residentQ.refetch}>
         <View style={styles.body}>
-          <SectionHeader title={t(`${NS}.detailTitle`)} roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.detailTitle`)} roleColor={roleColor} />
           <Card style={styles.card} mode="outlined">
             <Card.Content>
               {currentAllergies.length > 0 ? (
@@ -130,7 +128,7 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
               )}
             </Card.Content>
           </Card>
-          <Button mode="contained" buttonColor={COLOR} style={styles.updateBtn} onPress={openForm}>
+          <Button mode="contained" buttonColor={roleColor} style={styles.updateBtn} onPress={openForm}>
             {t(`${NS}.editButton`)}
           </Button>
         </View>
@@ -156,13 +154,13 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
                 dense style={[styles.input, { flex: 1 }]}
                 maxLength={MAX_ITEM_LEN}
               />
-              <Button mode="contained" buttonColor={COLOR} onPress={addItem} compact>{t(`${NS}.addButton`)}</Button>
+              <Button mode="contained" buttonColor={roleColor} onPress={addItem} compact>{t(`${NS}.addButton`)}</Button>
             </View>
             {formError ? <Text style={styles.errText}>{formError}</Text> : null}
           </Dialog.ScrollArea>
           <Dialog.Actions>
             <Button onPress={() => setShowForm(false)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={() => saveMutation.mutate()} loading={saveMutation.isPending}>{t(`${NS}.save`)}</Button>
+            <Button mode="contained" buttonColor={roleColor} onPress={() => saveMutation.mutate()} loading={saveMutation.isPending}>{t(`${NS}.save`)}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
@@ -170,18 +168,18 @@ export const DrugAllergiesScreen: React.FC<{ route?: any; navigation?: any }> = 
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
+  topBar: { paddingHorizontal: 4, paddingBottom: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center' },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 1 },
   body: { padding: 16, paddingBottom: 32 },
-  residentItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8 },
-  residentName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  residentCode: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  card: { borderRadius: 12, backgroundColor: '#fff' },
-  infoValue: { fontSize: 14, color: '#111827' },
+  residentItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, marginBottom: 8 },
+  residentName: { fontSize: 14, fontWeight: '600', color: c.text },
+  residentCode: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
+  card: { borderRadius: 12, backgroundColor: c.surface },
+  infoValue: { fontSize: 14, color: c.text },
   updateBtn: { marginTop: 16, borderRadius: 8 },
   input: { marginBottom: 4 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },

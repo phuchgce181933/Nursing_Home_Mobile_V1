@@ -18,6 +18,7 @@ const resources = {
   en: { translation: { ...enCommon, ...enNurse, ...enFamily, ...enAssistant } },
 };
 
+// eslint-disable-next-line import/no-named-as-default-member -- i18next's default export intentionally exposes `.use`
 i18next.use(initReactI18next).init({
   resources,
   lng: 'vi',
@@ -28,6 +29,7 @@ i18next.use(initReactI18next).init({
 
 AsyncStorage.getItem(LANGUAGE_STORAGE_KEY).then((stored) => {
   if (stored && stored !== i18next.language) {
+    // eslint-disable-next-line import/no-named-as-default-member -- i18next's default export intentionally exposes `.changeLanguage`
     i18next.changeLanguage(stored);
   }
 });

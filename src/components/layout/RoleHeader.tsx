@@ -52,7 +52,10 @@ export const RoleHeader: React.FC<Props> = ({ title, subtitle, stats, roleColor 
 const styles = StyleSheet.create({
   container: {
     paddingHorizontal: 16,
-    paddingBottom: 20,
+    // Screens that overlap this header with a rounded content sheet below it (via a
+    // negative marginTop) need clearance so the sheet's rounded corner lands below the
+    // stat pills instead of cutting across their bottom edge — see FamilyDashboardScreen.
+    paddingBottom: 40,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: 'hidden',

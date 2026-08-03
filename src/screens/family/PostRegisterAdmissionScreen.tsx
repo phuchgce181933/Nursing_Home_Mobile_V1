@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, StyleSheet } from 'react-native';
+import { View, ScrollView, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
 import { Text, Button, TextInput, Chip } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useMutation } from '@tanstack/react-query';
@@ -7,12 +7,28 @@ import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
+import { SelectField } from '../../components/shared/SelectField';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#2E7D32';
 const NS = 'family.admissions';
 const PHONE_REGEX = /^(0|\+84)(3|5|7|8|9)\d{8}$/;
 const MAX_TEXT_LENGTH = 500;
+
+const RELATIONSHIP_OPTIONS = [
+  { value: 'child', label: 'Con cái' },
+  { value: 'spouse', label: 'Vợ/Chồng' },
+  { value: 'sibling', label: 'Anh/Chị/Em' },
+  { value: 'grandchild', label: 'Cháu' },
+  { value: 'legal_guardian', label: 'Người giám hộ hợp pháp' },
+];
+
+const REASON_OPTIONS = [
+  { value: 'long_term_care', label: 'Chăm sóc dài hạn' },
+  { value: 'rehabilitation', label: 'Phục hồi chức năng & Trị liệu' },
+  { value: 'post_surgery', label: 'Phục hồi sau phẫu thuật' },
+  { value: 'hospice', label: 'Chăm sóc giảm nhẹ cuối đời' },
+];
 
 const todayStr = () => new Date().toISOString().split('T')[0];
 
@@ -82,10 +98,18 @@ export const PostRegisterAdmissionScreen: React.FC<{ onDone: () => void }> = ({ 
         <Text style={styles.topSub}>{t(`${NS}.postRegisterSubtitle`)}</Text>
       </View>
 
-      <ScrollView style={styles.flex} contentContainerStyle={styles.body}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <TextInput label={t(`${NS}.fullNameLabel`)} mode="outlined" value={form.fullName} onChangeText={v => setForm(f => ({ ...f, fullName: v }))} dense style={styles.input} error={!!errors.fullName} maxLength={100} />
         {errors.fullName ? <Text style={styles.errText}>{errors.fullName}</Text> : null}
-        <TextInput label={t(`${NS}.relationshipLabel`)} mode="outlined" value={form.relationshipToRequester} onChangeText={v => setForm(f => ({ ...f, relationshipToRequester: v }))} dense style={styles.input} placeholder={t(`${NS}.relationshipPlaceholder`)} error={!!errors.relationshipToRequester} maxLength={100} />
+        <SelectField
+          label={t(`${NS}.relationshipLabel`)}
+          value={form.relationshipToRequester}
+          onChange={v => setForm(f => ({ ...f, relationshipToRequester: v }))}
+          options={RELATIONSHIP_OPTIONS}
+          color={COLOR}
+          error={!!errors.relationshipToRequester}
+        />
         {errors.relationshipToRequester ? <Text style={styles.errText}>{errors.relationshipToRequester}</Text> : null}
 
         <Text style={styles.label}>{t(`${NS}.genderLabel`)}</Text>
@@ -108,7 +132,14 @@ export const PostRegisterAdmissionScreen: React.FC<{ onDone: () => void }> = ({ 
         <CalendarPicker label={t(`${NS}.preferredDateLabel`)} value={form.preferredAdmissionDate} onChange={v => setForm(f => ({ ...f, preferredAdmissionDate: v }))} minDate={todayStr()} color={COLOR} />
         {errors.preferredAdmissionDate ? <Text style={styles.errText}>{errors.preferredAdmissionDate}</Text> : null}
 
-        <TextInput label={t(`${NS}.reasonLabel`)} mode="outlined" value={form.reasonForAdmission} onChangeText={v => setForm(f => ({ ...f, reasonForAdmission: v }))} dense multiline style={styles.input} error={!!errors.reasonForAdmission} maxLength={MAX_TEXT_LENGTH} />
+        <SelectField
+          label={t(`${NS}.reasonLabel`)}
+          value={form.reasonForAdmission}
+          onChange={v => setForm(f => ({ ...f, reasonForAdmission: v }))}
+          options={REASON_OPTIONS}
+          color={COLOR}
+          error={!!errors.reasonForAdmission}
+        />
         {errors.reasonForAdmission ? <Text style={styles.errText}>{errors.reasonForAdmission}</Text> : null}
         <TextInput label={t(`${NS}.phoneLabel`)} mode="outlined" value={form.requestedByPhone} onChangeText={v => setForm(f => ({ ...f, requestedByPhone: v }))} dense keyboardType="phone-pad" style={styles.input} error={!!errors.requestedByPhone} maxLength={13} />
         {errors.requestedByPhone ? <Text style={styles.errText}>{errors.requestedByPhone}</Text> : null}
@@ -132,6 +163,7 @@ export const PostRegisterAdmissionScreen: React.FC<{ onDone: () => void }> = ({ 
           {t(`${NS}.skipToHome`)}
         </Button>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 };

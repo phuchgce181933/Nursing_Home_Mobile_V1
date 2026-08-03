@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, FlatList, ScrollView, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Card, Chip, Button, Dialog, Portal, IconButton, TextInput, FAB, Checkbox } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useMealPlans, useMealPlanDetail, useMealPlanTemplates, useMealPlanResidents, useCreateMealPlanDraft, usePublishMealPlan, useDeleteMealPlan } from '../../hooks/useMealPlans';
@@ -9,10 +8,11 @@ import { useMealTimeSchedules, useMealTimeScheduleDetail, useMealTimeScheduleTem
 import { useSpecialDiets, useSpecialDietDetail, useSpecialDietTemplates, useSpecialDietResidents, useCreateSpecialDietDraft, usePublishSpecialDiet, useDeleteSpecialDiet } from '../../hooks/useSpecialDiets';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
-
-const COLOR = '#0F5040';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
 const NS = 'nurse.mealPlans';
 
@@ -23,9 +23,10 @@ type DietEntry = { residentId: string; dietType: string; restrictions: string; n
 type Tab = 'schedule' | 'plan' | 'diet';
 
 export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [tab, setTab] = useState<Tab>('plan');
   const [filter, setFilter] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -320,15 +321,9 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   if (showCreate) {
     return (
       <View style={styles.flex}>
-        <View style={[styles.topBar, { paddingTop: insets.top }]}>
-          <View style={styles.topRow}>
-            <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => setShowCreate(false)} />
-            <Text style={styles.topTitle}>{createTitle}</Text>
-            <View style={{ width: 40 }} />
-          </View>
-        </View>
+        <BackHeader title={createTitle} color={roleColor} onBack={() => setShowCreate(false)} />
         <ScrollView style={styles.flex} contentContainerStyle={styles.createBody} keyboardShouldPersistTaps="handled">
-          <CalendarPicker label={t(`${NS}.applyDate`)} value={formDate} onChange={setFormDate} minDate={today} color={COLOR} />
+          <CalendarPicker label={t(`${NS}.applyDate`)} value={formDate} onChange={setFormDate} minDate={today} color={roleColor} />
 
           {tab === 'plan' && careStages.length > 0 && (
             <>
@@ -336,7 +331,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               <View style={styles.chipRow}>
                 {careStages.map(s => (
                   <Chip key={s} selected={formStage === s} onPress={() => setFormStage(s)}
-                    style={formStage === s ? { backgroundColor: COLOR } : undefined}
+                    style={formStage === s ? { backgroundColor: roleColor } : undefined}
                     textStyle={formStage === s ? { color: '#fff' } : undefined} compact>{CARE_STAGE_LABEL[s] ?? s}</Chip>
                 ))}
               </View>
@@ -352,7 +347,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               {residents.length === 0 ? <Text style={{ color: '#9CA3AF' }}>{t(`${NS}.noResidents`)}</Text> : null}
               {residents.map((r: any) => (
                 <Pressable key={r._id} onPress={() => toggleResident(r._id)} style={styles.resCheck}>
-                  <Checkbox status={selectedResidents.includes(r._id) ? 'checked' : 'unchecked'} color={COLOR} />
+                  <Checkbox status={selectedResidents.includes(r._id) ? 'checked' : 'unchecked'} color={roleColor} />
                   <Text style={styles.resCheckName}>{r.fullName}</Text>
                 </Pressable>
               ))}
@@ -366,13 +361,13 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 {tplList.map(tp => (
                   <Chip key={tp.key} selected={selectedTemplate === tp.key}
                     onPress={() => setSelectedTemplate(tp.key)}
-                    style={selectedTemplate === tp.key ? { backgroundColor: COLOR } : undefined}
+                    style={selectedTemplate === tp.key ? { backgroundColor: roleColor } : undefined}
                     textStyle={selectedTemplate === tp.key ? { color: '#fff' } : undefined} compact>{tp.name}</Chip>
                 ))}
               </View>
               <Button mode="outlined" icon="plus"
                 onPress={tab === 'plan' ? addPlanFromTemplate : tab === 'schedule' ? addScheduleFromTemplate : addDietFromTemplate}
-                style={{ marginBottom: 8 }} textColor={COLOR}>
+                style={{ marginBottom: 8 }} textColor={roleColor}>
                 {t(`${NS}.addFromTemplate`)}
               </Button>
             </>
@@ -380,7 +375,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
           <Button mode="outlined" icon="pencil-plus-outline"
             onPress={tab === 'plan' ? addPlanManual : tab === 'schedule' ? addScheduleManual : addDietManual}
-            style={{ marginBottom: 16 }} textColor={COLOR}>
+            style={{ marginBottom: 16 }} textColor={roleColor}>
             {t(`${NS}.addManual`)}
           </Button>
 
@@ -391,14 +386,14 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 <Card key={idx} style={styles.entryCard} mode="outlined">
                   <Card.Content>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={styles.entryResident}>{getResidentName(entry.residentId)}</Text>
+                      <Text style={[styles.entryResident, { color: roleColor }]}>{getResidentName(entry.residentId)}</Text>
                       <IconButton icon="close" size={18} onPress={() => removePlanEntry(idx)} />
                     </View>
                     <View style={styles.chipRow}>
                       {MEAL_TYPES.map(m => (
                         <Chip key={m.value} selected={entry.mealType === m.value} compact
                           onPress={() => updatePlanEntry(idx, 'mealType', m.value)}
-                          style={entry.mealType === m.value ? { backgroundColor: COLOR } : undefined}
+                          style={entry.mealType === m.value ? { backgroundColor: roleColor } : undefined}
                           textStyle={entry.mealType === m.value ? { color: '#fff' } : undefined}>{m.label}</Chip>
                       ))}
                     </View>
@@ -423,7 +418,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 <Card key={idx} style={styles.entryCard} mode="outlined">
                   <Card.Content>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={styles.entryResident}>{getResidentName(entry.residentId)}</Text>
+                      <Text style={[styles.entryResident, { color: roleColor }]}>{getResidentName(entry.residentId)}</Text>
                       <IconButton icon="close" size={18} onPress={() => removeScheduleEntry(idx)} />
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -449,14 +444,14 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 <Card key={idx} style={styles.entryCard} mode="outlined">
                   <Card.Content>
                     <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <Text style={styles.entryResident}>{getResidentName(entry.residentId)}</Text>
+                      <Text style={[styles.entryResident, { color: roleColor }]}>{getResidentName(entry.residentId)}</Text>
                       <IconButton icon="close" size={18} onPress={() => removeDietEntry(idx)} />
                     </View>
                     <View style={styles.chipRow}>
                       {dietTypeOptions.map(dt => (
                         <Chip key={dt} selected={entry.dietType === dt} compact
                           onPress={() => updateDietEntry(idx, 'dietType', dt)}
-                          style={entry.dietType === dt ? { backgroundColor: COLOR } : undefined}
+                          style={entry.dietType === dt ? { backgroundColor: roleColor } : undefined}
                           textStyle={entry.dietType === dt ? { color: '#fff' } : undefined}>{DIET_TYPE_LABEL[dt] ?? dt}</Chip>
                       ))}
                     </View>
@@ -476,7 +471,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
             </>
           )}
 
-          <Button mode="contained" buttonColor={COLOR} onPress={handleSaveDraft}
+          <Button mode="contained" buttonColor={roleColor} onPress={handleSaveDraft}
             loading={createMut.isPending} style={styles.saveBtn} icon="content-save-outline">
             {t(`${NS}.saveDraft`)}
           </Button>
@@ -487,18 +482,12 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.listTitle`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.listTitle`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <View style={styles.tabRow}>
         {TABS.map(tb => (
           <Chip key={tb.value} selected={tab === tb.value} onPress={() => switchTab(tb.value)}
-            style={tab === tb.value ? { backgroundColor: COLOR } : undefined}
+            style={tab === tb.value ? { backgroundColor: roleColor } : undefined}
             textStyle={tab === tb.value ? { color: '#fff' } : undefined}>{tb.label}</Chip>
         ))}
       </View>
@@ -506,7 +495,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}
-            style={filter === f.value ? { backgroundColor: COLOR } : undefined}
+            style={filter === f.value ? { backgroundColor: roleColor } : undefined}
             textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
         ))}
       </View>
@@ -514,7 +503,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
         onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.noData`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => setSelectedId(item._id)}>
               <Card.Content>
@@ -525,7 +514,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                       <MaterialCommunityIcons name="calendar-outline" size={14} color="#6B7280" />
                       <Text style={styles.info}>{item.workDate ? new Date(item.workDate).toLocaleDateString('vi-VN') : ''}</Text>
                     </View>
-                    {item.careStage ? <Text style={styles.stage}>{CARE_STAGE_LABEL[item.careStage] ?? item.careStage}</Text> : null}
+                    {item.careStage ? <Text style={[styles.stage, { color: roleColor }]}>{CARE_STAGE_LABEL[item.careStage] ?? item.careStage}</Text> : null}
                     {item.entries?.length > 0 && (
                       <View style={styles.infoRow}>
                         <MaterialCommunityIcons name="silverware-fork-knife" size={14} color="#6B7280" />
@@ -538,14 +527,14 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               </Card.Content>
               {item.status === 'draft' ? (
                 <Card.Actions>
-                  <Button compact textColor={COLOR} onPress={() => setPublishId(item._id)}>{t(`${NS}.publish`)}</Button>
+                  <Button compact textColor={roleColor} onPress={() => setPublishId(item._id)}>{t(`${NS}.publish`)}</Button>
                   <Button compact textColor="#991B1B" onPress={() => setDeleteId(item._id)}>{t(`${NS}.delete`)}</Button>
                 </Card.Actions>
               ) : null}
             </Card>
           )} />
       </ScreenLayout>
-      <FAB icon="plus" style={[styles.fab, { backgroundColor: COLOR }]} color="#fff" onPress={() => setShowCreate(true)} />
+      <FAB icon="plus" style={[styles.fab, { backgroundColor: roleColor }]} color="#fff" onPress={() => setShowCreate(true)} />
 
       <Portal>
         <Dialog visible={!!selectedId && !publishId && !deleteId} onDismiss={() => setSelectedId(null)} style={{ borderRadius: 16 }}>
@@ -599,7 +588,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
           <Dialog.Content><Text>{t(`${NS}.publishConfirmContent`)}</Text></Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setPublishId(null)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} loading={publishMut.isPending}
+            <Button mode="contained" buttonColor={roleColor} loading={publishMut.isPending}
               onPress={() => publishMut.mutate(publishId!, {
                 onSuccess: () => { setPublishId(null); setSelectedId(null); toast(t(`${NS}.toastPublished`), 'success'); },
                 onError: (e: any) => toast(e.response?.data?.message ?? t(`${NS}.toastPublishError`), 'error'),
@@ -623,31 +612,28 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   tabRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingTop: 8 },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 80 },
-  card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
+  card: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface },
   row: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  stage: { fontSize: 11, color: COLOR, marginTop: 2, fontStyle: 'italic' },
+  title: { fontSize: 14, fontWeight: '600', color: c.text },
+  stage: { fontSize: 11, marginTop: 2, fontStyle: 'italic' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
-  info: { fontSize: 12, color: '#6B7280' },
+  info: { fontSize: 12, color: c.textSecondary },
   fab: { position: 'absolute', bottom: 16, right: 16 },
-  detailLabel: { fontSize: 13, fontWeight: '500', color: '#6B7280', marginBottom: 4 },
-  detailValue: { fontWeight: '400', color: '#111827' },
+  detailLabel: { fontSize: 13, fontWeight: '500', color: c.textSecondary, marginBottom: 4 },
+  detailValue: { fontWeight: '400', color: c.text },
   // Create form
   createBody: { padding: 16, paddingBottom: 40 },
-  fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginBottom: 6 },
+  fieldLabel: { fontSize: 13, fontWeight: '600', color: c.text, marginBottom: 6 },
   chipRow: { flexDirection: 'row', gap: 6, flexWrap: 'wrap', marginBottom: 10 },
   residentBox: { borderRadius: 12, marginBottom: 8, maxHeight: 200 },
   resCheck: { flexDirection: 'row', alignItems: 'center' },
-  resCheckName: { fontSize: 13, color: '#111827' },
-  entryCard: { borderRadius: 10, marginBottom: 8, backgroundColor: '#fff' },
-  entryResident: { fontSize: 13, fontWeight: '600', color: COLOR },
+  resCheckName: { fontSize: 13, color: c.text },
+  entryCard: { borderRadius: 10, marginBottom: 8, backgroundColor: c.surface },
+  entryResident: { fontSize: 13, fontWeight: '600' },
   saveBtn: { borderRadius: 8, marginTop: 8 },
 });

@@ -1,6 +1,7 @@
 import '@/global.css';
 import { Platform } from 'react-native';
 
+// Flat legacy palette — kept for any remaining call sites; prefer AppColors (Colors.light/Colors.dark) for anything screen-facing.
 export const Colors = {
   primary: '#2E7D32',
   primaryLight: '#4CAF50',
@@ -24,30 +25,64 @@ export const Colors = {
   divider: '#EEEEEE',
   overlay: 'rgba(0,0,0,0.4)',
 
+  // Semantic tokens every screen should read through `useAppTheme()` (src/theme/useAppTheme.ts)
+  // instead of hardcoding hex values, so the whole app responds to the light/dark toggle.
   light: {
-    text: '#212121',
-    background: '#F8F9FA',
+    // surfaces
+    background: '#F5F5F5',
+    surface: '#FFFFFF',
+    surfaceAlt: '#F9FAFB',
+    surfaceMuted: '#E5E7EB',
+    // text
+    text: '#111827',
+    textSecondary: '#6B7280',
+    textMuted: '#9CA3AF',
+    textOnPrimary: '#FFFFFF',
+    // borders / dividers
+    border: '#E5E7EB',
+    borderLight: '#F3F4F6',
+    divider: '#EEEEEE',
+    // overlays / misc
+    overlay: 'rgba(0,0,0,0.4)',
+    skeleton: '#E5E7EB',
+    placeholder: '#9CA3AF',
+    // legacy aliases kept so existing `Colors.light.xxx` call sites don't break
     backgroundElement: '#FFFFFF',
     backgroundSelected: '#E8F5E9',
-    textSecondary: '#757575',
     card: '#FFFFFF',
-    border: '#E0E0E0',
   },
   dark: {
-    text: '#FFFFFF',
+    // surfaces
     background: '#121212',
+    surface: '#1E1E1E',
+    surfaceAlt: '#262626',
+    surfaceMuted: '#2A2A2A',
+    // text
+    text: '#F3F4F6',
+    textSecondary: '#B0B0B0',
+    textMuted: '#7A7A7A',
+    textOnPrimary: '#FFFFFF',
+    // borders / dividers
+    border: '#333333',
+    borderLight: '#2A2A2A',
+    divider: '#2A2A2A',
+    // overlays / misc
+    overlay: 'rgba(0,0,0,0.6)',
+    skeleton: '#2A2A2A',
+    placeholder: '#7A7A7A',
+    // legacy aliases kept so existing `Colors.dark.xxx` call sites don't break
     backgroundElement: '#1E1E1E',
     backgroundSelected: '#1B5E20',
-    textSecondary: '#9E9E9E',
     card: '#1E1E1E',
-    border: '#333333',
   },
 
-  // Role colors
+  // Role colors (light-mode accents; dark-mode variants live in ROLE_COLORS in theme/theme.ts)
   nurse: '#1565C0',
   caregiver: '#E65100',
   family: '#2E7D32',
 } as const;
+
+export type AppColors = { [K in keyof typeof Colors.light]: string };
 
 export const Fonts = Platform.select({
   ios: {

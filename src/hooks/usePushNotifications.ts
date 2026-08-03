@@ -1,21 +1,32 @@
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../api/axiosInstance';
 import { NOTIFICATIONS } from '../api/endpoints';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// Remote push notifications were removed from Expo Go with SDK 53 — merely importing
+// expo-notifications there triggers its internal push-token-listener registration, which
+// throws immediately. So the module is required lazily and only outside Expo Go (real
+// dev/production builds are unaffected); a static top-level `import` would run that
+// registration before this check ever executes.
+const isExpoGo = Constants.appOwnership === 'expo';
+/* eslint-disable @typescript-eslint/no-require-imports -- must stay lazy; a static import would run expo-notifications' registration in Expo Go and crash (see comment above) */
+const Notifications = isExpoGo ? null : (require('expo-notifications') as typeof import('expo-notifications'));
+const Device = isExpoGo ? null : (require('expo-device') as typeof import('expo-device'));
+/* eslint-enable @typescript-eslint/no-require-imports */
+
+if (Notifications) {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    }),
+  });
+}
 
 // Set by the hook once a token is registered, so logout() can unregister the same
 // device without needing its own copy of the Expo push SDK wiring.
@@ -40,31 +51,31 @@ export const usePushNotifications = (user: unknown, token: string | null) => {
   const queryClient = useQueryClient();
 
   useEffect(() => {
-    if (!user || !token) return;
+    if (!user || !token || !Notifications || !Device) return;
     let cancelled = false;
 
     const register = async () => {
       // Push tokens require a physical device (or a custom dev/production build — Expo Go
       // on SDK 53+ no longer supports remote push at all) — this silently no-ops otherwise.
-      if (!Device.isDevice) return;
+      if (!Device!.isDevice) return;
       try {
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        const { status: existingStatus } = await Notifications!.getPermissionsAsync();
         let finalStatus = existingStatus;
         if (existingStatus !== 'granted') {
-          const { status } = await Notifications.requestPermissionsAsync();
+          const { status } = await Notifications!.requestPermissionsAsync();
           finalStatus = status;
         }
         if (finalStatus !== 'granted') return;
 
         if (Platform.OS === 'android') {
-          await Notifications.setNotificationChannelAsync('default', {
+          await Notifications!.setNotificationChannelAsync('default', {
             name: 'default',
-            importance: Notifications.AndroidImportance.DEFAULT,
+            importance: Notifications!.AndroidImportance.DEFAULT,
           });
         }
 
         const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-        const { data: expoPushToken } = await Notifications.getExpoPushTokenAsync(
+        const { data: expoPushToken } = await Notifications!.getExpoPushTokenAsync(
           projectId ? { projectId } : undefined
         );
         if (cancelled) return;
@@ -83,6 +94,7 @@ export const usePushNotifications = (user: unknown, token: string | null) => {
   }, [user, token]);
 
   useEffect(() => {
+    if (!Notifications) return;
     const invalidate = () => queryClient.invalidateQueries({ queryKey: ['notifications'] });
     const receivedSub = Notifications.addNotificationReceivedListener(invalidate);
     const responseSub = Notifications.addNotificationResponseReceivedListener(invalidate);

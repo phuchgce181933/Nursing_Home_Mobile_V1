@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Chip, IconButton } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Text, Card, Chip } from 'react-native-paper';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { ADMIN_ADMISSIONS } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.admissions';
 
 export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { colors, roleColor } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState('');
 
   const STATUS_FILTERS = [
@@ -38,18 +40,12 @@ export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation 
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
-        <View style={styles.topRow}>
-          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} />
-          <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-      </View>
+      <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}
-            style={filter === f.value ? { backgroundColor: COLOR } : undefined}
+            style={filter === f.value ? { backgroundColor: roleColor } : undefined}
             textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>
         ))}
       </View>
@@ -57,14 +53,14 @@ export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation 
       <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
         onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={listQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => navigation.navigate('AdmissionDetail', { admissionId: item._id })}>
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.name}>{item.applicant?.fullName ?? '--'}</Text>
-                    <Text style={styles.code}>{item.requestCode ?? ''}</Text>
+                    <Text style={[styles.code, { color: roleColor }]}>{item.requestCode ?? ''}</Text>
                     <Text style={styles.sub}>
                       {item.applicant?.relationshipToRequester ?? ''} · {item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : ''}
                     </Text>
@@ -80,17 +76,14 @@ export const AdmissionListScreen: React.FC<{ navigation: any }> = ({ navigation 
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
-  topRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   list: { padding: 16, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
+  card: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface },
   row: { flexDirection: 'row', alignItems: 'center' },
-  name: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  code: { fontSize: 11, color: COLOR, marginTop: 1 },
-  sub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
-  reason: { fontSize: 12, color: '#374151', marginTop: 4 },
+  name: { fontSize: 14, fontWeight: '600', color: c.text },
+  code: { fontSize: 11, marginTop: 1 },
+  sub: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
+  reason: { fontSize: 12, color: c.text, marginTop: 4 },
 });

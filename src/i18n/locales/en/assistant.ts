@@ -17,6 +17,7 @@ export default {
       featureRehab: 'Rehabilitation',
       featureRoomStatus: 'Room Status',
       featureVitals: 'Vitals',
+      featureCareNotes: 'Care Notes',
       featureMessages: 'Messages',
       featureNotifications: 'Notifications',
       tasksTitle: "Today's Tasks",
@@ -40,6 +41,8 @@ export default {
       checkedOutAt: 'Checked out at {{time}}',
       toastCheckInSuccess: 'Checked in successfully',
       toastCheckOutSuccess: 'Checked out successfully',
+      complete: 'Complete',
+      toastCompleteSuccess: 'Shift marked complete',
       toastActionError: 'Action failed. Try again.',
     },
     leaveRequests: {
@@ -199,6 +202,7 @@ export default {
     },
     mealSupport: {
       title: 'Meal Support',
+      pendingHint: '{{count}} resident(s) still need this meal recorded — tap a card to record.',
       mealBreakfast: 'Breakfast',
       mealLunch: 'Lunch',
       mealDinner: 'Dinner',
@@ -210,6 +214,9 @@ export default {
       refusedReported: '{{note}} — nurse notified',
       confirmDialogTitle: 'Confirm meal complete for this floor?',
       toastMealConfirmed: '{{meal}} confirmed complete',
+      editTitle: 'Update Meal Intake Note',
+      deleteConfirmTitle: 'Delete this meal intake note?',
+      toastDeleted: 'Note deleted',
     },
     dailyBehavior: {
       title: 'Behavior Tracking',

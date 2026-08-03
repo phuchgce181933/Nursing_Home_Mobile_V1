@@ -31,6 +31,7 @@ const FEATURES = [
   { icon: 'run', labelKey: 'featureRehab', screen: 'RehabSchedule', color: '#6A1B9A' },
   { icon: 'door-open', labelKey: 'featureRoomStatus', screen: 'RoomStatus', color: '#00838F' },
   { icon: 'heart-pulse', labelKey: 'featureVitals', screen: 'Vitals', color: '#C62828' },
+  { icon: 'notebook-outline', labelKey: 'featureCareNotes', screen: 'CareNotes', color: '#00796B' },
   { icon: 'chat-outline', labelKey: 'featureMessages', screen: 'Messages', color: '#00695C' },
   { icon: 'bell-outline', labelKey: 'featureNotifications', screen: 'Notifications', color: '#5D4037' },
 ];
@@ -69,7 +70,7 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
           data={tasks}
           keyExtractor={(item: any) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={false} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
           ListHeaderComponent={
             <View>
               <View style={styles.progressSection}>

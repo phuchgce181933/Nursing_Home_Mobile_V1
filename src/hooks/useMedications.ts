@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../api/axiosInstance';
 import { MEDICATIONS } from '../api/endpoints';
 
-export const useDailyMedSchedule = (params?: { date?: string; residentId?: string; status?: string }) => {
+export const useDailyMedSchedule = (params?: { date?: string; residentId?: string; status?: string }, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['dailyMedSchedule', params],
     queryFn: async () => {
@@ -10,6 +10,7 @@ export const useDailyMedSchedule = (params?: { date?: string; residentId?: strin
       return res.data;
     },
     refetchInterval: 60_000,
+    enabled: options?.enabled ?? true,
   });
 };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { ScrollView, View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, Card, Button, TextInput, Portal, Modal, IconButton } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -9,15 +9,21 @@ import { useAuth } from '../../auth/useAuth';
 import { AlertBanner } from '../../components/shared/AlertBanner';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { useToast } from '../../utils/toast';
 import api from '../../api/axiosInstance';
 import { RESIDENTS } from '../../api/endpoints';
+import { getStatusEntry } from '../../utils/statusMap';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 
-const COLOR = '#0F5040';
 const NS = 'nurse.vitalSigns';
 
 type Severity = 'critical' | 'warning' | 'normal';
+// Proxy status keys reused from statusMap's hue table so vital-sign severity gets the
+// same success/warning/danger hues (with dark-mode variants) as everywhere else in the app.
+const SEVERITY_STATUS_KEY: Record<Severity, string> = { normal: 'low', warning: 'medium', critical: 'critical' };
 
 export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ route, navigation }) => {
   const insets = useSafeAreaInsets();
@@ -25,6 +31,8 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   const qc = useQueryClient();
   const { t } = useTranslation();
   const { user } = useAuth();
+  const { colors, roleColor, scheme } = useAppTheme('nurse');
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const isCaregiver = user?.role === 'caregiver';
 
   const [selectedId, setSelectedId] = useState<string | undefined>(route?.params?.residentId);
@@ -81,20 +89,6 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
     bloodSugar: { low: 70, high: 200 },
   };
 
-  const getFormWarnings = (): string[] => {
-    const warnings: string[] = [];
-    Object.entries(form).forEach(([k, v]) => {
-      if (!v) return;
-      const n = Number(v);
-      const w = WARN[k];
-      const r = RANGES[k];
-      if (!w || !r) return;
-      if (w.low && n < w.low) warnings.push(t(`${NS}.warnLow`, { label: r.label, value: n, threshold: w.low }));
-      if (w.high && n > w.high) warnings.push(t(`${NS}.warnHigh`, { label: r.label, value: n, threshold: w.high }));
-    });
-    return warnings;
-  };
-
   const [formError, setFormError] = useState('');
 
   const handleSubmit = () => {
@@ -145,10 +139,9 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
     return 'normal';
   };
 
-  const SEV_COLORS: Record<Severity, { bg: string; text: string; value: string }> = {
-    critical: { bg: '#FEE2E2', text: '#991B1B', value: '#DC2626' },
-    warning:  { bg: '#FEF3C7', text: '#92400E', value: '#D97706' },
-    normal:   { bg: '#D1FAE5', text: '#065F46', value: '#059669' },
+  const getSevColors = (sev: Severity) => {
+    const entry = getStatusEntry(SEVERITY_STATUS_KEY[sev], scheme);
+    return { bg: entry.bgColor, text: entry.textColor, value: entry.textColor };
   };
 
   const getAlerts = (): { severity: 'critical' | 'warning'; messages: string[] } | null => {
@@ -199,22 +192,16 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   if (!selectedId) {
     return (
       <View style={styles.flex}>
-        <View style={[styles.topBar, { paddingTop: insets.top }]}>
-          <View style={styles.topRow}>
-            <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} />
-            <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-            <View style={{ width: 40 }} />
-          </View>
-        </View>
+        <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation?.goBack()} />
         <View style={{ padding: 12 }}>
           <TextInput placeholder={t(`${NS}.searchPlaceholder`)} mode="outlined" value={search}
-            onChangeText={setSearch} dense style={{ backgroundColor: '#fff', marginBottom: 8 }}
+            onChangeText={setSearch} dense style={{ backgroundColor: colors.surface, marginBottom: 8 }}
             left={<TextInput.Icon icon="magnify" />} />
         </View>
         <ScreenLayout loading={residentsQ.isLoading} error={residentsQ.error ? (residentsQ.error as Error).message : null}
           onRetry={residentsQ.refetch} isEmpty={allResidents.length === 0} emptyMessage={t(`${NS}.empty`)}>
           <FlatList data={allResidents} keyExtractor={(i: any) => i._id} contentContainerStyle={{ padding: 16 }}
-            refreshControl={<RefreshControl refreshing={false} onRefresh={residentsQ.refetch} tintColor={COLOR} />}
+            refreshControl={<RefreshControl refreshing={residentsQ.isFetching} onRefresh={residentsQ.refetch} tintColor={roleColor} />}
             renderItem={({ item }) => (
               <Pressable onPress={() => setSelectedId(item._id)} style={styles.residentItem}>
                 <AvatarCircle name={item.fullName} size={40} />
@@ -230,10 +217,11 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   }
 
   const refetch = () => { residentQ.refetch(); vitalsQ.refetch(); };
+  const isFetching = residentQ.isFetching || vitalsQ.isFetching;
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top }]}>
+      <View style={[styles.topBar, { backgroundColor: roleColor, paddingTop: insets.top }]}>
         <View style={styles.topRow}>
           <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => setSelectedId(undefined)} />
           <View style={{ flex: 1 }}>
@@ -244,7 +232,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
       </View>
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={refetch} tintColor={COLOR} />}>
+        refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={roleColor} />}>
         <ScreenLayout loading={residentQ.isLoading || vitalsQ.isLoading}
           error={residentQ.error ? (residentQ.error as Error).message : null} onRetry={refetch}>
           {alerts ? (
@@ -256,11 +244,11 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
             />
           ) : null}
 
-          <SectionHeader title={t(`${NS}.currentVitals`)} roleColor={COLOR} />
+          <SectionHeader title={t(`${NS}.currentVitals`)} roleColor={roleColor} />
           {vitalCards.length > 0 ? (
             <View style={styles.vitalsGrid}>
               {vitalCards.map((v, i) => {
-                const sc = SEV_COLORS[v.severity];
+                const sc = getSevColors(v.severity);
                 return (
                   <Card key={i} style={[styles.vitalCard, { backgroundColor: sc.bg }]}>
                     <Card.Content style={styles.vitalContent}>
@@ -280,7 +268,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
             <Text style={styles.measuredAt}>{t(`${NS}.measuredAt`, { time: new Date(latest.measuredAt).toLocaleString('vi-VN') })}</Text>
           )}
 
-          <Button mode="contained" buttonColor={COLOR} style={styles.updateBtn} onPress={() => setShowForm(true)}>
+          <Button mode="contained" buttonColor={roleColor} style={styles.updateBtn} onPress={() => setShowForm(true)}>
             {t(`${NS}.updateButton`)}
           </Button>
         </ScreenLayout>
@@ -322,7 +310,7 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
           ) : null}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
             <Button mode="outlined" onPress={() => { setShowForm(false); setFormError(''); }} style={{ flex: 1 }}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleSubmit}
+            <Button mode="contained" buttonColor={roleColor} onPress={handleSubmit}
               loading={recordMutation.isPending} style={{ flex: 1 }}>{t('common.save')}</Button>
           </View>
         </Modal>
@@ -331,28 +319,28 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 4, paddingBottom: 8 },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
+  topBar: { paddingHorizontal: 4, paddingBottom: 8 },
   topRow: { flexDirection: 'row', alignItems: 'center' },
   topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 1 },
   body: { padding: 16, paddingBottom: 32 },
-  residentItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#fff', borderRadius: 12, padding: 14, marginBottom: 8 },
-  residentName: { fontSize: 14, fontWeight: '600', color: '#111827' },
-  residentCode: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  residentItem: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.surface, borderRadius: 12, padding: 14, marginBottom: 8 },
+  residentName: { fontSize: 14, fontWeight: '600', color: c.text },
+  residentCode: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
   vitalsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   vitalCard: { width: '48%', borderRadius: 12 },
   vitalContent: { alignItems: 'center', paddingVertical: 12 },
-  vitalValue: { fontSize: 20, fontWeight: '700', color: '#111827' },
-  vitalUnit: { fontSize: 11, color: '#9CA3AF' },
-  vitalLabel: { fontSize: 12, color: '#6B7280', marginTop: 4 },
-  emptyText: { fontSize: 13, color: '#9CA3AF', textAlign: 'center', paddingVertical: 24 },
-  measuredAt: { fontSize: 11, color: '#9CA3AF', textAlign: 'center', marginTop: 8 },
+  vitalValue: { fontSize: 20, fontWeight: '700', color: c.text },
+  vitalUnit: { fontSize: 11, color: c.textMuted },
+  vitalLabel: { fontSize: 12, color: c.textSecondary, marginTop: 4 },
+  emptyText: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 24 },
+  measuredAt: { fontSize: 11, color: c.textMuted, textAlign: 'center', marginTop: 8 },
   updateBtn: { marginTop: 24, borderRadius: 8 },
-  modal: { backgroundColor: '#fff', margin: 24, padding: 20, borderRadius: 16 },
-  modalTitle: { fontSize: 16, fontWeight: '600', marginBottom: 2 },
-  modalSub: { fontSize: 13, color: '#6B7280', marginBottom: 12 },
+  modal: { backgroundColor: c.surface, margin: 24, padding: 20, borderRadius: 16 },
+  modalTitle: { fontSize: 16, fontWeight: '600', marginBottom: 2, color: c.text },
+  modalSub: { fontSize: 13, color: c.textSecondary, marginBottom: 12 },
   formInput: { marginBottom: 2 },
   fieldError: { fontSize: 11, color: '#DC2626', marginBottom: 6, marginLeft: 4 },
   fieldWarn: { fontSize: 11, color: '#D97706', marginBottom: 6, marginLeft: 4 },
