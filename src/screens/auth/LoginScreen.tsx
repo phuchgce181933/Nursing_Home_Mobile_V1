@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator, IconButton } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +38,9 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
     i18n.changeLanguage(lang);
     AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
   };
+  const scrollRef = useRef<ScrollView>(null);
+  const passwordInputRef = useRef<RNTextInput>(null);
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -87,7 +90,7 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   ];
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <LinearGradient colors={[COLOR_SOFT, '#FFFFFF']} style={StyleSheet.absoluteFill} />
 
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
@@ -130,7 +133,7 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
+      <ScrollView ref={scrollRef} contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Animated.View entering={FadeInDown.duration(450)} style={styles.brandWrap}>
           <Image
             source={require('../../../assets/images/logo-annhien.png')}
@@ -161,6 +164,9 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
             onChangeText={setEmail}
             keyboardType="default"
             autoCapitalize="none"
+            returnKeyType="next"
+            onSubmitEditing={() => passwordInputRef.current?.focus()}
+            blurOnSubmit={false}
             outlineColor="#E5E7EB"
             activeOutlineColor={COLOR}
             left={<TextInput.Icon icon="email-outline" color={COLOR} />}
@@ -168,11 +174,14 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
           />
 
           <TextInput
+            ref={passwordInputRef}
             label={t('auth.password')}
             mode="outlined"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
+            returnKeyType="go"
+            onSubmitEditing={handleLogin}
             outlineColor="#E5E7EB"
             activeOutlineColor={COLOR}
             left={<TextInput.Icon icon="lock-outline" color={COLOR} />}
@@ -182,6 +191,9 @@ export const LoginScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
                 onPress={() => setShowPassword((v) => !v)}
               />
             }
+            onFocus={() => {
+              setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 150);
+            }}
             style={styles.input}
           />
 

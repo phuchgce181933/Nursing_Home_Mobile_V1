@@ -13,6 +13,7 @@ import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
+import { formatLocalDate } from '../../utils/date';
 
 const NS = 'nurse.mealPlans';
 
@@ -60,7 +61,7 @@ export const MealPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     soft_texture: t(`${NS}.dietSoftTexture`), liquid_only: t(`${NS}.dietLiquidOnly`), custom: t(`${NS}.dietCustom`),
   };
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDate(new Date());
 
   // ---- Meal Plan (thực đơn) data ----
   const planListQ = useMealPlans({ status: filter || undefined });

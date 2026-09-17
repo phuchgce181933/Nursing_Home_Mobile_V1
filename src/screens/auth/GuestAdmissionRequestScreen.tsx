@@ -10,6 +10,7 @@ import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { SelectField } from '../../components/shared/SelectField';
 import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#000666';
 const NS = 'guestAdmission';
@@ -32,7 +33,7 @@ const REASON_OPTIONS = [
   { value: 'hospice', label: 'Chăm sóc giảm nhẹ cuối đời' },
 ];
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => formatLocalDate(new Date());
 
 const calcAge = (dobStr: string) => {
   const dob = new Date(dobStr);
@@ -127,7 +128,7 @@ export const GuestAdmissionRequestScreen: React.FC<{ navigation: any }> = ({ nav
   return (
     <View style={styles.flex}>
       <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={Platform.OS === 'ios' ? 88 : 0}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <Text style={styles.introText}>{t(`${NS}.introText`)}</Text>
 

@@ -12,6 +12,7 @@ import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
+import { formatLocalDate } from '../../utils/date';
 
 const NS = 'nurse.careTasks';
 
@@ -32,7 +33,7 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
     { value: 'skipped', label: t(`${NS}.filterSkipped`) },
   ];
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = formatLocalDate(new Date());
   const tasksQ = useQuery({
     queryKey: ['nurseTasks', filter, today],
     queryFn: async () => {

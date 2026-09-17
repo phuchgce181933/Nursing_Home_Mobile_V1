@@ -10,7 +10,11 @@
     "ios": {
       "icon": "./assets/expo.icon",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["momo", "zalopay", "vnpay"]
+        "LSApplicationQueriesSchemes": [
+          "momo",
+          "zalopay",
+          "vnpay"
+        ]
       }
     },
     "android": {
@@ -20,7 +24,24 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.anonymous.Nursing_Home_mobile"
     },
     "web": {
       "output": "single",
@@ -58,6 +79,11 @@
     ],
     "experiments": {
       "reactCompiler": false
+    },
+    "autolinking": {
+      "exclude": [
+        "@expo/ui"
+      ]
     }
   }
 }

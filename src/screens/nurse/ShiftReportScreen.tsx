@@ -12,9 +12,10 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
+import { formatLocalDate } from '../../utils/date';
 
 const NS = 'nurse.shiftReport';
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 
 export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();

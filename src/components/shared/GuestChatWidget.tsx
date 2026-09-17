@@ -123,7 +123,7 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
       <FAB icon="message-text-outline" style={[styles.fab, { bottom: 24 + insets.bottom }]} color="#fff" customSize={56} onPress={() => setVisible(true)} />
       <Portal>
         <Modal visible={visible} onDismiss={() => setVisible(false)} dismissable={false} dismissableBackButton contentContainerStyle={styles.modal}>
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.flex}>
             <View style={styles.header}>
               <Text style={styles.headerTitle}>{t(`${NS}.title`)}</Text>
               <IconButton icon="close" iconColor="#fff" size={20} onPress={() => setVisible(false)} />

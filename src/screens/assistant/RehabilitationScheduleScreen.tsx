@@ -7,10 +7,11 @@ import { useCaregiverRehabResidents, useCaregiverRehabOverview, useCaregiverReha
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.rehabSchedule';
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 
 export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();

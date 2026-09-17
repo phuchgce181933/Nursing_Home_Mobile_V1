@@ -12,10 +12,11 @@ import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
+import { formatLocalDate } from '../../utils/date';
 
 const NS = 'nurse.careAppointments';
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => formatLocalDate(new Date());
 
 export const CareAppointmentsScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const toast = useToast();

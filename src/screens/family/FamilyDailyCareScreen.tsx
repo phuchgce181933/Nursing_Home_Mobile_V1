@@ -13,11 +13,12 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ResidentSwitcher } from '../../components/shared/ResidentSwitcher';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#2E7D32';
 const NS = 'family.dailyCare';
 
-const toDateStr = (d: Date) => d.toISOString().split('T')[0];
+const toDateStr = formatLocalDate;
 
 export const FamilyDailyCareScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();

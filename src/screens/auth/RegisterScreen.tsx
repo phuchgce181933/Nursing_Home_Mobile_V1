@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable } from 'react-native';
+import React, { useState, useRef } from 'react';
+import { View, StyleSheet, KeyboardAvoidingView, Platform, ScrollView, Image, Pressable, TextInput as RNTextInput } from 'react-native';
 import { Text, TextInput, Button, ActivityIndicator, Chip } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,11 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const scrollRef = useRef<ScrollView>(null);
+  const contactRef = useRef<RNTextInput>(null);
+  const passwordRef = useRef<RNTextInput>(null);
+  const confirmRef = useRef<RNTextInput>(null);
 
   const switchMethod = (method: 'email' | 'phone') => {
     setContactMethod(method);
@@ -81,8 +86,8 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <ScrollView contentContainerStyle={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <ScrollView ref={scrollRef} contentContainerStyle={[styles.container, { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 }]} keyboardShouldPersistTaps="handled">
         <View style={styles.card}>
           <Image
             source={require('../../../assets/images/logo-annhien.png')}
@@ -99,6 +104,9 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
             onChangeText={setFullName}
             left={<TextInput.Icon icon="account-outline" />}
             style={styles.input}
+            returnKeyType="next"
+            onSubmitEditing={() => contactRef.current?.focus()}
+            blurOnSubmit={false}
           />
 
           <View style={styles.methodRow}>
@@ -122,6 +130,7 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
 
           {contactMethod === 'email' ? (
             <TextInput
+              ref={contactRef}
               label={t('auth.email')}
               mode="outlined"
               value={contact}
@@ -130,9 +139,13 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
               autoCapitalize="none"
               left={<TextInput.Icon icon="email-outline" />}
               style={styles.input}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
             />
           ) : (
             <TextInput
+              ref={contactRef}
               label={t('auth.phoneLabel')}
               mode="outlined"
               value={contact}
@@ -140,10 +153,14 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
               keyboardType="phone-pad"
               left={<TextInput.Icon icon="phone-outline" />}
               style={styles.input}
+              returnKeyType="next"
+              onSubmitEditing={() => passwordRef.current?.focus()}
+              blurOnSubmit={false}
             />
           )}
 
           <TextInput
+            ref={passwordRef}
             label={t('auth.password')}
             mode="outlined"
             value={password}
@@ -157,9 +174,13 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
               />
             }
             style={styles.input}
+            returnKeyType="next"
+            onSubmitEditing={() => confirmRef.current?.focus()}
+            blurOnSubmit={false}
           />
 
           <TextInput
+            ref={confirmRef}
             label={t('auth.confirmPasswordLabel')}
             mode="outlined"
             value={confirmPassword}
@@ -167,6 +188,8 @@ export const RegisterScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
             secureTextEntry={!showPassword}
             left={<TextInput.Icon icon="lock-check-outline" />}
             style={styles.input}
+            returnKeyType="done"
+            onSubmitEditing={handleRegister}
           />
 
           {error ? (

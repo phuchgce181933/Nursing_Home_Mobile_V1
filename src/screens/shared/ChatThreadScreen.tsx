@@ -170,7 +170,7 @@ export const ChatThreadScreen: React.FC<{ navigation: any; route: any }> = ({ na
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={insets.top}>
       <BackHeader title={title ?? t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScreenLayout loading={loading} error={error} onRetry={() => loadMessages(1)} isEmpty={messages.length === 0} emptyMessage={t(`${NS}.threadEmpty`)}>

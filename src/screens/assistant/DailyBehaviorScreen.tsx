@@ -8,10 +8,11 @@ import api from '../../api/axiosInstance';
 import { CAREGIVER } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.dailyBehavior';
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 const SEV_COLORS: Record<string, string> = { normal: '#065F46', mild: '#1E40AF', moderate: '#92400E', urgent: '#991B1B' };
 
 export const DailyBehaviorScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
