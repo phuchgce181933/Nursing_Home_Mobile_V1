@@ -46,3 +46,6 @@ example
 # Claude
 .claude
 CLAUDE.md
+
+# Documentation evidence (local QA artifacts; not for production repo)
+documentation_work/

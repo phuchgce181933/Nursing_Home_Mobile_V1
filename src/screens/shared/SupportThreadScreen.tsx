@@ -54,7 +54,7 @@ export const SupportThreadScreen: React.FC<{ navigation: any; route: any }> = ({
   const canClose = request?.status === 'open' || request?.status === 'in_progress';
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={insets.top}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={insets.top}>
       <BackHeader
         title={request?.subject ?? request?.fullName ?? t(`${NS}.title`)}
         color={COLOR}

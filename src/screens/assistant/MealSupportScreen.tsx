@@ -10,11 +10,12 @@ import { AlertBanner } from '../../components/shared/AlertBanner';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { useToast } from '../../utils/toast';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.mealSupport';
 const INTAKE_STATUSES = ['full', 'partial', 'refused', 'assisted'] as const;
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 
 const getCurrentMeal = (): string => {
   const hour = new Date().getHours();

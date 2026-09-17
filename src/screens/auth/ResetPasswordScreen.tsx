@@ -51,7 +51,7 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="arrow-left" iconColor={COLOR} size={22} onPress={() => navigation.goBack()} />
       </View>

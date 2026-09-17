@@ -14,12 +14,13 @@ import { useAuth } from '../../auth/useAuth';
 import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
+import { formatLocalDate } from '../../utils/date';
 
 const NS = 'nurse.admissions';
 const MAX_TEXT_LENGTH = 500;
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => formatLocalDate(new Date());
 
 type ScreenStyles = ReturnType<typeof createStyles>;
 

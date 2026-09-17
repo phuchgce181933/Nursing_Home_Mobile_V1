@@ -11,6 +11,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#2E7D32';
 const NS = 'family.admissions';
@@ -19,7 +20,7 @@ const MAX_TEXT_LENGTH = 500;
 const PROCESSING_STATUSES = ['new_request', 'consulting', 'assessing', 'contracting'];
 const STATUS_FILTERS = ['new_request', 'consulting', 'assessing', 'contracting', 'checked_in', 'cancelled'];
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => formatLocalDate(new Date());
 
 const calcAge = (dobStr: string) => {
   const dob = new Date(dobStr);

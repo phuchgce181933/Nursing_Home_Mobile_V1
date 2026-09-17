@@ -8,10 +8,11 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
 import { getStatusEntry } from '../../utils/statusMap';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.taskList';
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 
 export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();

@@ -37,7 +37,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
   };
 
   return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
         <IconButton icon="arrow-left" iconColor={COLOR} size={22} onPress={() => navigation.goBack()} />
       </View>
@@ -81,7 +81,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
                 autoCapitalize="none"
                 left={<TextInput.Icon icon="email-outline" />}
                 style={styles.input}
-                returnKeyType="done"
+                returnKeyType="go"
                 submitBehavior="blurAndSubmit"
                 onSubmitEditing={handleSubmit}
               />

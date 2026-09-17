@@ -10,10 +10,11 @@ import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
+import { formatLocalDate } from '../../utils/date';
 
 const NS = 'nurse.leaveRequests';
 
-const toDateStr = (d: Date) => d.toISOString().split('T')[0];
+const toDateStr = formatLocalDate;
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d; };
 const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 

@@ -9,6 +9,7 @@ import { FAMILY } from '../../api/endpoints';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { SelectField } from '../../components/shared/SelectField';
 import { useToast } from '../../utils/toast';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#2E7D32';
 const NS = 'family.admissions';
@@ -30,7 +31,7 @@ const REASON_OPTIONS = [
   { value: 'hospice', label: 'Chăm sóc giảm nhẹ cuối đời' },
 ];
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => formatLocalDate(new Date());
 
 const calcAge = (dobStr: string) => {
   const dob = new Date(dobStr);
@@ -98,7 +99,7 @@ export const PostRegisterAdmissionScreen: React.FC<{ onDone: () => void }> = ({ 
         <Text style={styles.topSub}>{t(`${NS}.postRegisterSubtitle`)}</Text>
       </View>
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
         <TextInput label={t(`${NS}.fullNameLabel`)} mode="outlined" value={form.fullName} onChangeText={v => setForm(f => ({ ...f, fullName: v }))} dense style={styles.input} error={!!errors.fullName} maxLength={100} />
         {errors.fullName ? <Text style={styles.errText}>{errors.fullName}</Text> : null}

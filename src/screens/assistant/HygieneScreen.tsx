@@ -9,10 +9,11 @@ import { CAREGIVER } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.hygiene';
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 const PERSONAL_TYPES = ['bathing', 'oral_care', 'grooming', 'toileting', 'diaper_change'];
 const ENV_TYPES = ['room_tidy', 'bathroom_clean', 'linen_change', 'laundry'];
 

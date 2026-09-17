@@ -10,6 +10,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#2E7D32';
 const NS = 'family.tours';
@@ -18,7 +19,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAX_TEXT_LENGTH = 500;
 const TIME_SLOTS = ['08:00 - 10:00', '10:00 - 12:00', '14:00 - 16:00', '16:00 - 18:00'];
 
-const todayStr = () => new Date().toISOString().split('T')[0];
+const todayStr = () => formatLocalDate(new Date());
 
 export const FamilyToursScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const toast = useToast();

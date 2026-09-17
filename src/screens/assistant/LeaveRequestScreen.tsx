@@ -8,11 +8,12 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { useToast } from '../../utils/toast';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.leaveRequests';
 
-const toDateStr = (d: Date) => d.toISOString().split('T')[0];
+const toDateStr = formatLocalDate;
 const tomorrow = () => { const d = new Date(); d.setDate(d.getDate() + 1); return d; };
 const addDays = (d: Date, n: number) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
 

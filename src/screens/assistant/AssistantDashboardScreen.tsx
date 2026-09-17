@@ -10,10 +10,11 @@ import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useCaregiverTasks } from '../../hooks/useTasks';
 import { getStatusEntry } from '../../utils/statusMap';
+import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.dashboard';
-const today = () => new Date().toISOString().split('T')[0];
+const today = () => formatLocalDate(new Date());
 
 const STATUS_ICON: Record<string, { name: string; color: string }> = {
   completed: { name: 'check-circle', color: '#065F46' },
