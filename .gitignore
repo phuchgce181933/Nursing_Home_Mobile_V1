@@ -31,6 +31,7 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
 
 # typescript
@@ -45,3 +46,6 @@ example
 # Claude
 .claude
 CLAUDE.md
+
+# Documentation evidence (local QA artifacts; not for production repo)
+documentation_work/
