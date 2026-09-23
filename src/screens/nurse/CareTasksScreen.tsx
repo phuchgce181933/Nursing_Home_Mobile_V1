@@ -13,8 +13,26 @@ import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
 import { formatLocalDate } from '../../utils/date';
+import { useStatusLabel } from '../../utils/statusMap';
 
 const NS = 'nurse.careTasks';
+
+/** Một dòng "nhãn — giá trị" trong hộp thoại chi tiết. Giữ gọn cho màn hình Android. */
+const DetailRow: React.FC<{
+  label: string;
+  value?: string | null;
+  children?: React.ReactNode;
+  styles: ReturnType<typeof createStyles>;
+}> = ({ label, value, children, styles }) => (
+  <View style={styles.detailRow}>
+    <Text style={styles.detailLabel}>{label}</Text>
+    {children ?? (
+      <Text style={styles.detailValue} numberOfLines={2}>
+        {value || '—'}
+      </Text>
+    )}
+  </View>
+);
 
 export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const toast = useToast();
@@ -24,6 +42,28 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState('');
   const [actionTask, setActionTask] = useState<any>(null);
+  const statusLabel = useStatusLabel();
+
+  // taskType là enum backend (morning_care, ...) -> luôn dịch trước khi hiển thị.
+  const taskTitle = (task: any) =>
+    statusLabel(task?.taskType, task?.title ?? t(`${NS}.defaultTitle`));
+
+  const residentName = (task: any) => task?.residentId?.fullName ?? task?.residentId?.residentCode ?? '';
+
+  // API đã populate residentId.roomId.roomNumber — dùng trực tiếp, không suy diễn.
+  const roomText = (task: any) => {
+    const num = task?.residentId?.roomId?.roomNumber;
+    return num == null || num === '' ? '' : t(`${NS}.roomValue`, { number: num });
+  };
+
+  // Chỉ hiện khung giờ ca. Tên ca trong DB là chuỗi kỹ thuật của seed
+  // ("[DOCQA] ... 2026-09-20") nên không bao giờ đưa ra UI.
+  const shiftText = (task: any) => {
+    const shift = task?.shiftId;
+    return shift?.startTime && shift?.endTime
+      ? t(`${NS}.shiftRange`, { start: shift.startTime, end: shift.endTime })
+      : '';
+  };
 
   const STATUS_FILTERS = [
     { value: '', label: t(`${NS}.filterAll`) },
@@ -77,12 +117,12 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
               <Card.Content>
                 <View style={styles.row}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.title}>{item.taskType ?? item.title ?? t(`${NS}.defaultTitle`)}</Text>
+                    <Text style={styles.title}>{taskTitle(item)}</Text>
                     <Text style={[styles.resident, { color: roleColor }]}>{item.residentId?.fullName ?? ''}</Text>
                     <View style={styles.timeRow}>
                       <MaterialCommunityIcons name="clock-outline" size={14} color="#6B7280" />
                       <Text style={styles.time}>
-                        {item.scheduledTime ? new Date(item.scheduledTime).toLocaleString('vi-VN') : item.date ? new Date(item.date).toLocaleDateString('vi-VN') : ''}
+                        {item.scheduledTime ? item.scheduledTime : item.date ? new Date(item.date).toLocaleDateString('vi-VN') : ''}
                       </Text>
                     </View>
                     {item.notes ? <Text style={styles.notes} numberOfLines={2}>{item.notes}</Text> : null}
@@ -96,11 +136,21 @@ export const CareTasksScreen: React.FC<{ navigation: any }> = ({ navigation }) =
 
       <Portal>
         <Dialog visible={!!actionTask} onDismiss={() => setActionTask(null)} style={{ borderRadius: 16 }}>
-          <Dialog.Title>{actionTask?.taskType ?? t(`${NS}.defaultTitle`)}</Dialog.Title>
+          <Dialog.Title style={styles.dialogTitle}>{t(`${NS}.detailTitle`)}</Dialog.Title>
           <Dialog.Content>
-            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>{t(`${NS}.residentLabel`, { name: actionTask?.residentId?.fullName ?? '--' })}</Text>
-            {actionTask?.notes ? <Text style={{ fontSize: 13, color: '#374151', marginBottom: 8 }}>{actionTask.notes}</Text> : null}
-            <Text style={{ fontSize: 12, color: '#9CA3AF' }}>{t(`${NS}.statusLabel`, { status: actionTask?.status })}</Text>
+            <DetailRow label={t(`${NS}.fieldTime`)} value={actionTask?.scheduledTime} styles={styles} />
+            <DetailRow label={t(`${NS}.fieldResident`)} value={residentName(actionTask)} styles={styles} />
+            <DetailRow label={t(`${NS}.fieldRoom`)} value={roomText(actionTask)} styles={styles} />
+            <DetailRow label={t(`${NS}.fieldTaskType`)} value={actionTask ? taskTitle(actionTask) : ''} styles={styles} />
+            <DetailRow label={t(`${NS}.fieldCareLevel`)} value={statusLabel(actionTask?.careLevel)} styles={styles} />
+            <DetailRow label={t(`${NS}.fieldShift`)} value={shiftText(actionTask)} styles={styles} />
+            <DetailRow label={t(`${NS}.fieldStatus`)} styles={styles}>
+              <StatusBadge status={actionTask?.status} size="sm" />
+            </DetailRow>
+            <View style={styles.notesBlock}>
+              <Text style={styles.detailLabel}>{t(`${NS}.fieldNotes`)}</Text>
+              <Text style={styles.notesValue}>{actionTask?.notes?.trim() || t(`${NS}.noNotes`)}</Text>
+            </View>
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setActionTask(null)}>{t('common.close')}</Button>
@@ -125,9 +175,25 @@ const createStyles = (c: AppColors) => StyleSheet.create({
   list: { padding: 16, paddingBottom: 32 },
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: c.surface },
   row: { flexDirection: 'row', alignItems: 'center' },
-  title: { fontSize: 14, fontWeight: '600', color: c.text, textTransform: 'capitalize' },
+  // Không dùng textTransform: nhãn đã là tiếng Việt viết hoa sẵn đúng chuẩn;
+  // 'capitalize' sẽ biến "Chăm sóc buổi sáng" thành "Chăm Sóc Buổi Sáng".
+  title: { fontSize: 14, fontWeight: '600', color: c.text },
   resident: { fontSize: 12, marginTop: 2 },
   timeRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 4 },
   time: { fontSize: 12, color: c.textSecondary },
   notes: { fontSize: 12, color: c.text, marginTop: 4 },
+  dialogTitle: { fontSize: 17, fontWeight: '700', color: c.text },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingVertical: 7,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: c.divider,
+  },
+  detailLabel: { fontSize: 12, color: c.textSecondary },
+  detailValue: { fontSize: 13, fontWeight: '600', color: c.text, flexShrink: 1, textAlign: 'right' },
+  notesBlock: { paddingTop: 10 },
+  notesValue: { fontSize: 13, color: c.text, marginTop: 4, lineHeight: 19 },
 });

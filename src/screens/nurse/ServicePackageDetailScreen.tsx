@@ -7,42 +7,43 @@ import { useServicePackageDetail } from '../../hooks/useServicePackages';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { useServicePackageLabels } from '../../utils/servicePackageLabels';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
 
 const NS = 'nurse.servicePackages';
 
-const formatVnd = (value: any) => {
-  const n = typeof value === 'number' ? value : Number(value) || 0;
-  return `${n.toLocaleString('vi-VN')} VNĐ/tháng`;
-};
-
 export const ServicePackageDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const { t } = useTranslation();
   const { colors, roleColor } = useAppTheme('nurse');
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { getTierLabel, getActiveLabel, formatVnd } = useServicePackageLabels();
   const packageId = route.params?.packageId;
   const detailQ = useServicePackageDetail(packageId);
   const p = detailQ.data;
+  const detailError = detailQ.error ? t(`${NS}.detailError`) : null;
 
   return (
     <View style={styles.flex}>
       <BackHeader title={t(`${NS}.detailTitle`)} color={roleColor} onBack={() => navigation.goBack()} />
 
       <ScreenLayout loading={detailQ.isLoading}
-        error={detailQ.error ? (detailQ.error as Error).message : null}
+        error={detailError}
         onRetry={() => detailQ.refetch()}>
         {p ? (
           <ScrollView contentContainerStyle={styles.body}>
             <View style={styles.headerRow}>
               <Text style={styles.name}>{p.name}</Text>
-              <StatusBadge status={p.isActive ? 'active' : 'inactive'} size="sm" />
+              {/* `label` bắt buộc: khoá dùng chung `status.active` đang mang nghĩa
+                  "Tích cực" (mức tham gia hoạt động), không phải trạng thái gói. */}
+              <StatusBadge status={p.isActive ? 'active' : 'inactive'} size="sm"
+                label={getActiveLabel(p.isActive)} />
             </View>
-            <Text style={styles.tier}>{(p.tier ?? '').toUpperCase()}</Text>
+            <Text style={styles.tier}>{getTierLabel(p.tier)}</Text>
 
             <View style={styles.card}>
               <View style={styles.row}>
-                <Text style={styles.rowLabel}>{t(`${NS}.price`)}</Text>
+                <Text style={styles.rowLabel}>{t(`${NS}.priceMonthly`)}</Text>
                 <Text style={styles.rowValue}>{formatVnd(p.monthlyPrice)}</Text>
               </View>
               {p.description ? (

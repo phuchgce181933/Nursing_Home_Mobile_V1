@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Linking } from 'react-native';
 import { Text, Card, Button, Chip, Dialog, Portal, IconButton, Checkbox } from 'react-native-paper';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { StatusBadge } from '../../components/shared/StatusBadge';
+import { useWalletOtpPayment } from '../../components/family/WalletOtpDialog';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#2E7D32';
@@ -18,7 +19,6 @@ const isPayable = (status: string) => ['issued', 'ISSUED', 'overdue', 'partially
 export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const qc = useQueryClient();
   const { t } = useTranslation();
 
   const residentsQ = useQuery({
@@ -63,49 +63,33 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
     .filter((inv: any) => selectedIds.has(inv._id))
     .reduce((sum: number, inv: any) => sum + (inv.totalAmount ?? inv.amount ?? 0), 0);
 
-  const batchPayMut = useMutation({
-    mutationFn: async () => {
-      const res = await api.post(FAMILY.BATCH_PAY_INVOICES(activeId), { invoiceIds: Array.from(selectedIds), paymentMethod: 'wallet' });
-      return res.data;
-    },
+  // Thanh toán bằng ví (một hoặc nhiều hoá đơn) đều phải qua OTP: hook lo việc gửi
+  // mã, mở hộp thoại xác thực và gọi backend. Ví chỉ bị trừ sau khi mã đúng.
+  const [payMode, setPayMode] = useState<'single' | 'batch'>('single');
+  const { start: startWalletOtp, starting: otpStarting, dialog: otpDialog } = useWalletOtpPayment({
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['familyInvoices'] });
-      qc.invalidateQueries({ queryKey: ['familyWallet'] });
-      setShowBatchConfirm(false);
-      setSelectMode(false);
-      setSelectedIds(new Set());
-      toast(t(`${NS}.batchPaySuccess`), 'success');
-    },
-    onError: (e: any) => {
-      setShowBatchConfirm(false);
-      if (e.response?.status === 400) {
-        toast(t(`${NS}.toastInsufficientBalance`), 'error');
+      if (payMode === 'batch') {
+        setSelectMode(false);
+        setSelectedIds(new Set());
+        toast(t(`${NS}.batchPaySuccess`), 'success');
       } else {
-        toast(t(`${NS}.batchPayError`), 'error');
+        toast(t(`${NS}.toastPaySuccess`), 'success');
       }
     },
+    onError: (message) => toast(message, 'error'),
   });
 
-  const walletPayMut = useMutation({
-    mutationFn: async () => {
-      const res = await api.post(FAMILY.PAY_INVOICE(activeId, payInvoice._id), { paymentMethod: 'wallet' });
-      return res.data;
-    },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['familyInvoices'] });
-      qc.invalidateQueries({ queryKey: ['familyWallet'] });
-      setPayInvoice(null);
-      toast(t(`${NS}.toastPaySuccess`), 'success');
-    },
-    onError: (e: any) => {
-      setPayInvoice(null);
-      if (e.response?.status === 400) {
-        toast(t(`${NS}.toastInsufficientBalance`), 'error');
-      } else {
-        toast(t(`${NS}.toastPayError`), 'error');
-      }
-    },
-  });
+  const payOneWithWallet = (invoice: any) => {
+    setPayMode('single');
+    setPayInvoice(null);
+    startWalletOtp([invoice._id], invoice.totalAmount ?? invoice.amount ?? 0);
+  };
+
+  const paySelectedWithWallet = () => {
+    setPayMode('batch');
+    setShowBatchConfirm(false);
+    startWalletOtp(Array.from(selectedIds), selectedTotal);
+  };
 
   const handlePayOnline = async (invoiceId: string) => {
     setPayInvoice(null);
@@ -207,7 +191,7 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
             {t(`${NS}.selectedTotal`, { count: selectedIds.size, amount: `${selectedTotal.toLocaleString('vi-VN')} ₫` })}
           </Text>
           <Button mode="contained" buttonColor={COLOR} onPress={() => setShowBatchConfirm(true)}
-            loading={batchPayMut.isPending}>
+            loading={otpStarting} disabled={otpStarting}>
             {t(`${NS}.payWithWallet`)}
           </Button>
         </View>
@@ -221,7 +205,7 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
               {t(`${NS}.amountLabel`, { amount: (payInvoice?.totalAmount ?? payInvoice?.amount ?? 0).toLocaleString('vi-VN') })}
             </Text>
             <Button mode="outlined" icon="wallet-outline" style={styles.methodBtn}
-              onPress={() => walletPayMut.mutate()} loading={walletPayMut.isPending}>
+              onPress={() => payOneWithWallet(payInvoice)} loading={otpStarting} disabled={otpStarting}>
               {t(`${NS}.payWithWallet`)}
             </Button>
             <Button mode="outlined" icon="credit-card-outline" style={styles.methodBtn}
@@ -243,11 +227,13 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
           </Dialog.Content>
           <Dialog.Actions>
             <Button onPress={() => setShowBatchConfirm(false)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={() => batchPayMut.mutate()}
-              loading={batchPayMut.isPending}>{t('common.confirm')}</Button>
+            <Button mode="contained" buttonColor={COLOR} onPress={paySelectedWithWallet}
+              loading={otpStarting} disabled={otpStarting}>{t('common.confirm')}</Button>
           </Dialog.Actions>
         </Dialog>
       </Portal>
+
+      {otpDialog}
     </View>
   );
 };

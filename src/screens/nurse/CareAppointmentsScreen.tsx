@@ -13,6 +13,7 @@ import { useToast } from '../../utils/toast';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
 import { formatLocalDate } from '../../utils/date';
+import { useAppointmentLabels } from '../../utils/appointmentLabels';
 
 const NS = 'nurse.careAppointments';
 const TIME_REGEX = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -22,8 +23,9 @@ export const CareAppointmentsScreen: React.FC<{ navigation?: any }> = ({ navigat
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
-  const { colors, roleColor } = useAppTheme('nurse');
+  const { colors, roleColor, semantic } = useAppTheme('nurse');
   const styles = useMemo(() => createStyles(colors), [colors]);
+  const { getTypeLabel, getStatusLabel } = useAppointmentLabels();
   const [filter, setFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ residentId: '', appointmentType: '', notes: '' });
@@ -39,9 +41,12 @@ export const CareAppointmentsScreen: React.FC<{ navigation?: any }> = ({ navigat
     { value: 'completed', label: t(`${NS}.filterCompleted`) },
     { value: 'cancelled', label: t(`${NS}.filterCancelled`) },
   ];
+  // Màu lấy từ `semantic` (theo scheme sáng/tối) thay vì hex cố định: các giá trị
+  // cũ `#065F46`/`#991B1B` chỉ đủ tương phản trên nền sáng, sang chế độ tối thành
+  // chữ tối trên nền tối.
   const NEXT_STATUS: Record<string, { status: string; label: string; color: string }[]> = {
-    scheduled: [{ status: 'in_progress', label: t(`${NS}.actionStart`), color: '#065F46' }, { status: 'cancelled', label: t(`${NS}.actionCancel`), color: '#991B1B' }],
-    in_progress: [{ status: 'completed', label: t(`${NS}.actionComplete`), color: '#065F46' }, { status: 'cancelled', label: t(`${NS}.actionCancel`), color: '#991B1B' }],
+    scheduled: [{ status: 'in_progress', label: t(`${NS}.actionStart`), color: semantic.success }, { status: 'cancelled', label: t(`${NS}.actionCancel`), color: semantic.danger }],
+    in_progress: [{ status: 'completed', label: t(`${NS}.actionComplete`), color: semantic.success }, { status: 'cancelled', label: t(`${NS}.actionCancel`), color: semantic.danger }],
   };
 
   const listQ = useQuery({ queryKey: ['appointments', filter], queryFn: async () => (await api.get(CARE_APPOINTMENTS.LIST, { params: { status: filter || undefined } })).data });
@@ -79,13 +84,17 @@ export const CareAppointmentsScreen: React.FC<{ navigation?: any }> = ({ navigat
     onError: (e: any) => toast(e?.response?.data?.message ?? t(`${NS}.toastDeleteError`), 'error'),
   });
 
+  // Trong lúc một mutation đang chạy, mọi nút hành động phải *trông* bị khóa,
+  // nếu không người dùng bấm tiếp và gửi trùng lệnh đổi trạng thái.
+  const actionsBusy = statusMut.isPending || deleteMut.isPending;
+
   return (
     <View style={styles.flex}>
       <BackHeader title={t(`${NS}.title`)} color={roleColor} onBack={() => navigation?.goBack()} />
       <View style={styles.filterRow}>
         {STATUS_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: roleColor } : { backgroundColor: colors.surfaceMuted }} textStyle={filter === f.value ? { color: '#fff', fontWeight: '600' } : { color: colors.text }} compact>{f.label}</Chip>)}
       </View>
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
+      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? t(`${NS}.loadError`) : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => {
             const resName = item.residentId?.fullName ?? '--';
@@ -96,16 +105,20 @@ export const CareAppointmentsScreen: React.FC<{ navigation?: any }> = ({ navigat
                   <View style={styles.row}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.name}>{resName}</Text>
-                      <Text style={styles.sub}>{item.appointmentType ?? t(`${NS}.defaultType`)} · {item.scheduledStartAt ? new Date(item.scheduledStartAt).toLocaleString('vi-VN') : ''}</Text>
+                      <Text style={styles.sub}>{getTypeLabel(item.appointmentType, t(`${NS}.defaultType`))} · {item.scheduledStartAt ? new Date(item.scheduledStartAt).toLocaleString('vi-VN') : ''}</Text>
                       {item.notes ? <Text style={styles.reason} numberOfLines={1}>{item.notes}</Text> : null}
                     </View>
-                    <StatusBadge status={item.status} size="sm" />
+                    <StatusBadge status={item.status} size="sm" label={getStatusLabel(item.status)} />
                   </View>
                 </Card.Content>
                 {actions.length > 0 ? (
                   <Card.Actions>
-                    {actions.map(a => <Button key={a.status} compact textColor={a.color} onPress={() => statusMut.mutate({ id: item._id, status: a.status })}>{a.label}</Button>)}
-                    <Button compact textColor={colors.textSecondary} onPress={() => deleteMut.mutate(item._id)}>{t(`${NS}.delete`)}</Button>
+                    {actions.map(a => (
+                      <Button key={a.status} compact mode="text" disabled={actionsBusy} textColor={a.color} onPress={() => statusMut.mutate({ id: item._id, status: a.status })}>{a.label}</Button>
+                    ))}
+                    {/* "Xóa" trước đây dùng `textSecondary` nên trông như đang bị khóa;
+                        nó là hành động phá hủy đang bật, phải mang màu danger. */}
+                    <Button compact mode="text" disabled={actionsBusy} textColor={semantic.danger} onPress={() => deleteMut.mutate(item._id)}>{t(`${NS}.delete`)}</Button>
                   </Card.Actions>
                 ) : null}
               </Card>

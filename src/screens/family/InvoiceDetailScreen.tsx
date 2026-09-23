@@ -1,20 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { ScrollView, View, StyleSheet, Linking } from 'react-native';
-import { Text, Card, Button, Dialog, Portal, TextInput } from 'react-native-paper';
+import { Text, Card, Button, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { useWalletOtpPayment } from '../../components/family/WalletOtpDialog';
 import { useToast } from '../../utils/toast';
 import { getStatusEntry } from '../../utils/statusMap';
 
 const COLOR = '#2E7D32';
 const NS = 'family.invoiceDetail';
-const OTP_RESEND_COOLDOWN_SECONDS = 30;
 
 const CostRow: React.FC<{ icon: string; label: string; amount: number; color?: string }> = ({ icon, label, amount, color }) => {
   if (!amount || amount <= 0) return null;
@@ -29,7 +28,6 @@ const CostRow: React.FC<{ icon: string; label: string; amount: number; color?: s
 
 export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const toast = useToast();
-  const qc = useQueryClient();
   const { t } = useTranslation();
   const invoice = route.params?.invoice;
   const residentId = route.params?.residentId;
@@ -37,85 +35,20 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
 
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [showOtpDialog, setShowOtpDialog] = useState(false);
-  const [otpId, setOtpId] = useState<string | null>(null);
-  const [maskedRecipient, setMaskedRecipient] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [otpVerifying, setOtpVerifying] = useState(false);
-  const [otpResending, setOtpResending] = useState(false);
-  const [otpCooldown, setOtpCooldown] = useState(0);
-
-  useEffect(() => {
-    if (otpCooldown <= 0) return;
-    const id = setTimeout(() => setOtpCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(id);
-  }, [otpCooldown]);
-
   const statusLabel = (status?: string | null) =>
     t(getStatusEntry(status).i18nKey, { defaultValue: status ?? '' });
 
   const totalAmount = invoice?.totalAmount ?? invoice?.total ?? invoice?.amount ?? 0;
 
-  // Matches web's dashboard wallet-payment flow: send OTP → user enters the code → verify
-  // (which performs the actual deduction+payment server-side). Replaces the old direct
-  // `POST .../pay` call, which skipped OTP entirely.
-  const sendOtp = async () => {
-    const res = await api.post(FAMILY.WALLET_PAYMENT_INITIATE, { amount: totalAmount, invoiceIds: [invoice._id] });
-    const data = res.data?.data ?? res.data;
-    setOtpId(data?.otpId ?? null);
-    setMaskedRecipient(data?.maskedRecipient ?? '');
-    setOtpCooldown(OTP_RESEND_COOLDOWN_SECONDS);
-  };
-
-  const handleInitiateOtp = async () => {
-    setOtpLoading(true);
-    try {
-      await sendOtp();
-      setOtpCode('');
-      setOtpError(null);
-      setShowOtpDialog(true);
-    } catch {
-      toast(t(`${NS}.toastOtpSendError`), 'error');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (otpCooldown > 0) return;
-    setOtpResending(true);
-    try {
-      await sendOtp();
-      setOtpError(null);
-    } catch {
-      setOtpError(t(`${NS}.toastOtpSendError`));
-    } finally {
-      setOtpResending(false);
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (!otpCode.trim() || !otpId) {
-      setOtpError(t(`${NS}.otpCodeRequired`));
-      return;
-    }
-    setOtpVerifying(true);
-    setOtpError(null);
-    try {
-      await api.post(FAMILY.WALLET_PAYMENT_VERIFY, { otpId, code: otpCode.trim() });
-      qc.invalidateQueries({ queryKey: ['familyInvoices'] });
-      qc.invalidateQueries({ queryKey: ['familyWallet'] });
-      setShowOtpDialog(false);
+  // "Thanh toán bằng ví" KHÔNG trừ tiền ngay: hook gửi mã OTP tới số điện thoại
+  // của tài khoản rồi mở hộp thoại xác thực; backend chỉ trừ ví sau khi mã đúng.
+  const { start: startWalletOtp, starting: otpLoading, dialog: otpDialog } = useWalletOtpPayment({
+    onSuccess: () => {
       setPaySuccess(true);
       toast(t(`${NS}.toastPaySuccess`), 'success');
-    } catch (e: any) {
-      setOtpError(e.response?.status === 400 ? t(`${NS}.toastInsufficientBalance`) : t(`${NS}.otpInvalid`));
-    } finally {
-      setOtpVerifying(false);
-    }
-  };
+    },
+    onError: (message) => toast(message, 'error'),
+  });
 
   const handlePayOnline = async () => {
     setShowPayDialog(false);
@@ -252,7 +185,7 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
             </Text>
             <Button mode="outlined" icon="wallet-outline" style={styles.methodBtn}
               loading={otpLoading} disabled={otpLoading}
-              onPress={() => { setShowPayDialog(false); handleInitiateOtp(); }}>
+              onPress={() => { setShowPayDialog(false); startWalletOtp([invoice._id], totalAmount); }}>
               {t(`${NS}.payWithWallet`)}
             </Button>
             <Button mode="outlined" icon="credit-card-outline" style={styles.methodBtn}
@@ -265,29 +198,9 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
           </Dialog.Actions>
         </Dialog>
 
-        <Dialog visible={showOtpDialog} onDismiss={() => setShowOtpDialog(false)} dismissable={false}>
-          <Dialog.Title>{t(`${NS}.otpTitle`)}</Dialog.Title>
-          <Dialog.Content>
-            <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
-              {t(`${NS}.otpSentTo`, { recipient: maskedRecipient })}
-            </Text>
-            <TextInput mode="outlined" keyboardType="number-pad" maxLength={6}
-              value={otpCode} onChangeText={setOtpCode}
-              label={t(`${NS}.otpCodeLabel`)} error={!!otpError} />
-            {otpError ? <Text style={{ color: '#B91C1C', fontSize: 12, marginTop: 4 }}>{otpError}</Text> : null}
-            <Button mode="text" textColor={COLOR} onPress={handleResendOtp} loading={otpResending}
-              disabled={otpResending || otpCooldown > 0} style={{ alignSelf: 'flex-end', marginTop: 4 }}>
-              {otpCooldown > 0 ? t(`${NS}.otpResendCooldown`, { seconds: otpCooldown }) : t(`${NS}.otpResend`)}
-            </Button>
-          </Dialog.Content>
-          <Dialog.Actions>
-            <Button onPress={() => setShowOtpDialog(false)}>{t('common.cancel')}</Button>
-            <Button mode="contained" buttonColor={COLOR} onPress={handleVerifyOtp} loading={otpVerifying}>
-              {t(`${NS}.otpVerify`)}
-            </Button>
-          </Dialog.Actions>
-        </Dialog>
       </Portal>
+
+      {otpDialog}
     </View>
   );
 };

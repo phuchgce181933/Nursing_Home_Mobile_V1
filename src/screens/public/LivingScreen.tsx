@@ -3,6 +3,7 @@ import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../../auth/useAuth';
 import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#000666';
@@ -18,6 +19,8 @@ const AMENITIES = [
 
 export const LivingScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
+  const { token, user } = useAuth();
+  const tourTarget = token && user?.role === 'family' ? 'GuestAdmissionRequest' : 'Contact';
   return (
     <View style={styles.flex}>
       <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
@@ -40,7 +43,7 @@ export const LivingScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
           </Card>
         ))}
 
-        <Button mode="outlined" textColor={COLOR} style={styles.cta} contentStyle={{ height: 48 }} onPress={() => navigation.navigate('GuestAdmissionRequest')}>
+        <Button mode="outlined" textColor={COLOR} style={styles.cta} contentStyle={{ height: 48 }} onPress={() => navigation.navigate(tourTarget)}>
           Khám Phá Trực Tiếp Không Gian
         </Button>
       </ScrollView>

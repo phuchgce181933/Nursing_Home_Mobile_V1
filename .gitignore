@@ -49,3 +49,6 @@ CLAUDE.md
 
 # Documentation evidence (local QA artifacts; not for production repo)
 documentation_work/
+# Local build cache / device artifacts (not source)
+.gradle-home/
+bugreport-*.zip

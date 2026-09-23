@@ -4,6 +4,7 @@ import { Text, Card, IconButton, Dialog, Portal, Button, TextInput, Chip } from 
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
 import { useNutritionSummary, useNutritionResidents, useNutritionResidentDetail } from '../../hooks/useNutritionReports';
+import { useNutritionLabels } from '../../utils/nutritionLabels';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { BackHeader } from '../../components/layout/BackHeader';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
@@ -45,19 +46,8 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
     { key: 'residentsMissingMealPlan',      label: t(`${NS}.kpiMissingMealPlan`),        icon: 'alert-circle-outline',    color: '#dc2626' },
   ];
 
-  const MEAL_TYPE_LABEL: Record<string, string> = {
-    breakfast: t(`${NS}.mealBreakfast`), lunch: t(`${NS}.mealLunch`), dinner: t(`${NS}.mealDinner`),
-  };
-
-  const DIET_TYPE_LABEL: Record<string, string> = {
-    diabetic: t(`${NS}.dietDiabetic`), low_sodium: t(`${NS}.dietLowSodium`), vegetarian: t(`${NS}.dietVegetarian`),
-    high_protein: t(`${NS}.dietHighProtein`), low_fat: t(`${NS}.dietLowFat`), renal: t(`${NS}.dietRenal`),
-    texture_modified: t(`${NS}.dietTextureModified`), other: t(`${NS}.dietOther`),
-  };
-
-  const INTAKE_STATUS_LABEL: Record<string, string> = {
-    ate_all: t(`${NS}.intakeAteAll`), partial: t(`${NS}.intakePartial`), refused: t(`${NS}.intakeRefused`), not_applicable: t(`${NS}.intakeNotApplicable`),
-  };
+  // Nhãn enum dùng chung từ src/utils/nutritionLabels.ts (khớp đúng enum Backend).
+  const { getMealTypeLabel, getDietTypeLabel, getIntakeStatusLabel } = useNutritionLabels();
 
   const [toDate, setToDate]   = useState(today());
   const [fromDate, setFromDate] = useState(addDays(today(), -6));
@@ -67,7 +57,13 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
   const [showFilters, setShowFilters] = useState(false);
 
   const dateParams = { from: fromDate, to: toDate };
-  const residentParams = { ...dateParams, search: search.trim() || undefined, missingMealPlan: missingOnly ? 'true' : undefined, limit: 100 };
+  // `missingMealPlan` phải là đúng chuỗi 'true' (nutritionReportService.js:304).
+  const residentParams = {
+    ...dateParams,
+    search: search.trim() || undefined,
+    missingMealPlan: missingOnly ? ('true' as const) : undefined,
+    limit: 100,
+  };
 
   const summaryQ  = useNutritionSummary(dateParams);
   const residentsQ = useNutritionResidents(residentParams);
@@ -79,6 +75,20 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
 
   const refetch = () => { summaryQ.refetch(); residentsQ.refetch(); };
   const isFetching = summaryQ.isFetching || residentsQ.isFetching;
+
+  /**
+   * Người dùng chỉ thấy câu tiếng Việt thân thiện. Không dùng `(error as Error).message`
+   * vì axios trả về chuỗi kỹ thuật tiếng Anh ("Request failed with status code 404")
+   * và body lỗi của backend có thể là "Route not found". Chi tiết kỹ thuật đã được
+   * ghi log ở useNutritionReports.ts, chỉ trong chế độ dev.
+   */
+  const summaryError = summaryQ.error ? t(`${NS}.loadError`) : null;
+  const residentsError = residentsQ.error ? t(`${NS}.residentsError`) : null;
+  const detailError = detailQ.error
+    ? ((detailQ.error as any)?.response?.status === 403
+        ? t(`${NS}.detailForbidden`)
+        : t(`${NS}.detailError`))
+    : null;
 
   const setLast7 = () => { const t2 = today(); setToDate(t2); setFromDate(addDays(t2, -6)); };
   const setTodayOnly = () => { const t2 = today(); setFromDate(t2); setToDate(t2); };
@@ -124,7 +134,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}
         refreshControl={<RefreshControl refreshing={isFetching} onRefresh={refetch} tintColor={roleColor} />}>
-        <ScreenLayout loading={summaryQ.isLoading} error={summaryQ.error ? (summaryQ.error as Error).message : null} onRetry={refetch}>
+        <ScreenLayout loading={summaryQ.isLoading} error={summaryError} onRetry={refetch}>
 
           {/* KPI grid */}
           <View style={styles.kpiGrid}>
@@ -147,6 +157,13 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
 
           {residentsQ.isLoading ? (
             <Text style={styles.empty}>{t(`${NS}.loading`)}</Text>
+          ) : residentsError ? (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>{residentsError}</Text>
+              <Button compact mode="outlined" textColor={roleColor} onPress={() => residentsQ.refetch()}>
+                {t(`${NS}.retry`)}
+              </Button>
+            </View>
           ) : residents.length === 0 ? (
             <Text style={styles.empty}>{t(`${NS}.noMatchingResidents`)}</Text>
           ) : (
@@ -186,9 +203,13 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
       <Portal>
         <Dialog visible={!!selectedId} onDismiss={() => setSelectedId(null)} style={{ borderRadius: 16 }}>
           <Dialog.ScrollArea style={{ maxHeight: 520 }}>
-            {!detail ? (
+            {detailError ? (
+              <View style={styles.errorBox}>
+                <Text style={styles.errorText}>{detailError}</Text>
+              </View>
+            ) : !detail ? (
               <View style={{ padding: 16 }}>
-                <Text style={{ color: '#9CA3AF', textAlign: 'center' }}>
+                <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
                   {detailQ.isLoading ? t(`${NS}.loading`) : t(`${NS}.noData`)}
                 </Text>
               </View>
@@ -250,7 +271,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                           <DaySection title={t(`${NS}.mealPlanTitle`)} styles={styles}>
                             {day.mealPlanEntries.map((m: any, j: number) => (
                               <Text key={j} style={styles.dayText}>
-                                {MEAL_TYPE_LABEL[m.mealType] ?? m.mealType}: {m.mealName ?? ''}
+                                {getMealTypeLabel(m.mealType)}: {m.mealName ?? ''}
                                 {m.mealTime ? ` · ${m.mealTime}` : ''}
                                 {m.calories ? ` · ${m.calories} kcal` : ''}
                               </Text>
@@ -262,7 +283,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                           <DaySection title={t(`${NS}.specialDietTitle`)} styles={styles}>
                             {day.specialDietEntries.map((s: any, j: number) => (
                               <Text key={j} style={styles.dayText}>
-                                {DIET_TYPE_LABEL[s.dietType] ?? s.dietType}
+                                {getDietTypeLabel(s.dietType)}
                                 {s.restrictions?.length ? `: ${s.restrictions.join(', ')}` : ''}
                                 {s.nutritionGoal ? ` · ${s.nutritionGoal}` : ''}
                                 {s.effectiveTime ? ` · ${s.effectiveTime}` : ''}
@@ -276,7 +297,7 @@ export const NutritionReportsScreen: React.FC<{ navigation: any }> = ({ navigati
                             {day.mealIntakeNotes.map((n: any, j: number) => (
                               <View key={j} style={styles.noteCard}>
                                 <Text style={styles.noteTime}>
-                                  {MEAL_TYPE_LABEL[n.mealType] ?? n.mealType} · {INTAKE_STATUS_LABEL[n.intakeStatus] ?? n.intakeStatus}
+                                  {getMealTypeLabel(n.mealType)} · {getIntakeStatusLabel(n.intakeStatus)}
                                   {n.portionPercent != null && n.intakeStatus === 'partial' ? ` · ${n.portionPercent}%` : ''}
                                 </Text>
                                 {n.plannedMealName ? <Text style={styles.noteContent}>{t(`${NS}.plannedMeal`, { name: n.plannedMealName })}</Text> : null}
@@ -365,6 +386,8 @@ const createStyles = (c: AppColors) => StyleSheet.create({
   sectionTitle: { fontSize: 14, fontWeight: '600', color: c.text },
   sectionCount: { fontSize: 12, color: c.textSecondary },
   empty: { fontSize: 13, color: c.textMuted, textAlign: 'center', paddingVertical: 16 },
+  errorBox: { alignItems: 'center', gap: 8, paddingVertical: 20, paddingHorizontal: 12 },
+  errorText: { fontSize: 13, color: '#991B1B', textAlign: 'center' },
   resCard: { borderRadius: 12, marginBottom: 6, backgroundColor: c.surface },
   resRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingRight: 0 },
   resName: { fontSize: 13, fontWeight: '500', color: c.text },

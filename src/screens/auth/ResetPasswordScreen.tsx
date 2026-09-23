@@ -9,10 +9,24 @@ import { AUTH } from '../../api/endpoints';
 const COLOR = '#1B3A6B';
 const NS = 'resetPassword';
 
-export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+/**
+ * ResetPasswordScreen
+ *
+ * Hỗ trợ 3 cách nhận token (giống Web):
+ *  1. Từ deep-link: navigation open từ Linking (URL chứa ?token=...). Backend gửi link theo
+ *     FRONTEND_URL (mặc định Web). Mobile app đăng ký scheme `nursinghomemobile://reset-password?token=`
+ *     và token sẽ được truyền qua route.params.token (xem RootNavigator linking config).
+ *  2. Từ state nội bộ khi user điền hướng từ ForgotPasswordScreen nhấn "Đã có mã đặt lại?".
+ *  3. Nhập tay trong trường "Mã đặt lại mật khẩu" — dành cho case user copy token từ email/web.
+ *
+ * Tất cả cùng một contract backend: { token, newPassword } → POST /api/auth/reset-password
+ */
+export const ResetPasswordScreen: React.FC<{ navigation: any; route?: any }> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  const [token, setToken] = useState('');
+  // route.params?.token được truyền từ deep-link hoặc từ ForgotPasswordScreen.
+  const paramToken: string = route?.params?.token ? String(route.params.token) : '';
+  const [token, setToken] = useState(paramToken);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -24,7 +38,8 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
   const confirmPasswordRef = useRef<RNTextInput>(null);
 
   const handleSubmit = async () => {
-    if (!token.trim()) {
+    const trimmedToken = token.trim();
+    if (!trimmedToken) {
       setError(t(`${NS}.warnTokenRequired`));
       return;
     }
@@ -39,11 +54,12 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
     setError('');
     setLoading(true);
     try {
-      await api.post(AUTH.RESET_PASSWORD, { token: token.trim(), newPassword });
+      await api.post(AUTH.RESET_PASSWORD, { token: trimmedToken, newPassword });
       setSuccess(true);
     } catch (err: any) {
       const status = err.response?.status;
       if (status === 400) setError(t(`${NS}.errorInvalidToken`));
+      else if (status === 429) setError(t(`${NS}.errorRateLimited`));
       else setError(t(`${NS}.errorGeneric`));
     } finally {
       setLoading(false);
@@ -83,6 +99,7 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
                 value={token}
                 onChangeText={setToken}
                 autoCapitalize="none"
+                autoCorrect={false}
                 multiline
                 placeholder={t(`${NS}.tokenPlaceholder`)}
                 left={<TextInput.Icon icon="key-outline" />}
@@ -99,6 +116,7 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
                 value={newPassword}
                 onChangeText={setNewPassword}
                 secureTextEntry={!showPassword}
+                autoCapitalize="none"
                 left={<TextInput.Icon icon="lock-outline" />}
                 right={
                   <TextInput.Icon
@@ -119,6 +137,7 @@ export const ResetPasswordScreen: React.FC<{ navigation: any }> = ({ navigation 
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 secureTextEntry={!showConfirmPassword}
+                autoCapitalize="none"
                 left={<TextInput.Icon icon="lock-check-outline" />}
                 right={
                   <TextInput.Icon

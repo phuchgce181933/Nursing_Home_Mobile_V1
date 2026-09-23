@@ -7,12 +7,15 @@ import { useCaregiverTasks, useUpdateTaskStatus } from '../../hooks/useTasks';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
-import { getStatusEntry } from '../../utils/statusMap';
+import { useStatusLabel } from '../../utils/statusMap';
 import { formatLocalDate } from '../../utils/date';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.taskList';
 const today = () => formatLocalDate(new Date());
+
+/** Trạng thái còn chuyển tiếp được — xem VALID_TRANSITIONS ở backend. */
+const OPEN_STATUSES = ['pending', 'in_progress'];
 
 export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -30,10 +33,7 @@ export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
     { value: 'medication', label: t('status.medication') },
   ];
 
-  const taskTypeLabel = (type?: string) => {
-    const entry = getStatusEntry(type);
-    return entry.i18nKey ? t(entry.i18nKey, { defaultValue: type?.replace(/_/g, ' ') }) : type?.replace(/_/g, ' ');
-  };
+  const taskTypeLabel = useStatusLabel();
 
   const params = { workDate: today(), taskType: filter || undefined };
   const tasksQ = useCaregiverTasks(params);
@@ -56,12 +56,28 @@ export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
     setSelectedIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
   };
 
+  /**
+   * Backend chỉ cho phép pending → in_progress → completed
+   * (VALID_TRANSITIONS trong services/careTaskService.js, Web cũng theo đúng
+   * chuỗi này qua TASK_STATUS_NEXT). Gọi thẳng 'completed' từ 'pending' trả về
+   * 400 "Không thể chuyển trạng thái từ pending sang completed", nên phải đi
+   * qua bước 'in_progress' thay vì nhảy cóc.
+   */
+  const completeTask = async (task: any) => {
+    if (task.status === 'pending') {
+      await updateStatus.mutateAsync({ id: task._id, status: 'in_progress', isCaregiver: true });
+    }
+    await updateStatus.mutateAsync({ id: task._id, status: 'completed', isCaregiver: true });
+  };
+
   const handleBulkComplete = async () => {
+    const selected = tasks.filter((tk: any) => selectedIds.includes(tk._id));
     try {
-      await Promise.all(
-        selectedIds.map((id) => updateStatus.mutateAsync({ id, status: 'completed', isCaregiver: true })),
-      );
-      toast(t(`${NS}.toastCompleted`, { count: selectedIds.length }), 'success');
+      // Tuần tự: mỗi nhiệm vụ cần 2 lần chuyển trạng thái phụ thuộc nhau.
+      for (const task of selected) {
+        await completeTask(task);
+      }
+      toast(t(`${NS}.toastCompleted`, { count: selected.length }), 'success');
       setSelectedIds([]);
     } catch {
       toast(t(`${NS}.toastError`), 'error');
@@ -95,7 +111,7 @@ export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
 
       <ScreenLayout
         loading={tasksQ.isLoading}
-        error={tasksQ.error ? (tasksQ.error as Error).message : null}
+        error={tasksQ.error ? t(`${NS}.loadError`) : null}
         onRetry={tasksQ.refetch}
         isEmpty={tasks.length === 0}
         emptyMessage={t(`${NS}.empty`)}
@@ -111,10 +127,15 @@ export const TaskListScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
           renderItem={({ item }) => (
             <View style={styles.taskRow}>
               <Checkbox
-                status={selectedIds.includes(item._id) ? 'checked' : (item.status === 'completed' ? 'checked' : 'unchecked')}
-                onPress={() => item.status !== 'completed' && toggleSelect(item._id)}
+                // Chỉ pending/in_progress mới còn chuyển được sang completed;
+                // completed/skipped/missed là trạng thái kết thúc nên khoá ô chọn
+                // thay vì để người dùng bấm rồi nhận lỗi 400.
+                status={
+                  selectedIds.includes(item._id) || item.status === 'completed' ? 'checked' : 'unchecked'
+                }
+                onPress={() => OPEN_STATUSES.includes(item.status) && toggleSelect(item._id)}
                 color={COLOR}
-                disabled={item.status === 'completed'}
+                disabled={!OPEN_STATUSES.includes(item.status)}
               />
               <View style={styles.taskInfo}>
                 <Text style={styles.taskTitle} numberOfLines={1}>
@@ -152,7 +173,8 @@ const styles = StyleSheet.create({
   filterRow: { flexDirection: 'row', gap: 6, padding: 12, flexWrap: 'wrap' },
   chip: { borderRadius: 20 },
   list: { padding: 16, paddingBottom: 80 },
-  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLOR, marginTop: 12, marginBottom: 6, textTransform: 'capitalize' },
+  // Tiêu đề nhóm là nhãn loại nhiệm vụ tiếng Việt -> không 'capitalize'.
+  sectionTitle: { fontSize: 13, fontWeight: '600', color: COLOR, marginTop: 12, marginBottom: 6 },
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',

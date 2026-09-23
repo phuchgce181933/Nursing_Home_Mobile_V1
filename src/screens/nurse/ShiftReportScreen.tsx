@@ -13,6 +13,7 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
 import { formatLocalDate } from '../../utils/date';
+import { useStatusLabel } from '../../utils/statusMap';
 
 const NS = 'nurse.shiftReport';
 const today = () => formatLocalDate(new Date());
@@ -20,6 +21,7 @@ const today = () => formatLocalDate(new Date());
 export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const statusLabel = useStatusLabel();
   const { colors, roleColor } = useAppTheme('nurse');
   const styles = useMemo(() => createStyles(colors), [colors]);
   const shiftsQ = useShifts({ fromDate: today(), toDate: today() });
@@ -85,7 +87,7 @@ export const ShiftReportScreen: React.FC<{ navigation?: any }> = ({ navigation }
               <StatusBadge status={tk.status} size="sm" />
               <View style={styles.eventInfo}>
                 <Text style={styles.eventTitle} numberOfLines={1}>
-                  {tk.taskType ? tk.taskType.replace(/_/g, ' ') : 'Task'} — {tk.residentId?.fullName ?? ''}
+                  {statusLabel(tk.taskType, t('nurse.careTasks.defaultTitle'))} — {tk.residentId?.fullName ?? ''}
                 </Text>
                 <Text style={styles.eventTime}>{tk.scheduledTime}</Text>
               </View>

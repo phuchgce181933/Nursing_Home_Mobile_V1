@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Image, Pressable } from 'react-native';
 import { Text, Button, TextInput, IconButton, ActivityIndicator } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import * as ImagePicker from 'expo-image-picker';
@@ -9,13 +8,13 @@ import api from '../../api/axiosInstance';
 import { CAREGIVER } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.photoUpload';
 
-export const PhotoUploadScreen: React.FC = () => {
-  const insets = useSafeAreaInsets();
+export const PhotoUploadScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
@@ -85,9 +84,9 @@ export const PhotoUploadScreen: React.FC = () => {
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-      </View>
+      {/* Cùng BackHeader với các màn con khác của hộ lý: cùng icon, cỡ, khoảng
+          cách và cùng tông nâu; `goBack()` giữ phím Back cứng của Android. */}
+      <BackHeader title={t(`${NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <ScreenLayout loading={residentsQ.isLoading} error={null} onRetry={residentsQ.refetch}>
         <FlatList
@@ -152,8 +151,6 @@ export const PhotoUploadScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 16 },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   list: { padding: 16, paddingBottom: 32 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
   residentChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, backgroundColor: '#FEF3C7' },

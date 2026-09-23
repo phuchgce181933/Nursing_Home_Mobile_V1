@@ -24,6 +24,26 @@ export const useResidentDetail = (residentId?: string, options?: { enabled?: boo
   });
 };
 
+/**
+ * `GET /api/residents/:id/initial-health` — nguồn duy nhất của
+ * `initialHealthCondition`; `GET /api/residents/:id` không trả trường này.
+ *
+ * Web (`resident.service.js -> enrichResidentDetail`) chỉ gọi thêm endpoint này
+ * khi bản ghi chính thiếu CẢ `initialHealthCondition` lẫn `bloodType`. Giữ đúng
+ * điều kiện đó ở đây để cùng một cư dân, Mobile hiển thị y hệt Web — chứ không
+ * phải lúc nào cũng gọi rồi lệch dữ liệu với Web.
+ */
+export const useResidentInitialHealth = (residentId?: string, options?: { enabled?: boolean }) => {
+  return useQuery({
+    queryKey: ['residentInitialHealth', residentId],
+    queryFn: async () => {
+      const res = await api.get(RESIDENTS.INITIAL_HEALTH(residentId!));
+      return res.data;
+    },
+    enabled: !!residentId && (options?.enabled ?? true),
+  });
+};
+
 export const useResidentVitals = (residentId?: string, params?: { page?: number }) => {
   return useQuery({
     queryKey: ['vitals', residentId, params],

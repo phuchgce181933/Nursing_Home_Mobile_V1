@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip, Dialog, Portal, Button, TextInput, IconButton, FAB } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -9,6 +8,7 @@ import { CARE_NOTES } from '../../api/endpoints';
 import { useDeleteCareNote } from '../../hooks/useCareNotes';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
+import { BackHeader } from '../../components/layout/BackHeader';
 import { useToast } from '../../utils/toast';
 import { useAuth } from '../../auth/useAuth';
 import { useAppTheme } from '../../theme/useAppTheme';
@@ -17,7 +17,6 @@ import type { AppColors } from '../../constants/theme';
 const NS = 'nurse.careNotes';
 
 export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
   const toast = useToast();
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -65,12 +64,14 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { backgroundColor: roleColor, paddingTop: insets.top + 8 }]}>
-        <View style={styles.topBarRow}>
-          <Text style={styles.topTitle}>{t(`${NS}.listTitle`)}</Text>
-          <IconButton icon="history" iconColor="#fff" size={22} onPress={() => navigation.navigate('NoteHistory')} />
-        </View>
-      </View>
+      {/* Thanh tiêu đề tự dựng trước đây không có nút Back. Dùng BackHeader dùng
+          chung, giữ nguyên nút lịch sử ở khe `right`. */}
+      <BackHeader
+        title={t(`${NS}.listTitle`)}
+        color={roleColor}
+        onBack={() => navigation.goBack()}
+        right={<IconButton icon="history" iconColor="#fff" size={22} onPress={() => navigation.navigate('NoteHistory')} />}
+      />
 
       <View style={styles.searchRow}>
         <TextInput placeholder={t(`${NS}.searchPlaceholder`)} mode="outlined" value={search}
@@ -84,7 +85,7 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
         {TYPE_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: roleColor } : undefined} textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>)}
       </View>
 
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
+      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? t(`${NS}.loadError`) : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined"
@@ -120,9 +121,6 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
 
 const createStyles = (c: AppColors) => StyleSheet.create({
   flex: { flex: 1, backgroundColor: c.background },
-  topBar: { paddingHorizontal: 16, paddingBottom: 8, paddingTop: 8 },
-  topBarRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
   searchRow: { paddingHorizontal: 12, paddingTop: 8, paddingBottom: 4 },
   searchInput: { backgroundColor: c.surface, fontSize: 13 },
   filterRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 12, paddingBottom: 8, flexWrap: 'wrap' },

@@ -23,6 +23,7 @@ import { AdmissionDetailScreen } from '../screens/family/AdmissionDetailScreen';
 import { InvoiceDetailScreen } from '../screens/family/InvoiceDetailScreen';
 import { BillingSummaryScreen } from '../screens/family/BillingSummaryScreen';
 import { PaymentHistoryScreen } from '../screens/family/PaymentHistoryScreen';
+import { TransactionDetailScreen } from '../screens/family/TransactionDetailScreen';
 import { FamilyMedicationsScreen } from '../screens/family/FamilyMedicationsScreen';
 import { FamilyMedicationHistoryScreen } from '../screens/family/FamilyMedicationHistoryScreen';
 import { FamilyDailyCareScreen } from '../screens/family/FamilyDailyCareScreen';
@@ -67,6 +68,7 @@ const WalletStack = () => (
   <WalletNavStack.Navigator screenOptions={{ headerShown: false }}>
     <WalletNavStack.Screen name="WalletMain" component={FamilyWalletScreen} />
     <WalletNavStack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
+    <WalletNavStack.Screen name="TransactionDetail" component={TransactionDetailScreen} />
   </WalletNavStack.Navigator>
 );
 

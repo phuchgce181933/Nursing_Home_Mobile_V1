@@ -9,9 +9,18 @@ import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#6B4200';
 const NS = 'nurse.careNotes';
+const CG_NS = 'assistant.careNotes';
 
-// Read-only for caregiver — backend scopes results to their assigned residents and only
-// authorizes create/edit/delete for the `nurse` role.
+/**
+ * Ghi chú chăm sóc — bản dành cho hộ lý, CHỈ ĐỌC.
+ *
+ * `GET /api/care-notes` được backend lọc theo `StaffProfile.assignedResidentIds`
+ * của chính người gọi (careNoteService.getReadableResidentIds), nên danh sách chỉ
+ * gồm ghi chú của những cư dân mình phụ trách. Quyền tạo/sửa/xoá vẫn thuộc về y tá.
+ *
+ * Nhãn bộ lọc và nội dung dùng lại namespace `nurse.careNotes`; riêng tiêu đề và
+ * thông báo lỗi lấy từ `assistant.careNotes` vì hộ lý không phải tác giả ghi chú.
+ */
 export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
   const [filter, setFilter] = useState('');
@@ -39,7 +48,7 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
 
   return (
     <View style={styles.flex}>
-      <BackHeader title={t(`${NS}.listTitle`)} color={COLOR} onBack={() => navigation.goBack()} />
+      <BackHeader title={t(`${CG_NS}.title`)} color={COLOR} onBack={() => navigation.goBack()} />
 
       <View style={styles.searchRow}>
         <TextInput placeholder={t(`${NS}.searchPlaceholder`)} mode="outlined" value={search}
@@ -53,7 +62,8 @@ export const CareNoteListScreen: React.FC<{ navigation: any }> = ({ navigation }
         {TYPE_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: COLOR } : undefined} textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>)}
       </View>
 
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
+      {/* Không in message của axios (chuỗi tiếng Anh / mã 403 kỹ thuật) ra màn hình. */}
+      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? t(`${CG_NS}.loadError`) : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined"

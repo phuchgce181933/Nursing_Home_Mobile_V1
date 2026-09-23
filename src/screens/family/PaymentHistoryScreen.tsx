@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import { Text, Card, Chip } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
@@ -8,20 +8,30 @@ import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { BackHeader } from '../../components/layout/BackHeader';
+import {
+  WalletTx,
+  affectsWallet,
+  amountSign,
+  useWalletTxLabels,
+} from '../../utils/walletTxLabels';
 
 const COLOR = '#2E7D32';
 const NS = 'family.paymentHistory';
 
-const TYPE_ICON: Record<string, { name: string; color: string }> = {
-  topup: { name: 'arrow-down-circle', color: '#065F46' },
-  payment: { name: 'arrow-up-circle', color: '#991B1B' },
-  refund: { name: 'arrow-left-circle', color: '#065F46' },
+// Icon theo CHIỀU tiền (credit/debit/none), không theo loại enum thô.
+const iconFor = (tx: WalletTx): { name: string; color: string } => {
+  if (tx.type === 'refund') return { name: 'cash-refund', color: '#065F46' };
+  if (tx.type === 'topup') return { name: 'arrow-down-circle', color: '#065F46' };
+  if (!affectsWallet(tx)) return { name: 'bank-outline', color: '#1D4ED8' }; // PayOS trực tiếp
+  return { name: 'arrow-up-circle', color: '#991B1B' }; // trả bằng ví
 };
 
 export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
+  const { typeLabel, statusLabel, methodLabel, defaultDescription } = useWalletTxLabels();
   const [filter, setFilter] = useState('');
 
+  // CHỈ có các loại giao dịch hệ thống thật sự hỗ trợ (enum type: topup/payment/refund).
   const TYPE_FILTERS = [
     { value: '', label: t(`${NS}.filterAll`) },
     { value: 'topup', label: t(`${NS}.filterTopup`) },
@@ -29,25 +39,27 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
     { value: 'refund', label: t(`${NS}.filterRefund`) },
   ];
 
-  const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
-    completed: { bg: '#D1FAE5', text: '#065F46', label: t(`${NS}.statusCompleted`) },
-    pending: { bg: '#FFEDD5', text: '#92400E', label: t(`${NS}.statusPending`) },
-    failed: { bg: '#FEE2E2', text: '#991B1B', label: t(`${NS}.statusFailed`) },
+  const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+    completed: { bg: '#D1FAE5', text: '#065F46' },
+    pending: { bg: '#FFEDD5', text: '#92400E' },
+    failed: { bg: '#FEE2E2', text: '#991B1B' },
   };
 
-  const walletQ = useQuery({
-    queryKey: ['familyWallet'],
+  const historyQ = useQuery({
+    queryKey: ['familyWalletTransactions', filter],
     queryFn: async () => {
-      const r = await api.get(FAMILY.WALLET_BALANCE);
-      return r.data?.data ?? r.data;
+      const r = await api.get(FAMILY.WALLET_TRANSACTIONS, {
+        params: { limit: 100, ...(filter ? { type: filter } : {}) },
+      });
+      const body = r.data ?? {};
+      return {
+        data: (body.data ?? []) as WalletTx[],
+        summary: body.summary ?? null,
+      };
     },
   });
 
-  const allTransactions = walletQ.data?.transactions ?? [];
-  const transactions = filter
-    ? allTransactions.filter((tx: any) => tx.type === filter)
-    : allTransactions;
-  const sorted = [...transactions].reverse();
+  const transactions = historyQ.data?.data ?? [];
 
   return (
     <View style={styles.flex}>
@@ -61,35 +73,39 @@ export const PaymentHistoryScreen: React.FC<{ navigation: any }> = ({ navigation
         ))}
       </View>
 
-      <ScreenLayout loading={walletQ.isLoading} error={walletQ.error ? (walletQ.error as Error).message : null}
-        onRetry={walletQ.refetch} isEmpty={sorted.length === 0} emptyMessage={t(`${NS}.empty`)}>
-        <FlatList data={sorted} keyExtractor={(item: any, i: number) => item._id ?? String(i)}
+      <ScreenLayout loading={historyQ.isLoading} error={historyQ.error ? (historyQ.error as Error).message : null}
+        onRetry={historyQ.refetch} isEmpty={transactions.length === 0} emptyMessage={t(`${NS}.empty`)}>
+        <FlatList data={transactions} keyExtractor={(item, i) => item._id ?? String(i)}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={walletQ.isFetching} onRefresh={walletQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={historyQ.isFetching} onRefresh={historyQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => {
-            const icon = TYPE_ICON[item.type] ?? TYPE_ICON.payment;
+            const icon = iconFor(item);
             const status = STATUS_COLORS[item.status] ?? STATUS_COLORS.pending;
-            const isPositive = item.type === 'topup' || item.type === 'refund';
+            const sign = amountSign(item);
+            const amountColor = sign === '+' ? '#065F46' : sign === '-' ? '#991B1B' : '#374151';
 
             return (
-              <Card style={styles.card} mode="outlined">
-                <Card.Content style={styles.txRow}>
-                  <MaterialCommunityIcons name={icon.name as any} size={28} color={icon.color} />
-                  <View style={styles.txInfo}>
-                    <Text style={styles.txDesc}>{item.description ?? (item.type === 'topup' ? t(`${NS}.defaultTopup`) : item.type === 'refund' ? t(`${NS}.defaultRefund`) : t(`${NS}.defaultPayment`))}</Text>
-                    <Text style={styles.txDate}>{item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}</Text>
-                    {item.orderCode ? <Text style={styles.txOrder}>{t(`${NS}.orderCode`, { code: item.orderCode })}</Text> : null}
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={[styles.txAmount, { color: isPositive ? '#065F46' : '#991B1B' }]}>
-                      {isPositive ? '+' : '-'}{item.amount?.toLocaleString('vi-VN')} ₫
-                    </Text>
-                    <View style={[styles.statusChip, { backgroundColor: status.bg }]}>
-                      <Text style={[styles.statusText, { color: status.text }]}>{status.label}</Text>
+              <TouchableOpacity activeOpacity={0.7}
+                onPress={() => navigation.navigate('TransactionDetail', { transactionId: item._id })}>
+                <Card style={styles.card} mode="outlined">
+                  <Card.Content style={styles.txRow}>
+                    <MaterialCommunityIcons name={icon.name as any} size={28} color={icon.color} />
+                    <View style={styles.txInfo}>
+                      <Text style={styles.txDesc} numberOfLines={1}>{defaultDescription(item)}</Text>
+                      <Text style={styles.txMeta}>{typeLabel(item)} · {methodLabel(item)}</Text>
+                      <Text style={styles.txDate}>{item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}</Text>
                     </View>
-                  </View>
-                </Card.Content>
-              </Card>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      <Text style={[styles.txAmount, { color: amountColor }]}>
+                        {sign}{item.amount?.toLocaleString('vi-VN')} ₫
+                      </Text>
+                      <View style={[styles.statusChip, { backgroundColor: status.bg }]}>
+                        <Text style={[styles.statusText, { color: status.text }]}>{statusLabel(item.status)}</Text>
+                      </View>
+                    </View>
+                  </Card.Content>
+                </Card>
+              </TouchableOpacity>
             );
           }}
         />
@@ -106,8 +122,8 @@ const styles = StyleSheet.create({
   txRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   txInfo: { flex: 1 },
   txDesc: { fontSize: 13, fontWeight: '500', color: '#111827' },
+  txMeta: { fontSize: 11, color: '#6B7280', marginTop: 2 },
   txDate: { fontSize: 11, color: '#9CA3AF', marginTop: 2 },
-  txOrder: { fontSize: 10, color: '#D1D5DB', marginTop: 1 },
   txAmount: { fontSize: 14, fontWeight: '600' },
   statusChip: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10, marginTop: 4 },
   statusText: { fontSize: 9, fontWeight: '500' },

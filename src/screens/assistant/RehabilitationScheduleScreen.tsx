@@ -8,6 +8,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { BackHeader } from '../../components/layout/BackHeader';
 import { formatLocalDate } from '../../utils/date';
+import { useStatusLabel } from '../../utils/statusMap';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.rehabSchedule';
@@ -15,6 +16,8 @@ const today = () => formatLocalDate(new Date());
 
 export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
+  // sessionType là enum thô của backend; dịch qua bảng `status.*` chung.
+  const statusLabel = useStatusLabel();
   const [workDate, setWorkDate] = useState(today());
   const [residentId, setResidentId] = useState('');
   const [detailResidentId, setDetailResidentId] = useState<string | null>(null);
@@ -48,7 +51,9 @@ export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ na
         )}
       </View>
 
-      <ScreenLayout loading={overviewQ.isLoading} error={overviewQ.error ? (overviewQ.error as Error).message : null}
+      {/* Không đẩy `error.message` của axios ra UI: đó là chuỗi kỹ thuật tiếng
+          Anh ("Request failed with status code 500"). Chỉ hiện câu tiếng Việt. */}
+      <ScreenLayout loading={overviewQ.isLoading} error={overviewQ.error ? t(`${NS}.loadError`) : null}
         onRetry={overviewQ.refetch} isEmpty={rows.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={rows} keyExtractor={(i: any) => i.residentId} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={overviewQ.isFetching} onRefresh={overviewQ.refetch} tintColor={COLOR} />}
@@ -85,8 +90,15 @@ export const RehabilitationScheduleScreen: React.FC<{ navigation: any }> = ({ na
               <View style={{ paddingVertical: 8 }}>
                 {detail.schedule.sessions.map((s: any, i: number) => (
                   <View key={i} style={styles.sessionCard}>
-                    <Text style={styles.sessionTime}>{s.scheduledTime ?? ''} · {s.durationMinutes ? `${s.durationMinutes} ${t(`${NS}.minutes`)}` : ''}</Text>
-                    <Text style={styles.sessionTitle}>{s.sessionTitle || s.sessionType}</Text>
+                    <Text style={styles.sessionTime}>
+                      {[s.scheduledTime, s.durationMinutes ? `${s.durationMinutes} ${t(`${NS}.minutes`)}` : null]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </Text>
+                    {/* sessionTitle là chữ do điều dưỡng nhập nên có thể rỗng;
+                        khi đó lùi về nhãn tiếng Việt của sessionType chứ không
+                        in enum thô "physical_therapy". */}
+                    <Text style={styles.sessionTitle}>{s.sessionTitle || statusLabel(s.sessionType)}</Text>
                     {s.location ? <Text style={styles.sessionMeta}>{t(`${NS}.location`)}: {s.location}</Text> : null}
                     {s.leadStaffName ? <Text style={styles.sessionMeta}>{t(`${NS}.leadStaff`)}: {s.leadStaffName}</Text> : null}
                     {s.therapyGoals ? <Text style={styles.sessionNote}>{s.therapyGoals}</Text> : null}

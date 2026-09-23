@@ -88,13 +88,16 @@ export const HygieneScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
         <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation?.goBack()} style={styles.backBtn} />
         <View><Text style={styles.topTitle}>{t(`${NS}.title`)}</Text><Text style={styles.topSub}>{today()}</Text></View>
       </View>
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
+      {/* `error.message` của axios là chuỗi kỹ thuật tiếng Anh; chỉ hiện câu
+          tiếng Việt. (Toast khi lưu vẫn dùng message của backend vì đó là văn
+          bản nghiệp vụ tiếng Việt trong constants/apiErrorCodes.js.) */}
+      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? t(`${NS}.loadError`) : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
           renderItem={({ item }) => (
             <Card style={styles.card} mode="outlined" onPress={() => openEdit(item)} onLongPress={() => setDeleteId(item._id)}>
               <Card.Content style={styles.row}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{item.residentId?.fullName ?? '--'}</Text>
+                  <Text style={styles.name}>{item.residentId?.fullName || t('profile.notUpdated')}</Text>
                   <Text style={styles.sub}>{CAT_LABEL[item.activityCategory] ?? item.activityCategory} · {TYPE_LABEL[item.activityType] ?? item.activityType}</Text>
                   {item.notes ? <Text style={styles.notes} numberOfLines={1}>{item.notes}</Text> : null}
                 </View>

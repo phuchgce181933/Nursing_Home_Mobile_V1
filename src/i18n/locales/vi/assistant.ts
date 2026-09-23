@@ -7,6 +7,8 @@ export default {
       done: 'Xong',
       remaining: 'Còn lại',
       empty: 'Không có nhiệm vụ nào hôm nay',
+      loadError: 'Không thể tải công việc hôm nay',
+      roomLabel: 'Phòng {{number}}',
       progressText: '{{percent}}% hoàn thành · {{done}}/{{total}}',
       recordVitals: 'Ghi sinh hiệu',
       featuresTitle: 'Chức năng',
@@ -88,6 +90,7 @@ export default {
       specialDietSection: 'Chế độ ăn đặc biệt',
       emptyMealPlans: 'Chưa có thực đơn được công bố cho ngày này',
       emptySpecialDiets: 'Chưa có chế độ ăn đặc biệt được công bố cho ngày này',
+      loadError: 'Không tải được chế độ ăn. Vui lòng thử lại.',
     },
     rehabSchedule: {
       title: 'Lịch phục hồi chức năng',
@@ -102,6 +105,7 @@ export default {
       location: 'Địa điểm',
       leadStaff: 'Kỹ thuật viên phụ trách',
       assistNote: 'Ghi chú hỗ trợ',
+      loadError: 'Không tải được lịch phục hồi chức năng. Vui lòng thử lại.',
     },
     residents: {
       title: 'Cư dân được phân công',
@@ -114,16 +118,32 @@ export default {
       age: 'Tuổi',
       bloodType: 'Nhóm máu',
       location: 'Vị trí',
+      building: 'Tòa',
+      floor: 'Tầng',
+      bed: 'Giường',
       drugAllergies: 'Dị ứng thuốc',
       otherAllergies: 'Dị ứng khác',
+      allergiesDrug: 'Thuốc',
+      allergiesOther: 'Khác',
       chronicConditions: 'Bệnh mãn tính',
       healthCondition: 'Tình trạng sức khỏe',
       none: 'Không có',
+      loadError: 'Không tải được danh sách cư dân phụ trách',
+    },
+    careNotes: {
+      // Hộ lý KHÔNG tạo được ghi chú chăm sóc (POST /api/care-notes chỉ dành cho
+      // y tá), nên nhãn "Ghi chú của tôi" mô tả sai dữ liệu màn này hiển thị:
+      // đó là ghi chú của những cư dân mình được phân công.
+      title: 'Ghi chú cư dân phụ trách',
+      loadError: 'Không tải được ghi chú chăm sóc',
     },
     taskList: {
-      title: 'Nhiệm vụ ca sáng',
+      // Màn này liệt kê nhiệm vụ của CẢ ngày làm việc (workDate = hôm nay),
+      // không riêng ca sáng — tiêu đề cũ mô tả sai phạm vi dữ liệu.
+      title: 'Nhiệm vụ hôm nay',
       filterAll: 'Tất cả',
       empty: 'Không có nhiệm vụ nào hôm nay',
+      loadError: 'Không thể tải danh sách nhiệm vụ',
       completeCount: 'Hoàn thành ({{count}})',
       toastCompleted: 'Hoàn thành {{count}} nhiệm vụ',
       toastError: 'Không thể hoàn thành. Thử lại.',
@@ -167,6 +187,7 @@ export default {
     hygiene: {
       title: 'Vệ sinh & Chăm sóc',
       empty: 'Chưa có hoạt động vệ sinh nào',
+      loadError: 'Không tải được hoạt động vệ sinh. Vui lòng thử lại.',
       createTitle: 'Ghi nhận vệ sinh',
       residentLabel: 'Cư dân:',
       categoryLabel: 'Phân loại:',
@@ -194,11 +215,16 @@ export default {
     roomStatus: {
       title: 'Tình trạng phòng ốc',
       roomCount: '{{count}} phòng',
-      empty: 'Không có dữ liệu phòng',
+      empty: 'Bạn chưa được phân công cư dân nào nên chưa có phòng để theo dõi',
+      loadError: 'Không tải được danh sách phòng',
       statusAvailable: 'Trống',
       statusFull: 'Đầy',
       statusMaintenance: 'Bảo trì',
       listTitle: 'Danh sách phòng',
+      occupancy: 'Đang ở: {{occupied}}/{{capacity}}',
+      bedsTitle: 'Giường',
+      residentsTitle: 'Cư dân phụ trách',
+      noResidents: 'Không có cư dân bạn phụ trách',
     },
     mealSupport: {
       title: 'Hỗ trợ bữa ăn',

@@ -9,6 +9,10 @@ import { AUTH } from '../../api/endpoints';
 const COLOR = '#1B3A6B';
 const NS = 'forgotPassword';
 
+// Regex email giống Web & backend validateEmail: ^[^\s@]+@[^\s@]+\.[^\s@]{2,}$
+// (ít nhất một ký tự trước @, một ký tự giữa @ và dấu chấm, và 2+ ký tự sau dấu chấm)
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
 export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
@@ -18,18 +22,25 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
   const [sent, setSent] = useState(false);
 
   const handleSubmit = async () => {
-    if (!email.trim()) {
+    const trimmed = email.trim();
+    if (!trimmed) {
       setError(t(`${NS}.warnEmailRequired`));
+      return;
+    }
+    if (!EMAIL_REGEX.test(trimmed)) {
+      setError(t(`${NS}.warnInvalidEmail`));
       return;
     }
     setError('');
     setLoading(true);
     try {
-      await api.post(AUTH.FORGOT_PASSWORD, { email: email.trim().toLowerCase() });
+      // Backend trả cùng một response bất kể email có tồn tại hay không (chống liệt kê tài khoản).
+      await api.post(AUTH.FORGOT_PASSWORD, { email: trimmed.toLowerCase() });
       setSent(true);
     } catch (err: any) {
       const status = err.response?.status;
       if (status === 404) setError(t(`${NS}.errorEmailNotFound`));
+      else if (status === 429) setError(t(`${NS}.errorRateLimited`));
       else setError(t(`${NS}.errorGeneric`));
     } finally {
       setLoading(false);
@@ -51,19 +62,19 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
               <Text style={styles.subtitle}>{t(`${NS}.successMessage`, { email: email.trim() })}</Text>
 
               <Button
-                mode="text"
-                textColor={COLOR}
+                mode="contained"
+                buttonColor={COLOR}
                 onPress={() => navigation.navigate('ResetPassword')}
-                style={{ marginTop: 16 }}
+                style={styles.button}
+                contentStyle={{ height: 48 }}
               >
                 {t(`${NS}.haveTokenButton`)}
               </Button>
               <Button
-                mode="contained"
-                buttonColor={COLOR}
+                mode="text"
+                textColor={COLOR}
                 onPress={() => navigation.navigate('Login')}
-                style={styles.button}
-                contentStyle={{ height: 48 }}
+                style={{ marginTop: 8 }}
               >
                 {t(`${NS}.backToLogin`)}
               </Button>
@@ -79,6 +90,7 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
                 left={<TextInput.Icon icon="email-outline" />}
                 style={styles.input}
                 returnKeyType="go"
@@ -102,15 +114,6 @@ export const ForgotPasswordScreen: React.FC<{ navigation: any }> = ({ navigation
                 contentStyle={{ height: 48 }}
               >
                 {t(`${NS}.submit`)}
-              </Button>
-
-              <Button
-                mode="text"
-                textColor={COLOR}
-                onPress={() => navigation.navigate('ResetPassword')}
-                style={{ marginTop: 8 }}
-              >
-                {t(`${NS}.haveTokenButton`)}
               </Button>
             </>
           )}

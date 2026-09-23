@@ -7,6 +7,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { CalendarPicker } from '../../components/shared/CalendarPicker';
 import { BackHeader } from '../../components/layout/BackHeader';
 import { formatLocalDate } from '../../utils/date';
+import { useStatusLabel } from '../../utils/statusMap';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.dietPlans';
@@ -14,6 +15,8 @@ const today = () => formatLocalDate(new Date());
 
 export const DietPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
+  // mealType/dietType là enum thô của backend; dịch qua bảng `status.*` chung.
+  const statusLabel = useStatusLabel();
   const [workDate, setWorkDate] = useState(today());
   const [residentId, setResidentId] = useState('');
   const [detailResidentId, setDetailResidentId] = useState<string | null>(null);
@@ -47,7 +50,9 @@ export const DietPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
         )}
       </View>
 
-      <ScreenLayout loading={overviewQ.isLoading} error={overviewQ.error ? (overviewQ.error as Error).message : null}
+      {/* Không đẩy `error.message` của axios ra UI: đó là chuỗi kỹ thuật tiếng
+          Anh ("Request failed with status code 403"). Chỉ hiện câu tiếng Việt. */}
+      <ScreenLayout loading={overviewQ.isLoading} error={overviewQ.error ? t(`${NS}.loadError`) : null}
         onRetry={overviewQ.refetch} isEmpty={rows.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={rows} keyExtractor={(i: any) => i.residentId} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={overviewQ.isFetching} onRefresh={overviewQ.refetch} tintColor={COLOR} />}
@@ -85,7 +90,9 @@ export const DietPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 {detail?.mealPlan?.published ? (
                   (detail.mealPlan.meals ?? []).map((m: any, i: number) => (
                     <View key={i} style={styles.entryRow}>
-                      <Text style={styles.entryMeal}>{m.mealTime ?? ''} · {m.mealType}</Text>
+                      <Text style={styles.entryMeal}>
+                        {m.mealTime ? `${m.mealTime} · ` : ''}{statusLabel(m.mealType)}
+                      </Text>
                       <Text style={styles.entryName}>{m.mealName}</Text>
                       {m.nutritionNote ? <Text style={styles.entryNote}>{m.nutritionNote}</Text> : null}
                     </View>
@@ -100,8 +107,12 @@ export const DietPlansScreen: React.FC<{ navigation: any }> = ({ navigation }) =
                 {detail?.specialDiets?.published ? (
                   (detail.specialDiets.entries ?? []).map((e: any, i: number) => (
                     <View key={i} style={styles.entryRow}>
-                      <Text style={styles.entryMeal}>{e.dietType}</Text>
-                      {e.restrictions ? <Text style={styles.entryName}>{e.restrictions}</Text> : null}
+                      <Text style={styles.entryMeal}>{statusLabel(e.dietType)}</Text>
+                      {/* `restrictions` là mảng chuỗi (models/specialDietEntry.js);
+                          render thẳng sẽ dán dính các mục vào nhau. */}
+                      {e.restrictions?.length ? (
+                        <Text style={styles.entryName}>{e.restrictions.join(' · ')}</Text>
+                      ) : null}
                       {e.notes ? <Text style={styles.entryNote}>{e.notes}</Text> : null}
                     </View>
                   ))

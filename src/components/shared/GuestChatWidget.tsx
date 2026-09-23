@@ -6,6 +6,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useCreateGuestConversation, useGuestMessages, useSendGuestMessage } from '../../hooks/useGuestChat';
+import { mergeGuestThread } from '../../utils/mergeGuestThread';
 
 const COLOR = '#000666';
 // Matches the web guest-chat widget's bot-avatar/bubble colors exactly
@@ -25,11 +26,12 @@ const SUGGESTIONS: Suggestion[] = [
   { label: 'Dịch vụ chăm sóc', screen: 'Services', reply: 'Bạn có thể xem chi tiết các gói dịch vụ chăm sóc tại mục "Dịch vụ".' },
   { label: 'Bảng giá dịch vụ', screen: 'Pricing', reply: 'Bảng giá chi tiết các gói dịch vụ đang có tại mục "Bảng giá".' },
   { label: 'Đặt lịch tham quan cơ sở', screen: 'Contact', reply: 'Bạn có thể để lại thông tin ở mục "Liên hệ", đội ngũ tư vấn sẽ sắp xếp lịch tham quan cho bạn.' },
-  { label: 'Thủ tục nhập viện', screen: 'GuestAdmissionRequest', reply: 'Bạn có thể gửi yêu cầu nhập viện ngay trong mục "Đăng ký nhập viện".' },
+  { label: 'Thủ tục nhập viện', screen: 'Contact', reply: 'Bạn có thể để lại thông tin ở mục "Liên hệ", đội ngũ tư vấn sẽ hỗ trợ thủ tục nhập viện cho bạn.' },
   { label: 'Không gian sống & cơ sở vật chất', screen: 'Living', reply: 'Xem chi tiết không gian sống tại mục "Không gian sống".' },
 ];
 
 type BotMsg = { _id: string; isBot: true; content: string; screen?: string; sentAt: string };
+type LocalGuestMsg = { _id: string; content: string; sentAt: string; guestName: string };
 
 export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
@@ -40,8 +42,10 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState('');
   const [botMsgs, setBotMsgs] = useState<BotMsg[]>([]);
+  const [localGuestMsgs, setLocalGuestMsgs] = useState<LocalGuestMsg[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const lastThreadAtRef = useRef(0);
   const emailRef = useRef<any>(null);
   const phoneRef = useRef<any>(null);
 
@@ -67,7 +71,23 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
   // `messagesQ.data?.items` directly always missed the nested `.data`, so real guest
   // and staff messages silently never rendered (only client-only bot replies did).
   const items = messagesQ.data?.data?.items ?? messagesQ.data?.items ?? [];
-  const merged = [...items, ...botMsgs].sort((a: any, b: any) => new Date(a.sentAt).getTime() - new Date(b.sentAt).getTime());
+  const merged: any[] = mergeGuestThread(items as any, [...localGuestMsgs, ...botMsgs] as any);
+
+  const nextThreadSentAt = () => {
+    const latestServerAt = items.reduce(
+      (latest: number, item: any) => Math.max(latest, new Date(item.sentAt).getTime() || 0),
+      0,
+    );
+    const next = Math.max(Date.now(), latestServerAt, lastThreadAtRef.current) + 1;
+    lastThreadAtRef.current = next;
+    return new Date(next).toISOString();
+  };
+
+  useEffect(() => {
+    if (!merged.length) return;
+    // Newest message must stay visible — matches web widget bodyRef scrollTop=scrollHeight.
+    requestAnimationFrame(() => listRef.current?.scrollToEnd({ animated: true }));
+  }, [merged.length]);
 
   const validateContact = () => {
     const next: Record<string, string> = {};
@@ -99,12 +119,26 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
   };
 
   const handleSend = () => {
-    if (!draft.trim() || !conversationId) return;
+    const content = draft.trim();
+    if (!content || !conversationId) return;
     // Guest typed their own message instead of picking a suggestion — dismiss the
     // canned prompt instead of leaving it stuck on screen (matches web).
     setShowSuggestions(false);
-    sendMut.mutate({ content: draft.trim(), guestName: contact.name, guestEmail: contact.email || undefined, guestPhone: contact.phone || undefined });
+    const sentAt = nextThreadSentAt();
+    const localId = `local-${Date.now()}-${lastThreadAtRef.current}`;
+    setLocalGuestMsgs((prev) => [...prev, { _id: localId, content, sentAt, guestName: contact.name }]);
     setDraft('');
+    sendMut.mutate(
+      { content, guestName: contact.name, guestEmail: contact.email || undefined, guestPhone: contact.phone || undefined },
+      {
+        onSuccess: (response) => {
+          const serverMessage = response?.data ?? response;
+          if (!serverMessage?._id) return;
+          setLocalGuestMsgs((prev) => prev.map((m) => (m._id === localId ? { ...m, _id: serverMessage._id } : m)));
+        },
+        onError: () => setLocalGuestMsgs((prev) => prev.filter((m) => m._id !== localId)),
+      },
+    );
   };
 
   const handleSuggestion = (s: Suggestion) => {
@@ -112,10 +146,28 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
     // Matches web: picking a suggestion sends it as a real message and dismisses the
     // suggestion list (it stayed stuck on screen after every tap otherwise).
     setShowSuggestions(false);
-    sendMut.mutate({ content: s.label, guestName: contact.name, guestEmail: contact.email || undefined, guestPhone: contact.phone || undefined });
-    setTimeout(() => {
-      setBotMsgs((prev) => [...prev, { _id: `bot-${Date.now()}`, isBot: true, content: s.reply, screen: s.screen, sentAt: new Date().toISOString() }]);
-    }, 700);
+    const sentAt = nextThreadSentAt();
+    const localId = `local-${Date.now()}-${lastThreadAtRef.current}`;
+    const botId = `bot-${Date.now()}-${lastThreadAtRef.current}`;
+    const botSentAt = nextThreadSentAt();
+    setLocalGuestMsgs((prev) => [...prev, { _id: localId, content: s.label, sentAt, guestName: contact.name }]);
+    // This response is inserted immediately after its user message in the same local
+    // sequence. Its placement never depends on request timelines or on a wall-clock tie-break.
+    setBotMsgs((prev) => [...prev, { _id: botId, isBot: true, content: s.reply, screen: s.screen, sentAt: botSentAt }]);
+    sendMut.mutate(
+      { content: s.label, guestName: contact.name, guestEmail: contact.email || undefined, guestPhone: contact.phone || undefined },
+      {
+        onSuccess: (response) => {
+          const serverMessage = response?.data ?? response;
+          if (!serverMessage?._id) return;
+          setLocalGuestMsgs((prev) => prev.map((m) => (m._id === localId ? { ...m, _id: serverMessage._id } : m)));
+        },
+        onError: () => {
+          setLocalGuestMsgs((prev) => prev.filter((m) => m._id !== localId));
+          setBotMsgs((prev) => prev.filter((m) => m._id !== botId));
+        },
+      },
+    );
   };
 
   return (
@@ -163,9 +215,12 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
                 ) : (
                   <FlatList
                     ref={listRef}
+                    style={{ flex: 1 }}
                     data={merged}
                     keyExtractor={(m: any) => m._id}
                     contentContainerStyle={styles.msgList}
+                    onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
+                    onLayout={() => listRef.current?.scrollToEnd({ animated: false })}
                     renderItem={({ item }: any) => {
                       // Bot and staff replies are always "them" (left, light bubble); only
                       // the guest's own typed messages are "mine" (right, navy bubble) —

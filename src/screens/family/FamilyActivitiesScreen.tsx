@@ -10,6 +10,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ResidentSwitcher } from '../../components/shared/ResidentSwitcher';
 import { useToast } from '../../utils/toast';
+import { useActivityCategoryLabel } from '../../utils/activityCategory';
 import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
@@ -18,6 +19,7 @@ const NS = 'family.activities';
 export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const showToast = useToast();
   const { t } = useTranslation();
+  const categoryLabel = useActivityCategoryLabel();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
 
@@ -94,7 +96,7 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
                       <StatusBadge status={item.status} size="md" />
                     </View>
                   </View>
-                  {item.category ? <Text style={styles.category}>{item.category}</Text> : null}
+                  {item.category ? <Text style={styles.category}>{categoryLabel(item.category)}</Text> : null}
                   {item.description ? <Text style={styles.desc} numberOfLines={2}>{item.description}</Text> : null}
                   <Text style={styles.meta}>
                     {item.scheduledAt ? new Date(item.scheduledAt).toLocaleString('vi-VN') : ''}

@@ -1,3 +1,5 @@
+import { useTranslation } from 'react-i18next';
+
 type StatusEntry = {
   i18nKey: string;
   bgColor: string;
@@ -5,7 +7,7 @@ type StatusEntry = {
   icon: string;
 };
 
-type Hue = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
+export type Hue = 'success' | 'warning' | 'danger' | 'info' | 'neutral';
 type Scheme = 'light' | 'dark';
 
 // Every status/severity below picks one of these five hue families instead of
@@ -34,6 +36,15 @@ const HUES: Record<Hue, Record<Scheme, { bg: string; text: string }>> = {
   },
 };
 
+/**
+ * Cặp màu nền/chữ của một hue, dùng cho những chỗ KHÔNG phải StatusBadge —
+ * ví dụ nút hành động trên thẻ. Trước đây các màn hình tự viết hex cố định
+ * (`#991B1B`, `#065F46`); những giá trị đó chỉ hợp nền sáng nên ở chế độ tối
+ * chúng rơi thành chữ tối trên nền tối. Đọc qua đây thì cả hai chế độ đều đạt
+ * tương phản vì dùng đúng bảng màu mà StatusBadge đang dùng.
+ */
+export const getHueColors = (hue: Hue, scheme: Scheme = 'light') => HUES[hue][scheme];
+
 const map: Record<string, { hue: Hue; icon: string }> = {
   // CareTask statuses
   pending:     { hue: 'warning', icon: 'clock-outline' },
@@ -44,6 +55,11 @@ const map: Record<string, { hue: Hue; icon: string }> = {
 
   // CareAppointment statuses
   scheduled:   { hue: 'info', icon: 'calendar-clock' },
+
+  // Activity statuses (models/enums.js -> ACTIVITY_STATUSES).
+  // `ongoing` là trạng thái backend tự gán trong syncActivityStatusIfNeeded khi
+  // now nằm giữa scheduledAt và endAt — thiếu nó thì UI rò ra chữ "ongoing".
+  ongoing:     { hue: 'warning', icon: 'play-circle-outline' },
 
   // Shift statuses
   draft:       { hue: 'warning', icon: 'file-edit-outline' },
@@ -60,8 +76,19 @@ const map: Record<string, { hue: Hue; icon: string }> = {
   MISSED:      { hue: 'danger', icon: 'close-circle' },
   SKIPPED:     { hue: 'danger', icon: 'skip-next' },
   OVERDUE:     { hue: 'warning', icon: 'alert-outline' },
+  // Bốn trạng thái còn lại của SCHEDULE_STATUSES. HELD sinh ra khi bác sĩ tạm
+  // ngưng đơn, DISCONTINUED khi huỷ đơn — cả hai đều xuất hiện trong dữ liệu
+  // thật nên phải có hue/icon riêng, nếu không badge rơi về neutral + chữ thô.
+  REFUSED:       { hue: 'danger', icon: 'hand-back-left' },
+  HELD:          { hue: 'warning', icon: 'pause-circle-outline' },
+  NOT_AVAILABLE: { hue: 'warning', icon: 'package-variant-closed-remove' },
+  DISCONTINUED:  { hue: 'neutral', icon: 'stop-circle-outline' },
 
   // Incident statuses
+  // `reported` không nằm trong enum schema nhưng vẫn tồn tại trong DB (seed cũ ghi
+  // bằng updateOne nên Mongoose bỏ qua validator). Thiếu entry này thì StatusBadge
+  // rơi về nhánh fallback và in ra chuỗi thô "reported".
+  reported:      { hue: 'info', icon: 'clipboard-alert-outline' },
   open:          { hue: 'warning', icon: 'alert-circle-outline' },
   investigating: { hue: 'warning', icon: 'magnify' },
   resolved:      { hue: 'success', icon: 'check-circle-outline' },
@@ -149,5 +176,30 @@ export const getStatusEntry = (status?: string | null, scheme: Scheme = 'light')
   }
   const entry = map[status] ?? { hue: 'neutral' as Hue, icon: FALLBACK_ICON };
   const { bg, text } = HUES[entry.hue][scheme];
-  return { bgColor: bg, textColor: text, icon: entry.icon, i18nKey: `status.${status}` };
+  return { bgColor: bg, textColor: text, icon: entry.icon, i18nKey: getStatusI18nKey(status) };
+};
+
+/** Khoá i18n của một giá trị enum backend. Mọi nhãn đều đi qua bảng `status.*` duy nhất. */
+export const getStatusI18nKey = (value?: string | null): string => (value ? `status.${value}` : '');
+
+/**
+ * Lưới an toàn cuối cùng, chỉ chạy khi thiếu khoá i18n: "morning_care" -> "Morning care".
+ * Cố ý chỉ viết hoa chữ cái đầu — `textTransform: 'capitalize'` sẽ tạo ra
+ * "Morning_care" / "Chăm Sóc Buổi Sáng", nên không dùng ở tầng style.
+ */
+export const humanizeEnumValue = (value: string): string => {
+  const words = value.replace(/_/g, ' ').trim().toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
+/**
+ * Hook trả về hàm dịch enum -> nhãn người dùng đọc được.
+ * Dùng cho mọi chỗ hiển thị taskType/status/severity... thay vì tự `.replace(/_/g,' ')`.
+ */
+export const useStatusLabel = () => {
+  const { t } = useTranslation();
+  return (value?: string | null, fallback = ''): string => {
+    if (!value) return fallback;
+    return t(getStatusI18nKey(value), { defaultValue: humanizeEnumValue(value) });
+  };
 };

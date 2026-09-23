@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl } from 'react-native';
-import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Searchbar } from 'react-native-paper';
+import { Text, Card, Button, FAB, Dialog, Portal, TextInput, Searchbar, IconButton } from 'react-native-paper';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
@@ -38,12 +38,13 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
       setError(null);
       const res = await api.get(CONVERSATIONS.LIST);
       setConversations(res.data?.data ?? []);
-    } catch (err: any) {
-      setError(err?.message ?? String(err));
+    } catch {
+      // Chỉ hiện thông báo tiếng Việt, không đẩy message kỹ thuật của axios ra UI.
+      setError(t(`${NS}.loadError`));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -105,7 +106,13 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
 
   return (
     <View style={styles.flex}>
+      {/* Màn này nằm trong nhiều navigator (hộ lý, y tá, gia đình). Chỉ hiện mũi
+          tên quay lại khi stack thực sự có màn trước — không điều hướng cứng về
+          Home để mọi vai trò đều quay đúng chỗ vừa rời đi. */}
       <View style={[styles.topBar, { backgroundColor: COLOR, paddingTop: insets.top + 8 }]}>
+        {navigation.canGoBack() ? (
+          <IconButton icon="arrow-left" iconColor="#fff" size={22} onPress={() => navigation.goBack()} style={styles.backBtn} />
+        ) : null}
         <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
       </View>
 
@@ -164,7 +171,11 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
                     >
                       <Card.Content style={styles.staffRow}>
                         <Text style={styles.staffName}>{u.fullName || u.email}</Text>
-                        <Text style={styles.staffRole}>{u.role}</Text>
+                        {/* `u.role` là enum thô của backend; hiển thị qua bảng
+                            thuật ngữ sẵn có thay vì in "admin"/"nurse". */}
+                        <Text style={styles.staffRole}>
+                          {u.role ? t(`profile.roleLabels.${u.role}`, { defaultValue: '' }) : ''}
+                        </Text>
                       </Card.Content>
                     </Card>
                   ))
@@ -192,8 +203,9 @@ export const ConversationListScreen: React.FC<{ navigation: any }> = ({ navigati
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { paddingHorizontal: 16, paddingBottom: 16 },
-  topTitle: { color: '#fff', fontSize: 18, fontWeight: '700' },
+  topBar: { paddingHorizontal: 8, paddingBottom: 16, flexDirection: 'row', alignItems: 'center' },
+  backBtn: { margin: 0 },
+  topTitle: { color: '#fff', fontSize: 18, fontWeight: '700', marginLeft: 8 },
   list: { padding: 16, paddingBottom: 80 },
   card: { borderRadius: 12, marginBottom: 8, backgroundColor: '#fff' },
   row: { flexDirection: 'row', alignItems: 'center' },

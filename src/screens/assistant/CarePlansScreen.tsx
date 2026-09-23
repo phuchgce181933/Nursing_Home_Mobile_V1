@@ -1,19 +1,18 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { Text, Card, Chip } from 'react-native-paper';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 import { useMealPlans } from '../../hooks/useMealPlans';
 import { useSpecialDiets } from '../../hooks/useSpecialDiets';
 import { useNutritionSummary } from '../../hooks/useNutritionReports';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
+import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.carePlans';
 
-export const CarePlansScreen: React.FC = () => {
-  const insets = useSafeAreaInsets();
+export const CarePlansScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
 
   const MEAL_TYPE_LABEL: Record<string, string> = {
@@ -38,10 +37,15 @@ export const CarePlansScreen: React.FC = () => {
 
   return (
     <View style={styles.flex}>
-      <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Text style={styles.topTitle}>{t(`${NS}.title`)}</Text>
-        <Text style={styles.topSub}>{t(`${NS}.subtitle`)}</Text>
-      </View>
+      {/* Dùng chung BackHeader như "Chế độ ăn"/"Lịch phục hồi chức năng" để nút
+          Back có cùng icon, cỡ và khoảng cách; `goBack()` để không ràng buộc
+          vào một route cụ thể và phím Back cứng của Android vẫn hoạt động. */}
+      <BackHeader
+        title={t(`${NS}.title`)}
+        subtitle={t(`${NS}.subtitle`)}
+        color={COLOR}
+        onBack={() => navigation.goBack()}
+      />
 
       <ScrollView
         style={styles.flex}
@@ -119,9 +123,6 @@ export const CarePlansScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  topBar: { backgroundColor: COLOR, paddingHorizontal: 16, paddingBottom: 16 },
-  topTitle: { color: '#fff', fontSize: 16, fontWeight: '500' },
-  topSub: { color: 'rgba(255,255,255,0.7)', fontSize: 12, marginTop: 2 },
   body: { padding: 16, paddingBottom: 32 },
 
   summaryGrid: { flexDirection: 'row', gap: 8, marginBottom: 4 },

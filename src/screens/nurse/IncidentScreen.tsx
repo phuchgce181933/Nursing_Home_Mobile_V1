@@ -11,29 +11,55 @@ import { StatusBadge } from '../../components/shared/StatusBadge';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { useToast } from '../../utils/toast';
 import { getStatusEntry } from '../../utils/statusMap';
+import { useIncidentLabels, INCIDENT_SEVERITIES } from '../../utils/incidentLabels';
 import { useAppTheme } from '../../theme/useAppTheme';
+import { useAuth } from '../../auth/useAuth';
 import type { AppColors } from '../../constants/theme';
 
 const NS = 'nurse.incidents';
-const NEXT_STATUS: Record<string, string> = { open: 'investigating', investigating: 'resolved', resolved: 'closed' };
+
+/**
+ * Vòng đời hợp lệ theo services/incidentService.js -> updateIncidentStatus:
+ * STATUS_ORDER = open -> investigating -> resolved -> closed (không lùi được).
+ *
+ * `reported` và `in_progress` là dữ liệu cũ nằm ngoài enum schema; backend coi
+ * chúng là index -1 nên vẫn cho chuyển tiếp. Không có 2 dòng này thì các sự cố
+ * đó hiện thẻ không có nút hành động nào — người dùng bị kẹt.
+ */
+const NEXT_STATUS: Record<string, string> = {
+  reported: 'investigating',
+  open: 'investigating',
+  in_progress: 'investigating',
+  investigating: 'resolved',
+  resolved: 'closed',
+};
 
 export const IncidentScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
-  const { colors, roleColor, scheme } = useAppTheme('nurse');
+  /**
+   * Màn này được đăng ký cho CẢ hai vai: NurseNavigator và AssistantNavigator.
+   * Trước đây nó khoá cứng `useAppTheme('nurse')` nên hộ lý cũng thấy màu xanh
+   * của điều dưỡng (#0F5040). Lấy vai từ phiên đăng nhập để mỗi vai dùng đúng
+   * token của mình trong ROLE_COLORS (điều dưỡng xanh, hộ lý nâu #6B4200).
+   *
+   * Chỉ áp cho màu THƯƠNG HIỆU/ĐIỀU HƯỚNG. Màu mức độ và trạng thái sự cố vẫn
+   * do getStatusEntry/StatusBadge quyết định vì chúng mang nghĩa ngữ nghĩa.
+   */
+  const { user } = useAuth();
+  const { colors, roleColor, scheme } = useAppTheme(user?.role);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const [filter, setFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ incidentType: '', description: '', severity: 'medium', location: '' });
 
+  const { getIncidentTypeLabel, getIncidentSeverityLabel, getIncidentStatusLabel } = useIncidentLabels();
+
   const SEV_FILTERS = [
     { value: '', label: t(`${NS}.filterAll`) },
-    { value: 'low', label: t(`${NS}.filterLow`) },
-    { value: 'medium', label: t(`${NS}.filterMedium`) },
-    { value: 'high', label: t(`${NS}.filterHigh`) },
-    { value: 'critical', label: t(`${NS}.filterCritical`) },
+    ...INCIDENT_SEVERITIES.map(s => ({ value: s, label: getIncidentSeverityLabel(s) })),
   ];
   const NEXT_LABEL: Record<string, string> = {
     investigating: t(`${NS}.actionInvestigate`), resolved: t(`${NS}.actionResolve`), closed: t(`${NS}.actionClose`),
@@ -41,6 +67,11 @@ export const IncidentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
 
   const listQ = useQuery({ queryKey: ['incidents', filter], queryFn: async () => (await api.get(INCIDENTS.LIST, { params: { severity: filter || undefined } })).data });
   const items = listQ.data?.items ?? [];
+  // Axios ném ra "Request failed with status code 500" — chuỗi tiếng Anh kỹ thuật.
+  // Ưu tiên message tiếng Việt do backend trả về, cuối cùng mới dùng câu mặc định.
+  const listError = listQ.error
+    ? ((listQ.error as any)?.response?.data?.message ?? t(`${NS}.loadError`))
+    : null;
 
   const createMut = useMutation({
     mutationFn: async () => (await api.post(INCIDENTS.CREATE, { ...form, incidentAt: new Date().toISOString() })).data,
@@ -63,7 +94,7 @@ export const IncidentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
       <View style={styles.filterRow}>
         {SEV_FILTERS.map(f => <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)} style={filter === f.value ? { backgroundColor: roleColor } : undefined} textStyle={filter === f.value ? { color: '#fff' } : undefined} compact>{f.label}</Chip>)}
       </View>
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
+      <ScreenLayout loading={listQ.isLoading} error={listError} onRetry={listQ.refetch} isEmpty={items.length === 0} emptyMessage={t(`${NS}.empty`)}>
         <FlatList data={items} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list} refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={roleColor} />}
           renderItem={({ item }) => {
             const next = NEXT_STATUS[item.status];
@@ -74,13 +105,13 @@ export const IncidentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
                   <View style={styles.row}>
                     <MaterialCommunityIcons name="alert-circle" size={24} color={sevEntry.textColor} />
                     <View style={{ flex: 1, marginLeft: 10 }}>
-                      <Text style={styles.name}>{item.incidentType}</Text>
+                      <Text style={styles.name}>{getIncidentTypeLabel(item.incidentType, t(`${NS}.typeUnknown`))}</Text>
                       <Text style={styles.desc} numberOfLines={2}>{item.description}</Text>
                       <Text style={styles.sub}>{item.incidentAt ? new Date(item.incidentAt).toLocaleString('vi-VN') : ''}{item.location ? ` · ${item.location}` : ''}</Text>
                     </View>
                     <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                      <StatusBadge status={item.severity} size="sm" />
-                      <StatusBadge status={item.status} size="sm" />
+                      <StatusBadge status={item.severity} size="sm" label={getIncidentSeverityLabel(item.severity)} />
+                      <StatusBadge status={item.status} size="sm" label={getIncidentStatusLabel(item.status)} />
                     </View>
                   </View>
                 </Card.Content>
@@ -102,11 +133,11 @@ export const IncidentScreen: React.FC<{ navigation?: any }> = ({ navigation }) =
             <Text style={styles.charCount}>{form.description.length}/500</Text>
             <Text style={{ fontSize: 13, color: colors.textSecondary, marginBottom: 4 }}>{t(`${NS}.severityLabel`)}</Text>
             <View style={styles.sevRow}>
-              {(['low', 'medium', 'high', 'critical'] as const).map(s => {
+              {INCIDENT_SEVERITIES.map(s => {
                 const sEntry = getStatusEntry(s, scheme);
                 return (
                   <Chip key={s} selected={form.severity === s} onPress={() => setForm(f => ({ ...f, severity: s }))} compact style={form.severity === s ? { backgroundColor: sEntry.textColor } : undefined} textStyle={form.severity === s ? { color: '#fff' } : undefined}>
-                    {t(`${NS}.filter${s.charAt(0).toUpperCase()}${s.slice(1)}`)}
+                    {getIncidentSeverityLabel(s)}
                   </Chip>
                 );
               })}

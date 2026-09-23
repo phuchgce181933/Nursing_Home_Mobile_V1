@@ -6,20 +6,53 @@ import { useTranslation } from 'react-i18next';
 import { useCaregiverResidents, useCaregiverResidentDetail } from '../../hooks/useResidents';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { cleanList, splitAllergies, useResidentLabels } from '../../utils/residentLabels';
 
 const COLOR = '#6B4200';
 const NS = 'assistant.residents';
 
+/**
+ * Cư dân được phân công (hộ lý).
+ *
+ * `GET /api/caregiver/residents` trả về khối vị trí đã populate dưới dạng OBJECT:
+ *   room     { _id, roomNumber, label: 'Phòng 101' }
+ *   floor    { _id, name: 'Tầng 1', floorNumber, label: 'Tầng 1 · Tòa điều dưỡng chính' }
+ *   building { _id, code, name: 'Tòa điều dưỡng chính' }
+ *   bed      { _id, bedCode: '101-A', bedType }
+ * (services/assignedResidentService.js -> formatResident/mapAreaFromRoom)
+ *
+ * Nội suy thẳng các object này vào chuỗi sinh ra "[object Object]" — đó chính là
+ * lỗi cũ. Mọi nhãn vị trí/nhóm máu/dị ứng đều đi qua `useResidentLabels`, vốn áp
+ * đúng thứ tự ưu tiên mà Web dùng (Fe/src/utils/residentArea.js) nên cùng một cư
+ * dân đọc ra giống hệt nhau trên hai nền tảng.
+ */
 export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [detailId, setDetailId] = useState<string | null>(null);
+  const { getArea, getBloodTypeLabel } = useResidentLabels();
 
   const listQ = useCaregiverResidents({ search: search || undefined });
   const residents = listQ.data?.data ?? [];
 
   const detailQ = useCaregiverResidentDetail(detailId ?? undefined);
   const resident = detailQ.data?.data ?? detailQ.data;
+
+  const notUpdated = t('profile.notUpdated');
+
+  /** Dị ứng trên thẻ danh sách: cùng cách ghép của Web `formatAllergies`. */
+  const allergySummary = (item: any): string => {
+    const { drug, other } = splitAllergies(item);
+    const parts: string[] = [];
+    if (drug.length) parts.push(`${t(`${NS}.allergiesDrug`)}: ${drug.join(', ')}`);
+    if (other.length) parts.push(`${t(`${NS}.allergiesOther`)}: ${other.join(', ')}`);
+    return parts.join(' · ');
+  };
+
+  const detail = resident ? getArea(resident) : { building: '', floor: '', room: '', bed: '' };
+  const detailAllergies = splitAllergies(resident);
+  const chronic = cleanList(resident?.chronicConditions);
+  const bloodType = getBloodTypeLabel(resident?.bloodType);
 
   return (
     <View style={styles.flex}>
@@ -34,29 +67,38 @@ export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigat
         />
       </View>
 
-      <ScreenLayout loading={listQ.isLoading} error={listQ.error ? (listQ.error as Error).message : null}
-        onRetry={listQ.refetch} isEmpty={residents.length === 0} emptyMessage={t(`${NS}.empty`)}>
+      <ScreenLayout
+        loading={listQ.isLoading}
+        // Không in message của axios — đó là chuỗi kỹ thuật tiếng Anh.
+        error={listQ.error ? t(`${NS}.loadError`) : null}
+        onRetry={listQ.refetch}
+        isEmpty={residents.length === 0}
+        emptyMessage={t(`${NS}.empty`)}
+      >
         <FlatList data={residents} keyExtractor={(i: any) => i._id} contentContainerStyle={styles.list}
           refreshControl={<RefreshControl refreshing={listQ.isFetching} onRefresh={listQ.refetch} tintColor={COLOR} />}
-          renderItem={({ item }) => (
-            <Card style={styles.card} mode="outlined" onPress={() => setDetailId(item._id)}>
-              <Card.Content style={styles.row}>
-                <View style={[styles.avatar, { backgroundColor: COLOR + '15' }]}>
-                  <MaterialCommunityIcons name="account" size={22} color={COLOR} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name}>{item.fullName}</Text>
-                  <Text style={styles.meta}>{item.residentCode} {item.room ? `· ${t(`${NS}.room`)} ${item.room}` : ''}</Text>
-                  {(item.drugAllergies?.length || item.allergies?.length) ? (
-                    <Text style={styles.allergyText} numberOfLines={1}>
-                      {t(`${NS}.allergies`)}: {[...(item.drugAllergies ?? []), ...(item.allergies ?? [])].join(', ')}
-                    </Text>
-                  ) : null}
-                </View>
-                <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
-              </Card.Content>
-            </Card>
-          )} />
+          renderItem={({ item }) => {
+            const area = getArea(item);
+            const allergies = allergySummary(item);
+            const meta = [item.residentCode, area.room, area.bed].filter(Boolean).join(' · ');
+            return (
+              <Card style={styles.card} mode="outlined" onPress={() => setDetailId(item._id)}>
+                <Card.Content style={styles.row}>
+                  <View style={[styles.avatar, { backgroundColor: COLOR + '15' }]}>
+                    <MaterialCommunityIcons name="account" size={22} color={COLOR} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.name}>{item.fullName}</Text>
+                    <Text style={styles.meta}>{meta}</Text>
+                    {allergies ? (
+                      <Text style={styles.allergyText} numberOfLines={1}>{allergies}</Text>
+                    ) : null}
+                  </View>
+                  <MaterialCommunityIcons name="chevron-right" size={22} color="#9CA3AF" />
+                </Card.Content>
+              </Card>
+            );
+          }} />
       </ScreenLayout>
 
       <Portal>
@@ -67,19 +109,25 @@ export const AssignedResidentsScreen: React.FC<{ navigation: any }> = ({ navigat
               <Text style={styles.loadingText}>{t('common.loading')}</Text>
             ) : (
               <View style={{ paddingVertical: 8 }}>
-                <Text style={styles.detailRow}>{t(`${NS}.residentCode`)}: {resident?.residentCode ?? '—'}</Text>
-                <Text style={styles.detailRow}>{t(`${NS}.age`)}: {resident?.age ?? '—'}</Text>
-                <Text style={styles.detailRow}>{t(`${NS}.bloodType`)}: {resident?.bloodType ?? '—'}</Text>
-                <Text style={styles.detailRow}>
-                  {t(`${NS}.location`)}: {[resident?.building, resident?.floor, resident?.room, resident?.bed].filter(Boolean).join(' · ') || '—'}
-                </Text>
+                <Text style={styles.detailRow}>{t(`${NS}.residentCode`)}: {resident?.residentCode || notUpdated}</Text>
+                <Text style={styles.detailRow}>{t(`${NS}.age`)}: {resident?.age ?? notUpdated}</Text>
+                {/* bloodType mặc định của schema là 'unknown' — Web ẩn hẳn dòng này,
+                    Mobile hiển thị "Chưa cập nhật" thay vì in ra chữ "unknown". */}
+                <Text style={styles.detailRow}>{t(`${NS}.bloodType`)}: {bloodType || notUpdated}</Text>
+                <Text style={styles.detailRow}>{t(`${NS}.building`)}: {detail.building || notUpdated}</Text>
+                <Text style={styles.detailRow}>{t(`${NS}.floor`)}: {detail.floor || notUpdated}</Text>
+                <Text style={styles.detailRow}>{t(`${NS}.room`)}: {detail.room || notUpdated}</Text>
+                <Text style={styles.detailRow}>{t(`${NS}.bed`)}: {detail.bed || notUpdated}</Text>
                 <Divider style={{ marginVertical: 10 }} />
+                {/* Hai cột dị ứng KHÔNG được hoán đổi: `drugAllergies` -> "Dị ứng thuốc",
+                    phần còn lại của `allergies` -> "Dị ứng khác" (quy tắc của Web
+                    pickDrugAllergiesList + formatAllergies). */}
                 <Text style={styles.sectionTitle}>{t(`${NS}.drugAllergies`)}</Text>
-                <Text style={styles.detailText}>{resident?.drugAllergies?.length ? resident.drugAllergies.join(', ') : t(`${NS}.none`)}</Text>
+                <Text style={styles.detailText}>{detailAllergies.drug.length ? detailAllergies.drug.join(', ') : t(`${NS}.none`)}</Text>
                 <Text style={[styles.sectionTitle, { marginTop: 8 }]}>{t(`${NS}.otherAllergies`)}</Text>
-                <Text style={styles.detailText}>{resident?.allergies?.length ? resident.allergies.join(', ') : t(`${NS}.none`)}</Text>
+                <Text style={styles.detailText}>{detailAllergies.other.length ? detailAllergies.other.join(', ') : t(`${NS}.none`)}</Text>
                 <Text style={[styles.sectionTitle, { marginTop: 8 }]}>{t(`${NS}.chronicConditions`)}</Text>
-                <Text style={styles.detailText}>{resident?.chronicConditions?.length ? resident.chronicConditions.join(', ') : t(`${NS}.none`)}</Text>
+                <Text style={styles.detailText}>{chronic.length ? chronic.join(', ') : t(`${NS}.none`)}</Text>
                 {resident?.initialHealthCondition ? (
                   <>
                     <Text style={[styles.sectionTitle, { marginTop: 8 }]}>{t(`${NS}.healthCondition`)}</Text>

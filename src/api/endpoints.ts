@@ -78,6 +78,8 @@ export const CAREGIVER = {
   CARE_TASK_DETAIL: (id: string) => `/api/caregiver/care-tasks/${id}`,
   CARE_TASK_STATUS: (id: string) => `/api/caregiver/care-tasks/${id}/status`,
   RESIDENTS: '/api/caregiver/residents',
+  // Chỉ các phòng có cư dân được phân công cho hộ lý đang đăng nhập.
+  ROOMS: '/api/caregiver/residents/rooms',
   RESIDENT_DETAIL: (id: string) => `/api/caregiver/residents/${id}`,
   RESIDENT_PHOTOS: (residentId: string) => `/api/caregiver/residents/${residentId}/photos`,
   RESIDENT_PHOTO_DELETE: (residentId: string, photoId: string) => `/api/caregiver/residents/${residentId}/photos/${photoId}`,
@@ -188,6 +190,8 @@ export const FAMILY = {
   WALLET_TOPUP_VERIFY: '/api/family/wallet/topup/verify',
   WALLET_PAYMENT_INITIATE: '/api/family/wallet/payments/initiate',
   WALLET_PAYMENT_VERIFY: '/api/family/wallet/payments/verify',
+  WALLET_TRANSACTIONS: '/api/family/wallet/transactions',
+  WALLET_TRANSACTION_DETAIL: (transactionId: string) => `/api/family/wallet/transactions/${transactionId}`,
   VITALS: (residentId: string) => `/api/family/residents/${residentId}/vitals`,
   HEALTH_HISTORY: (residentId: string) => `/api/family/residents/${residentId}/health-history`,
   HEALTH_CHART: (residentId: string) => `/api/family/residents/${residentId}/health-chart`,

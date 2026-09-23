@@ -9,7 +9,26 @@ const LAN_DEV_IP = process.env.EXPO_PUBLIC_LAN_IP ?? '172.20.10.2';
 const PORT = 3000;
 
 const resolveBaseUrl = (): string => {
-  if (process.env.EXPO_PUBLIC_API_URL) return process.env.EXPO_PUBLIC_API_URL;
+  const explicit = process.env.EXPO_PUBLIC_API_URL;
+
+  // Bản RELEASE bắt buộc trỏ tới một backend HTTPS công khai thật. KHÔNG bao giờ rơi về
+  // localhost/10.0.2.2/IP LAN hay HTTP cleartext (những giá trị đó chỉ tồn tại trên máy dev và
+  // cleartext bị chặn trong release theo thiết kế). Nếu EXPO_PUBLIC_API_URL thiếu hoặc không phải
+  // https thì đây là lỗi cấu hình build — fail fast thay vì âm thầm kết nối sai (PART 1).
+  if (!__DEV__) {
+    if (explicit && /^https:\/\//i.test(explicit)) return explicit;
+    // Sai cấu hình build: KHÔNG rơi về HTTP/localhost/LAN (cleartext bị chặn trong release theo
+    // thiết kế). Ghi log rõ ràng và trả base rỗng để mọi request thất bại "sạch" với thông báo
+    // "Không thể kết nối tới máy chủ" thay vì âm thầm gọi sai địa chỉ (PART 1).
+    console.error(
+      '[axiosInstance] EXPO_PUBLIC_API_URL phải là URL HTTPS công khai trong bản release ' +
+        '(ví dụ https://api.annhiencarehome.vn). Hiện chưa cấu hình → không thể kết nối backend.'
+    );
+    return '';
+  }
+
+  // DEV: cho phép LAN/emulator/web (và EXPO_PUBLIC_API_URL nếu có, kể cả http để tiện thử tunnel).
+  if (explicit) return explicit;
   if (Platform.OS === 'web') return `http://localhost:${PORT}`;
   if (Platform.OS === 'android') {
     return Device.isDevice ? `http://${LAN_DEV_IP}:${PORT}` : `http://10.0.2.2:${PORT}`;

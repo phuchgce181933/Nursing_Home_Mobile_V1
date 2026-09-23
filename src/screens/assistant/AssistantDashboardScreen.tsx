@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, Pressable } from 'react-native';
 import { Text, ProgressBar } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -9,20 +9,22 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useCaregiverTasks } from '../../hooks/useTasks';
-import { getStatusEntry } from '../../utils/statusMap';
+import { getStatusEntry, useStatusLabel } from '../../utils/statusMap';
+import { useAppTheme } from '../../theme/useAppTheme';
+import type { AppColors } from '../../constants/theme';
 import { formatLocalDate } from '../../utils/date';
 
-const COLOR = '#6B4200';
 const NS = 'assistant.dashboard';
 const today = () => formatLocalDate(new Date());
 
-const STATUS_ICON: Record<string, { name: string; color: string }> = {
-  completed: { name: 'check-circle', color: '#065F46' },
-  in_progress: { name: 'progress-clock', color: '#92400E' },
-  pending: { name: 'clock-outline', color: '#92400E' },
-  skipped: { name: 'close-circle', color: '#991B1B' },
-  missed: { name: 'alert-circle', color: '#991B1B' },
-};
+/**
+ * Trạng thái còn phải xử lý, theo đúng VALID_TRANSITIONS của backend
+ * (services/careTaskService.js): `completed`, `skipped` và `missed` đều là
+ * trạng thái KẾT THÚC (danh sách chuyển tiếp rỗng), chỉ `pending` và
+ * `in_progress` mới còn việc để làm. Vì vậy "Còn lại" KHÔNG phải Tổng − Xong:
+ * một nhiệm vụ bị bỏ qua hay bị lỡ đã đóng, không nằm trong việc còn lại.
+ */
+const OPEN_STATUSES = ['pending', 'in_progress'];
 
 const FEATURES = [
   { icon: 'clock-outline', labelKey: 'featureShifts', screen: 'MyShifts', color: '#1565C0' },
@@ -40,11 +42,15 @@ const FEATURES = [
 export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
+  const { colors, roleColor, scheme } = useAppTheme('caregiver');
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const taskTypeLabel = useStatusLabel();
   const tasksQ = useCaregiverTasks({ workDate: today() });
   const tasks = tasksQ.data?.data ?? tasksQ.data ?? [];
 
-  const completedCount = tasks.filter((t: any) => t.status === 'completed').length;
   const totalCount = tasks.length;
+  const completedCount = tasks.filter((tk: any) => tk.status === 'completed').length;
+  const remainingCount = tasks.filter((tk: any) => OPEN_STATUSES.includes(tk.status)).length;
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
 
   return (
@@ -55,14 +61,15 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
         stats={[
           { value: totalCount, label: t(`${NS}.total`), icon: 'format-list-checks' },
           { value: completedCount, label: t(`${NS}.done`), icon: 'check-circle-outline' },
-          { value: totalCount - completedCount, label: t(`${NS}.remaining`), icon: 'clock-outline' },
+          { value: remainingCount, label: t(`${NS}.remaining`), icon: 'clock-outline' },
         ]}
-        roleColor={COLOR}
+        roleColor={roleColor}
       />
 
       <ScreenLayout
         loading={tasksQ.isLoading}
-        error={tasksQ.error ? (tasksQ.error as Error).message : null}
+        // Không in message của axios ra màn hình — đó là chuỗi kỹ thuật tiếng Anh.
+        error={tasksQ.error ? t(`${NS}.loadError`) : null}
         onRetry={tasksQ.refetch}
         isEmpty={tasks.length === 0}
         emptyMessage={t(`${NS}.empty`)}
@@ -71,17 +78,17 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
           data={tasks}
           keyExtractor={(item: any) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={tasksQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={tasksQ.refetch} tintColor={roleColor} />}
           ListHeaderComponent={
             <View>
               <View style={styles.progressSection}>
-                <ProgressBar progress={progress} color={COLOR} style={styles.progressBar} />
+                <ProgressBar progress={progress} color={roleColor} style={styles.progressBar} />
                 <Text style={styles.progressText}>
                   {t(`${NS}.progressText`, { percent: Math.round(progress * 100), done: completedCount, total: totalCount })}
                 </Text>
               </View>
 
-              <SectionHeader title={t(`${NS}.featuresTitle`)} roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.featuresTitle`)} roleColor={roleColor} />
               <View style={styles.grid}>
                 {FEATURES.map(f => (
                   <Pressable key={f.screen} style={styles.featureCard}
@@ -94,26 +101,38 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
                 ))}
               </View>
 
-              <SectionHeader title={t(`${NS}.tasksTitle`)} roleColor={COLOR} />
+              <SectionHeader title={t(`${NS}.tasksTitle`)} roleColor={roleColor} />
             </View>
           }
           renderItem={({ item }) => {
-            const iconCfg = STATUS_ICON[item.status] ?? STATUS_ICON.pending;
-            const entry = getStatusEntry(item.taskType);
-            const taskTypeLabel = entry.i18nKey ? t(entry.i18nKey, { defaultValue: item.taskType?.replace(/_/g, ' ') }) : item.taskType?.replace(/_/g, ' ');
+            // Icon/màu lấy từ bảng trạng thái dùng chung thay vì bảng hex riêng
+            // của màn này — bảng cũ chỉ đúng ở chế độ sáng.
+            const entry = getStatusEntry(item.status, scheme);
+            const room = item.residentId?.roomId?.roomNumber;
+            // API đã populate roomId.roomNumber (careTaskRepository.POPULATE) —
+            // trước đây Mobile bỏ luôn field này.
+            const subtitle = [
+              item.residentId?.fullName,
+              room ? t(`${NS}.roomLabel`, { number: room }) : null,
+              item.scheduledTime,
+            ].filter(Boolean).join(' · ');
             return (
-              <View style={styles.taskRow}>
-                <MaterialCommunityIcons name={iconCfg.name as any} size={24} color={iconCfg.color} />
+              <Pressable
+                style={styles.taskRow}
+                onPress={() => navigation?.navigate('TaskList')}
+                android_ripple={{ color: roleColor + '22' }}
+              >
+                <MaterialCommunityIcons name={entry.icon as any} size={24} color={entry.textColor} />
                 <View style={styles.taskInfo}>
                   <Text style={styles.taskTitle} numberOfLines={1}>
-                    {taskTypeLabel}
+                    {taskTypeLabel(item.taskType)}
                   </Text>
                   <Text style={styles.taskSub} numberOfLines={1}>
-                    {item.residentId?.fullName ?? ''} · {item.scheduledTime}
+                    {subtitle}
                   </Text>
                 </View>
                 <StatusBadge status={item.status} size="sm" />
-              </View>
+              </Pressable>
             );
           }}
         />
@@ -122,26 +141,27 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
   );
 };
 
-const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: '#F5F5F5' },
+const createStyles = (c: AppColors) => StyleSheet.create({
+  flex: { flex: 1, backgroundColor: c.background },
   list: { padding: 16, paddingBottom: 32 },
   progressSection: { marginBottom: 16 },
   progressBar: { borderRadius: 4, height: 8 },
-  progressText: { fontSize: 12, color: '#6B7280', marginTop: 4, textAlign: 'center' },
+  progressText: { fontSize: 12, color: c.textSecondary, marginTop: 4, textAlign: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 },
   featureCard: { width: '30%', alignItems: 'center', gap: 6, paddingVertical: 8 },
   featureIcon: { width: 52, height: 52, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  featureLabel: { fontSize: 11, fontWeight: '500', color: '#374151', textAlign: 'center' },
+  featureLabel: { fontSize: 11, fontWeight: '500', color: c.textSecondary, textAlign: 'center' },
   taskRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: c.surface,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
     gap: 10,
   },
   taskInfo: { flex: 1 },
-  taskTitle: { fontSize: 14, fontWeight: '500', color: '#111827', textTransform: 'capitalize' },
-  taskSub: { fontSize: 12, color: '#6B7280', marginTop: 2 },
+  // Nhãn loại nhiệm vụ đã là tiếng Việt viết hoa đúng chuẩn -> không 'capitalize'.
+  taskTitle: { fontSize: 14, fontWeight: '500', color: c.text },
+  taskSub: { fontSize: 12, color: c.textSecondary, marginTop: 2 },
 });

@@ -26,6 +26,8 @@ import { ContactScreen } from '../screens/public/ContactScreen';
 import { NurseNavigator } from './NurseNavigator';
 import { FamilyNavigator } from './FamilyNavigator';
 import { AssistantNavigator } from './AssistantNavigator';
+import { navigationRef } from './navigationRef';
+import { usePushNotifications } from '../hooks/usePushNotifications';
 
 const JUST_REGISTERED_KEY = 'justRegistered';
 
@@ -83,6 +85,10 @@ export const RootNavigator: React.FC = () => {
   const [justRegistered, setJustRegistered] = useState<boolean | null>(null);
   const { colors, isDark } = useAppTheme();
 
+  // Đăng ký push + gắn listener khi đã đăng nhập. Hook tự no-op trên Expo Go/emulator và khi
+  // chưa cấp quyền; role dùng để điều hướng theo allowlist khi người dùng chạm vào push.
+  usePushNotifications(user, token, user?.role);
+
   const navTheme = useMemo(() => ({
     ...(isDark ? NavDarkTheme : NavLightTheme),
     colors: {
@@ -107,11 +113,34 @@ export const RootNavigator: React.FC = () => {
     setJustRegistered(false);
   };
 
+  // React Navigation linking config: cho phép deep-link mở thẳng màn hình ResetPassword
+  // với token được truyền qua URL query. Hỗ trợ cả custom-scheme `nursinghomemobile://`
+  // lẫn https universal link tương ứng với backend FRONTEND_URL /reset-password?token=...
+  const linking = useMemo(
+    () => ({
+      prefixes: [
+        'nursinghomemobile://',
+        process.env.EXPO_PUBLIC_FRONTEND_URL || 'http://localhost:5173',
+        'https://annhiencarehome.vn',
+      ],
+      config: {
+        screens: {
+          Login: 'login',
+          ForgotPassword: 'forgot-password',
+          ResetPassword: 'reset-password',
+          Register: 'register',
+          Welcome: '',
+        },
+      },
+    }),
+    [],
+  );
+
   if (isLoading) return <SplashView />;
   if (isAuthenticated && effectiveJustRegistered === null) return <SplashView />;
 
   return (
-    <NavigationContainer theme={navTheme}>
+    <NavigationContainer ref={navigationRef} theme={navTheme} linking={linking}>
       {isAuthenticated ? (
         <AppStack.Navigator screenOptions={{ headerShown: false }}>
           {user.role === 'family' && effectiveJustRegistered ? (

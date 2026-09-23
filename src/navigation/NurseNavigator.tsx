@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppTheme } from '../theme/useAppTheme';
 import { NurseDashboardScreen } from '../screens/nurse/NurseDashboardScreen';
 import { ResidentListScreen } from '../screens/nurse/ResidentListScreen';
+import { ResidentDetailScreen } from '../screens/nurse/ResidentDetailScreen';
 import { MedicationScreen } from '../screens/nurse/MedicationScreen';
 import { CreateCareNoteScreen } from '../screens/nurse/CreateCareNoteScreen';
 import { CareNoteListScreen } from '../screens/nurse/CareNoteListScreen';
@@ -39,6 +40,7 @@ import { EditProfileScreen } from '../screens/shared/EditProfileScreen';
 
 const Tab = createBottomTabNavigator();
 const DashStack = createNativeStackNavigator();
+const ResidentNavStack = createNativeStackNavigator();
 const NoteNavStack = createNativeStackNavigator();
 const MedNavStack = createNativeStackNavigator();
 const ProfileNavStack = createNativeStackNavigator();
@@ -70,6 +72,19 @@ const DashboardStack = () => (
     <DashStack.Screen name="Notifications" component={NotificationsScreen} />
     <DashStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
   </DashStack.Navigator>
+);
+
+/**
+ * Trước đây tab "Residents" trỏ thẳng vào màn danh sách nên không có chỗ nào để
+ * đẩy màn chi tiết; "chi tiết" phải nhét vào một Dialog 5 dòng. Bọc bằng stack
+ * để có route chi tiết thật, đồng thời nút Back của header tự bong lên tab
+ * navigator (backBehavior mặc định 'firstRoute') đúng như phím Back vật lý.
+ */
+const ResidentStack = () => (
+  <ResidentNavStack.Navigator screenOptions={{ headerShown: false }}>
+    <ResidentNavStack.Screen name="ResidentList" component={ResidentListScreen} />
+    <ResidentNavStack.Screen name="ResidentDetail" component={ResidentDetailScreen} />
+  </ResidentNavStack.Navigator>
 );
 
 const NoteStack = () => (
@@ -108,7 +123,7 @@ export const NurseNavigator: React.FC = () => {
       }}
     >
       <Tab.Screen name="Dashboard" component={DashboardStack} options={{ tabBarLabel: t('navigation.home'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="home-outline" size={size} color={color} /> }} />
-      <Tab.Screen name="Residents" component={ResidentListScreen} options={{ tabBarLabel: t('navigation.residents'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-group-outline" size={size} color={color} /> }} />
+      <Tab.Screen name="Residents" component={ResidentStack} options={{ tabBarLabel: t('navigation.residents'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-group-outline" size={size} color={color} /> }} />
       <Tab.Screen name="Medications" component={MedStack} options={{ tabBarLabel: t('navigation.medications'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="pill" size={size} color={color} /> }} />
       <Tab.Screen name="CareNotes" component={NoteStack} options={{ tabBarLabel: t('navigation.careNotes'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="note-edit-outline" size={size} color={color} /> }} />
       <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: t('navigation.profile'), tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="account-outline" size={size} color={color} /> }} />

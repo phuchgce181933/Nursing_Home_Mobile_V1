@@ -2,12 +2,25 @@ import { useMemo } from 'react';
 import { useThemeMode } from './ThemeContext';
 import { Colors, type AppColors } from '../constants/theme';
 import { getRoleColor } from './theme';
+import { getHueColors } from '../utils/statusMap';
+
+/** Màu chữ/viền cho hành động trên nền `colors.surface`, đã hợp tương phản ở cả 2 chế độ. */
+export type SemanticColors = {
+  danger: string;
+  success: string;
+  warning: string;
+  info: string;
+  /** Nền nhạt cùng tông, dùng cho chip/viền mảng lớn. */
+  dangerSoft: string;
+  successSoft: string;
+};
 
 export type AppTheme = {
   scheme: 'light' | 'dark';
   isDark: boolean;
   colors: AppColors;
   roleColor: string;
+  semantic: SemanticColors;
 };
 
 /**
@@ -23,6 +36,14 @@ export const useAppTheme = (role?: string): AppTheme => {
   const { effectiveScheme } = useThemeMode();
   const colors = Colors[effectiveScheme];
   const roleColor = useMemo(() => getRoleColor(role, effectiveScheme), [role, effectiveScheme]);
+  const semantic = useMemo<SemanticColors>(() => ({
+    danger: getHueColors('danger', effectiveScheme).text,
+    success: getHueColors('success', effectiveScheme).text,
+    warning: getHueColors('warning', effectiveScheme).text,
+    info: getHueColors('info', effectiveScheme).text,
+    dangerSoft: getHueColors('danger', effectiveScheme).bg,
+    successSoft: getHueColors('success', effectiveScheme).bg,
+  }), [effectiveScheme]);
 
-  return { scheme: effectiveScheme, isDark: effectiveScheme === 'dark', colors, roleColor };
+  return { scheme: effectiveScheme, isDark: effectiveScheme === 'dark', colors, roleColor, semantic };
 };
