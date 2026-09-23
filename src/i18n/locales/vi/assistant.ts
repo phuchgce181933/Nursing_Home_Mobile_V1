@@ -10,7 +10,6 @@ export default {
       loadError: 'Không thể tải công việc hôm nay',
       roomLabel: 'Phòng {{number}}',
       progressText: '{{percent}}% hoàn thành · {{done}}/{{total}}',
-      recordVitals: 'Ghi sinh hiệu',
       featuresTitle: 'Chức năng',
       // 9 chức năng đúng theo luồng nghiệp vụ hộ lý trên Web (routes/index.jsx),
       // giữ nguyên nhãn tiếng Việt.
@@ -212,20 +211,6 @@ export default {
       typeBathroomClean: 'VS phòng tắm',
       typeLinenChange: 'Thay ga',
       typeLaundry: 'Giặt đồ',
-    },
-    roomStatus: {
-      title: 'Tình trạng phòng ốc',
-      roomCount: '{{count}} phòng',
-      empty: 'Bạn chưa được phân công cư dân nào nên chưa có phòng để theo dõi',
-      loadError: 'Không tải được danh sách phòng',
-      statusAvailable: 'Trống',
-      statusFull: 'Đầy',
-      statusMaintenance: 'Bảo trì',
-      listTitle: 'Danh sách phòng',
-      occupancy: 'Đang ở: {{occupied}}/{{capacity}}',
-      bedsTitle: 'Giường',
-      residentsTitle: 'Cư dân phụ trách',
-      noResidents: 'Không có cư dân bạn phụ trách',
     },
     mealSupport: {
       title: 'Hỗ trợ bữa ăn',

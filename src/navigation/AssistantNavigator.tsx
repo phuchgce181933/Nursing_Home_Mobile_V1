@@ -9,7 +9,6 @@ import { TaskListScreen } from '../screens/assistant/TaskListScreen';
 import { HygieneScreen } from '../screens/assistant/HygieneScreen';
 import { MealSupportScreen } from '../screens/assistant/MealSupportScreen';
 import { DailyBehaviorScreen } from '../screens/assistant/DailyBehaviorScreen';
-import { RoomStatusScreen } from '../screens/assistant/RoomStatusScreen';
 import { CarePlansScreen } from '../screens/assistant/CarePlansScreen';
 import { PhotoUploadScreen } from '../screens/assistant/PhotoUploadScreen';
 import { MyShiftsScreen } from '../screens/assistant/MyShiftsScreen';
@@ -17,7 +16,6 @@ import { LeaveRequestScreen } from '../screens/assistant/LeaveRequestScreen';
 import { DietPlansScreen } from '../screens/assistant/DietPlansScreen';
 import { RehabilitationScheduleScreen } from '../screens/assistant/RehabilitationScheduleScreen';
 import { AssignedResidentsScreen } from '../screens/assistant/AssignedResidentsScreen';
-import { VitalSignsScreen } from '../screens/nurse/VitalSignsScreen';
 import { ActivityScheduleScreen } from '../screens/nurse/ActivityScheduleScreen';
 import { IncidentScreen } from '../screens/nurse/IncidentScreen';
 import { CareNoteListScreen as AssistantCareNoteListScreen } from '../screens/assistant/CareNoteListScreen';
@@ -37,8 +35,6 @@ const HomeStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false }}>
     <Stack.Screen name="AssistantHome" component={AssistantDashboardScreen} />
     <Stack.Screen name="TaskList" component={TaskListScreen} />
-    <Stack.Screen name="RoomStatus" component={RoomStatusScreen} />
-    <Stack.Screen name="Vitals" component={VitalSignsScreen} />
     <Stack.Screen name="MyShifts" component={MyShiftsScreen} />
     {/* Lịch hoạt động dùng chung với y tá; truyền role để tô màu nâu hộ lý (§25). */}
     <Stack.Screen name="Activities" component={ActivityScheduleScreen} initialParams={{ role: 'caregiver' }} />
