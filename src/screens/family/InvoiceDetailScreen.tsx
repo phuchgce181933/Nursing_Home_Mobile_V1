@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ScrollView, View, StyleSheet, Linking } from 'react-native';
 import { Text, Card, Button, Dialog, Portal } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useTranslation } from 'react-i18next';
+import { useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
 import { StatusBadge } from '../../components/shared/StatusBadge';
@@ -11,6 +12,7 @@ import { BackHeader } from '../../components/layout/BackHeader';
 import { useWalletOtpPayment } from '../../components/family/WalletOtpDialog';
 import { useToast } from '../../utils/toast';
 import { getStatusEntry } from '../../utils/statusMap';
+import { InvoicePayosQrView, type InvoicePayosResult } from './InvoicePayosQrView';
 
 const COLOR = '#2E7D32';
 const NS = 'family.invoiceDetail';
@@ -29,11 +31,61 @@ const CostRow: React.FC<{ icon: string; label: string; amount: number; color?: s
 export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({ route, navigation }) => {
   const toast = useToast();
   const { t } = useTranslation();
+  const qc = useQueryClient();
   const invoice = route.params?.invoice;
   const residentId = route.params?.residentId;
 
   const [showPayDialog, setShowPayDialog] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+
+  // Thanh toán online PayOS ngay trong app (giống luồng nạp ví): tạo checkout →
+  // hiện QR/thông tin chuyển khoản → poll xác thực server-to-server → chỉ báo
+  // thành công sau khi backend xác nhận PAID.
+  const [payosData, setPayosData] = useState<InvoicePayosResult | null>(null);
+  const [payosStatus, setPayosStatus] = useState<'polling' | 'success' | 'failed'>('polling');
+  const [creatingPayos, setCreatingPayos] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Số lần poll trả về PENDING liên tiếp trước khi coi là hết hạn (~5 phút @3s).
+  const pollTicksRef = useRef(0);
+  const MAX_POLL_TICKS = 100;
+
+  const stopPolling = () => {
+    if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+  };
+
+  // Dọn interval khi rời màn hình để tránh rò rỉ / gọi API sau khi unmount.
+  useEffect(() => () => stopPolling(), []);
+
+  const invalidateInvoiceQueries = () => {
+    qc.invalidateQueries({ queryKey: ['familyInvoices'] });
+    qc.invalidateQueries({ queryKey: ['billingSummary'] });
+  };
+
+  const startPolling = () => {
+    stopPolling();
+    pollTicksRef.current = 0;
+    pollRef.current = setInterval(async () => {
+      pollTicksRef.current += 1;
+      try {
+        const res = await api.post(FAMILY.INVOICE_PAYOS_VERIFY(residentId, invoice._id));
+        const status = String(res.data?.data?.status ?? res.data?.status ?? '').toUpperCase();
+        if (status === 'PAID') {
+          stopPolling();
+          setPayosStatus('success');
+          invalidateInvoiceQueries();
+        } else if (status === 'CANCELLED' || status === 'EXPIRED') {
+          stopPolling();
+          setPayosStatus('failed');
+        } else if (pollTicksRef.current >= MAX_POLL_TICKS) {
+          // Hết thời gian chờ: dừng poll, hiển thị trạng thái "chưa nhận được".
+          stopPolling();
+          setPayosStatus('failed');
+        }
+      } catch {
+        // Lỗi mạng tạm thời khi poll — bỏ qua nhịp này, lần sau thử lại.
+      }
+    }, 3000);
+  };
 
   const statusLabel = (status?: string | null) =>
     t(getStatusEntry(status).i18nKey, { defaultValue: status ?? '' });
@@ -50,19 +102,52 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
     onError: (message) => toast(message, 'error'),
   });
 
+  // Tạo checkout PayOS THẬT rồi hiện QR trong app — không quăng người dùng ra
+  // trình duyệt ngay. Mở trang thanh toán ngoài chỉ là hành động phụ trong màn QR.
   const handlePayOnline = async () => {
     setShowPayDialog(false);
+    setCreatingPayos(true);
     try {
-      const res = await api.get(FAMILY.PAYMENT_URL(residentId, invoice._id));
-      const url = res.data?.data?.paymentUrl ?? res.data?.checkoutUrl ?? res.data?.paymentUrl ?? res.data?.data?.checkoutUrl;
-      if (url) await Linking.openURL(url);
-      else toast(t(`${NS}.toastNoPaymentUrl`), 'error');
+      const res = await api.post(FAMILY.INVOICE_PAYOS(residentId, invoice._id));
+      const data: InvoicePayosResult | undefined = res.data?.data ?? res.data;
+      if (data && (data.qrCode || data.checkoutUrl)) {
+        setPayosData(data);
+        setPayosStatus('polling');
+        startPolling();
+      } else {
+        toast(t(`${NS}.toastNoPaymentUrl`), 'error');
+      }
     } catch {
       toast(t(`${NS}.toastPaymentCreateError`), 'error');
+    } finally {
+      setCreatingPayos(false);
+    }
+  };
+
+  const closePayosView = () => {
+    stopPolling();
+    setPayosData(null);
+    setPayosStatus('polling');
+  };
+
+  const openPayosCheckoutPage = async () => {
+    if (payosData?.checkoutUrl) {
+      try { await Linking.openURL(payosData.checkoutUrl); } catch { /* trình duyệt không mở được */ }
     }
   };
 
   const isPending = ['issued', 'ISSUED', 'overdue', 'partially_paid', 'PARTIALLY_PAID'].includes(invoice?.status);
+
+  if (payosData) {
+    return (
+      <InvoicePayosQrView
+        data={payosData}
+        pollingStatus={payosStatus}
+        onCancel={closePayosView}
+        onOpenPaymentPage={openPayosCheckoutPage}
+      />
+    );
+  }
 
   if (paySuccess) {
     return (
@@ -188,7 +273,8 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
               onPress={() => { setShowPayDialog(false); startWalletOtp([invoice._id], totalAmount); }}>
               {t(`${NS}.payWithWallet`)}
             </Button>
-            <Button mode="outlined" icon="credit-card-outline" style={styles.methodBtn}
+            <Button mode="outlined" icon="qrcode" style={styles.methodBtn}
+              loading={creatingPayos} disabled={creatingPayos}
               onPress={handlePayOnline}>
               {t(`${NS}.payOnline`)}
             </Button>

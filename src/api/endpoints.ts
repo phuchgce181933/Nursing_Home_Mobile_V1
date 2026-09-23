@@ -184,6 +184,9 @@ export const FAMILY = {
   RESIDENT_DETAIL: (id: string) => `/api/family/residents/${id}`,
   INVOICES: (residentId: string) => `/api/family/residents/${residentId}/invoices`,
   PAYMENT_URL: (residentId: string, invoiceId: string) => `/api/family/residents/${residentId}/invoices/${invoiceId}/payment-url`,
+  // PayOS QR trong app cho một hoá đơn (song song với nạp ví) — trả JSON qrCode/checkoutUrl.
+  INVOICE_PAYOS: (residentId: string, invoiceId: string) => `/api/family/residents/${residentId}/invoices/${invoiceId}/payos`,
+  INVOICE_PAYOS_VERIFY: (residentId: string, invoiceId: string) => `/api/family/residents/${residentId}/invoices/${invoiceId}/payos/verify`,
   BILLING_SUMMARY: (residentId: string) => `/api/family/residents/${residentId}/billing-summary`,
   WALLET_BALANCE: '/api/family/wallet/balance',
   WALLET_TOPUP: '/api/family/wallet/topup',
