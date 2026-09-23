@@ -61,15 +61,11 @@ export const FamilyDashboardScreen: React.FC<{ navigation?: any }> = ({ navigati
   const vitals = vitalsQ.data;
 
   const QUICK_ACTIONS = [
-    { icon: 'calendar-clock-outline', label: t(`${NS}.scheduleVisit`), onPress: () => navigation?.navigate('Visits') },
     { icon: 'clipboard-plus-outline', label: t(`${NS}.accessAdmissions`), onPress: () => navigation?.navigate('Admissions') },
-    { icon: 'lifebuoy', label: t(`${NS}.contactSupport`), onPress: () => navigation?.navigate('Support') },
     { icon: 'chat-outline', label: t(`${NS}.messages`), onPress: () => navigation?.navigate('Messages') },
-    { icon: 'bell-outline', label: t(`${NS}.notifications`), onPress: () => navigation?.navigate('Notifications') },
     { icon: 'heart-pulse', label: t(`${NS}.accessHealth`), onPress: () => navigation?.navigate('Health') },
     { icon: 'wallet-outline', label: t(`${NS}.accessWallet`), onPress: () => navigation?.navigate('Wallet') },
     { icon: 'receipt', label: t(`${NS}.accessInvoices`), onPress: () => navigation?.navigate('Invoices') },
-    { icon: 'image-multiple-outline', label: t(`${NS}.accessPhotos`), onPress: () => navigation?.navigate('Health', { screen: 'Photos' }) },
   ];
 
   const VITAL_ITEMS = vitals ? [

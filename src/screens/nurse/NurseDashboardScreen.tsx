@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../auth/useAuth';
 import { useMyShifts } from '../../hooks/useShifts';
 import { useDailyMedSchedule } from '../../hooks/useMedications';
+import { useNotifications } from '../../hooks/useNotifications';
 import { RoleHeader } from '../../components/layout/RoleHeader';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
@@ -22,17 +23,12 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
 
   const FEATURES = [
     { icon: 'clock-outline', label: t(`${NS}.featureShifts`), screen: 'MyShifts', color: '#1565C0' },
-    { icon: 'calendar-remove-outline', label: t(`${NS}.featureLeave`), screen: 'LeaveRequests', color: '#E65100' },
     { icon: 'format-list-checks', label: t(`${NS}.featureTasks`), screen: 'CareTasks', color: '#2E7D32' },
     { icon: 'heart-pulse', label: t(`${NS}.featureVitals`), screen: 'Vitals', color: '#C62828' },
     { icon: 'calendar-star', label: t(`${NS}.featureActivities`), screen: 'Activities', color: '#6A1B9A' },
     { icon: 'silverware-fork-knife', label: t(`${NS}.featureMealPlans`), screen: 'MealPlans', color: '#F57F17' },
     { icon: 'chart-bar', label: t(`${NS}.featureNutrition`), screen: 'NutritionReports', color: '#00838F' },
-    { icon: 'package-variant-closed', label: t(`${NS}.featureServicePackages`), screen: 'ServicePackages', color: '#5E35B1' },
-    { icon: 'account-plus-outline', label: t(`${NS}.featureAdmissions`), screen: 'Admissions', color: '#4E342E' },
     { icon: 'alert-outline', label: t(`${NS}.featureIncidents`), screen: 'IncidentScreen', color: '#991B1B' },
-    { icon: 'calendar-check-outline', label: t(`${NS}.featureAppointments`), screen: 'CareAppointments', color: '#0277BD' },
-    { icon: 'bell-outline', label: t(`${NS}.featureNotifications`), screen: 'Notifications', color: '#5D4037' },
     ...(user?.role === 'nurse' || user?.role === 'doctor'
       ? [{ icon: 'clipboard-pulse-outline', label: t(`${NS}.featureInitialHealth`), screen: 'InitialHealthRecord', color: '#0F5040' }]
       : []),
@@ -56,6 +52,8 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
 
   const shiftsQ = useMyShifts(undefined, { enabled: hasShifts });
   const medsQ = useDailyMedSchedule(undefined, { enabled: hasMedSchedule });
+  const unreadQ = useNotifications({ isRead: false, limit: 50 });
+  const unreadCount = (unreadQ.data?.items ?? unreadQ.data?.data ?? []).length;
 
   const shifts = shiftsQ.data?.data?.data ?? [];
   const medsGroups = medsQ.data?.data ?? [];
@@ -64,7 +62,7 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
   const upcomingShifts = shifts.filter((s: any) => s.status === 'confirmed' || s.status === 'published');
   const confirmedShifts = upcomingShifts.length;
 
-  const refetch = () => { if (hasShifts) shiftsQ.refetch(); if (hasMedSchedule) medsQ.refetch(); };
+  const refetch = () => { if (hasShifts) shiftsQ.refetch(); if (hasMedSchedule) medsQ.refetch(); unreadQ.refetch(); };
   const isFetching = shiftsQ.isFetching || medsQ.isFetching;
 
   const roleSubtitle = user?.role === 'doctor' ? t(`${NS}.subtitleDoctor`)
@@ -82,6 +80,8 @@ export const NurseDashboardScreen: React.FC<{ navigation: any }> = ({ navigation
           { value: pendingMeds, label: t(`${NS}.pendingMedsLabel`), icon: 'pill' },
         ] : undefined}
         roleColor={roleColor}
+        unreadCount={unreadCount}
+        onPressNotifications={() => navigation.navigate('Notifications')}
       />
 
       <ScrollView style={styles.flex} contentContainerStyle={styles.body}

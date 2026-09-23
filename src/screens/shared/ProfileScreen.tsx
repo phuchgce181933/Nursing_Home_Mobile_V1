@@ -10,7 +10,6 @@ import { AUTH } from '../../api/endpoints';
 import { useAuth } from '../../auth/useAuth';
 import { AvatarCircle } from '../../components/shared/AvatarCircle';
 import { LanguageSwitcher } from '../../components/shared/LanguageSwitcher';
-import { ThemeSwitcher } from '../../components/shared/ThemeSwitcher';
 import { getRoleColor, shadeColor } from '../../theme/theme';
 import { useToast } from '../../utils/toast';
 import { AppCard } from '../../components/ui/AppCard';
@@ -113,7 +112,6 @@ export const ProfileScreen: React.FC<{ navigation?: any }> = ({ navigation }) =>
 
               <Divider style={styles.divider} />
               <LanguageSwitcher color={roleColor} />
-              <ThemeSwitcher color={roleColor} />
             </AppCard>
 
             <View style={styles.actions}>

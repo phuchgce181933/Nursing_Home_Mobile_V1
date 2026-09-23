@@ -18,6 +18,7 @@ import type { WalletQrExportCardHandle } from './WalletQrExportCard';
 import { AppCard } from '../../components/ui/AppCard';
 import { SummaryCard } from '../../components/ui/SummaryCard';
 import { COLORS, RADIUS, SPACING } from '../../theme/designSystem';
+import { WalletTx, affectsWallet, amountSign, useWalletTxLabels } from '../../utils/walletTxLabels';
 
 const COLOR = '#2E7D32';
 const NS = 'family.wallet';
@@ -25,11 +26,12 @@ const AMOUNTS = [50000, 100000, 200000, 500000, 1000000, 2000000];
 const TOPUP_MIN = 10000;
 const TOPUP_MAX = 500000000;
 
-export const FamilyWalletScreen: React.FC = () => {
+export const FamilyWalletScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const qc = useQueryClient();
   const { t } = useTranslation();
+  const { statusLabel, defaultDescription } = useWalletTxLabels();
 
   const [showTopup, setShowTopup] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
@@ -48,6 +50,18 @@ export const FamilyWalletScreen: React.FC = () => {
     queryFn: async () => {
       const r = await api.get(FAMILY.WALLET_BALANCE);
       return r.data?.data ?? r.data;
+    },
+  });
+
+  // Lịch sử giao dịch LẤY TỪ endpoint sổ cái riêng (`/wallet/transactions`).
+  // Endpoint `/wallet/balance` CHỈ trả về balance/totalTopup/totalSpent, KHÔNG có
+  // mảng transactions — đó là lý do trước đây lịch sử luôn trống. Phạm vi luôn do
+  // server suy từ phiên đăng nhập, client không gửi userId.
+  const txQ = useQuery({
+    queryKey: ['familyWalletTransactions', 'walletMain'],
+    queryFn: async () => {
+      const r = await api.get(FAMILY.WALLET_TRANSACTIONS, { params: { limit: 30 } });
+      return (r.data?.data ?? []) as WalletTx[];
     },
   });
 
@@ -102,6 +116,7 @@ export const FamilyWalletScreen: React.FC = () => {
         if (status === 'PAID') {
           stopPolling('success');
           qc.invalidateQueries({ queryKey: ['familyWallet'] });
+          qc.invalidateQueries({ queryKey: ['familyWalletTransactions'] });
           toast(t(`${NS}.toastTopupSuccess`), 'success');
         } else if (status === 'CANCELLED' || status === 'EXPIRED') {
           stopPolling('failed');
@@ -274,12 +289,12 @@ export const FamilyWalletScreen: React.FC = () => {
   const amount = selectedAmount ?? (customAmount ? Number(customAmount) : 0);
 
   const [txFilter, setTxFilter] = useState<'all' | 'topup' | 'spend'>('all');
-  const isTopupTx = (tx: any) => tx.type === 'topup' || tx.type === 'refund';
-  const filteredTransactions = (wallet?.transactions ?? [])
-    .slice()
-    .reverse()
-    .filter((tx: any) => (txFilter === 'all' ? true : txFilter === 'topup' ? isTopupTx(tx) : !isTopupTx(tx)))
-    .slice(0, 30);
+  // "topup" gộp các dòng làm ví TĂNG (nạp tiền + hoàn tiền); "spend" là các dòng
+  // còn lại (thanh toán). Nhóm theo CHIỀU tiền để không lệ thuộc enum thô.
+  const isTopupTx = (tx: WalletTx) => tx.type === 'topup' || tx.type === 'refund';
+  const allTransactions: WalletTx[] = txQ.data ?? [];
+  const filteredTransactions = allTransactions
+    .filter((tx) => (txFilter === 'all' ? true : txFilter === 'topup' ? isTopupTx(tx) : !isTopupTx(tx)));
   const TX_FILTERS: { key: 'all' | 'topup' | 'spend'; labelKey: string }[] = [
     { key: 'all', labelKey: `${NS}.filterAll` },
     { key: 'topup', labelKey: `${NS}.filterTopup` },
@@ -349,7 +364,7 @@ export const FamilyWalletScreen: React.FC = () => {
         <ScrollView
           style={styles.flex}
           contentContainerStyle={styles.body}
-          refreshControl={<RefreshControl refreshing={walletQ.isFetching} onRefresh={walletQ.refetch} tintColor={COLOR} />}
+          refreshControl={<RefreshControl refreshing={walletQ.isFetching || txQ.isFetching} onRefresh={() => { walletQ.refetch(); txQ.refetch(); }} tintColor={COLOR} />}
         >
           <View style={styles.summaryRow}>
             <SummaryCard
@@ -366,9 +381,9 @@ export const FamilyWalletScreen: React.FC = () => {
             />
           </View>
 
-          <ScreenLayout loading={walletQ.isLoading} error={walletQ.error ? (walletQ.error as Error).message : null} onRetry={walletQ.refetch}>
+          <ScreenLayout loading={walletQ.isLoading || txQ.isLoading} error={txQ.error ? (txQ.error as Error).message : walletQ.error ? (walletQ.error as Error).message : null} onRetry={() => { walletQ.refetch(); txQ.refetch(); }}>
             <SectionHeader title={t(`${NS}.transactionHistoryTitle`)} roleColor={COLOR} />
-            {wallet?.transactions?.length ? (
+            {allTransactions.length ? (
               <View style={styles.txFilterRow}>
                 {TX_FILTERS.map((f) => (
                   <Chip
@@ -385,36 +400,42 @@ export const FamilyWalletScreen: React.FC = () => {
               </View>
             ) : null}
             {filteredTransactions.length ? (
-              filteredTransactions.map((tx: any, i: number) => (
-                <AppCard key={tx._id ?? i} style={styles.txCard}>
-                  <View style={styles.txRow}>
-                    <MaterialCommunityIcons
-                      name={tx.type === 'topup' ? 'arrow-down-circle' : tx.type === 'refund' ? 'arrow-left-circle' : 'arrow-up-circle'}
-                      size={28}
-                      color={tx.type === 'topup' || tx.type === 'refund' ? '#065F46' : '#991B1B'}
-                    />
-                    <View style={styles.txInfo}>
-                      <Text style={styles.txDesc}>{tx.description ?? (tx.type === 'topup' ? t(`${NS}.defaultTopupDesc`) : t(`${NS}.defaultPaymentDesc`))}</Text>
-                      <Text style={styles.txDate}>{tx.createdAt ? new Date(tx.createdAt).toLocaleString('vi-VN') : ''}</Text>
-                    </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={[styles.txAmount, { color: tx.type === 'topup' || tx.type === 'refund' ? '#065F46' : '#991B1B' }]}>
-                        {tx.type === 'topup' || tx.type === 'refund' ? '+' : '-'}{tx.amount?.toLocaleString('vi-VN')} ₫
-                      </Text>
-                      <Chip compact style={{ backgroundColor: tx.status === 'completed' ? '#D1FAE5' : tx.status === 'pending' ? '#FFEDD5' : '#FEE2E2', height: 20, marginTop: 2 }}>
-                        <Text style={{ fontSize: 9, color: tx.status === 'completed' ? '#065F46' : tx.status === 'pending' ? '#92400E' : '#991B1B' }}>
-                          {tx.status === 'completed' ? t(`${NS}.statusCompleted`) : tx.status === 'pending' ? t(`${NS}.statusPending`) : t(`${NS}.statusFailed`)}
+              filteredTransactions.map((tx, i) => {
+                // Dấu +/- theo CHIỀU tiền (credit/debit/none). Dòng trả hoá đơn thẳng
+                // qua PayOS (walletAffected=false) KHÔNG hiển thị dấu trừ số dư ví.
+                const sign = amountSign(tx);
+                const amountColor = sign === '+' ? '#065F46' : sign === '-' ? '#991B1B' : '#374151';
+                const iconName = tx.type === 'refund' ? 'cash-refund'
+                  : tx.type === 'topup' ? 'arrow-down-circle'
+                  : !affectsWallet(tx) ? 'bank-outline'
+                  : 'arrow-up-circle';
+                return (
+                  <AppCard key={tx._id ?? i} style={styles.txCard} onPress={() => navigation?.navigate('TransactionDetail', { transactionId: tx._id })}>
+                    <View style={styles.txRow}>
+                      <MaterialCommunityIcons name={iconName as any} size={28} color={amountColor} />
+                      <View style={styles.txInfo}>
+                        <Text style={styles.txDesc} numberOfLines={1}>{defaultDescription(tx)}</Text>
+                        <Text style={styles.txDate}>{tx.createdAt ? new Date(tx.createdAt).toLocaleString('vi-VN') : ''}</Text>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <Text style={[styles.txAmount, { color: amountColor }]}>
+                          {sign}{tx.amount?.toLocaleString('vi-VN')} ₫
                         </Text>
-                      </Chip>
+                        <Chip compact style={{ backgroundColor: tx.status === 'completed' ? '#D1FAE5' : tx.status === 'pending' ? '#FFEDD5' : '#FEE2E2', height: 20, marginTop: 2 }}>
+                          <Text style={{ fontSize: 9, color: tx.status === 'completed' ? '#065F46' : tx.status === 'pending' ? '#92400E' : '#991B1B' }}>
+                            {statusLabel(tx.status)}
+                          </Text>
+                        </Chip>
+                      </View>
                     </View>
-                  </View>
-                </AppCard>
-              ))
+                  </AppCard>
+                );
+              })
             ) : (
               <AppCard style={styles.emptyCard}>
                 <MaterialCommunityIcons name="receipt-text-outline" size={28} color={COLORS.gray300} />
                 <Text style={styles.emptyText}>
-                  {wallet?.transactions?.length ? t(`${NS}.noMatchingTransactions`) : t(`${NS}.emptyTransactions`)}
+                  {allTransactions.length ? t(`${NS}.noMatchingTransactions`) : t(`${NS}.emptyTransactions`)}
                 </Text>
               </AppCard>
             )}

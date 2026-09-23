@@ -18,6 +18,7 @@ import { DietPlansScreen } from '../screens/assistant/DietPlansScreen';
 import { RehabilitationScheduleScreen } from '../screens/assistant/RehabilitationScheduleScreen';
 import { AssignedResidentsScreen } from '../screens/assistant/AssignedResidentsScreen';
 import { VitalSignsScreen } from '../screens/nurse/VitalSignsScreen';
+import { ActivityScheduleScreen } from '../screens/nurse/ActivityScheduleScreen';
 import { IncidentScreen } from '../screens/nurse/IncidentScreen';
 import { CareNoteListScreen as AssistantCareNoteListScreen } from '../screens/assistant/CareNoteListScreen';
 import { EditCareNoteScreen } from '../screens/nurse/EditCareNoteScreen';
@@ -39,6 +40,8 @@ const HomeStack = () => (
     <Stack.Screen name="RoomStatus" component={RoomStatusScreen} />
     <Stack.Screen name="Vitals" component={VitalSignsScreen} />
     <Stack.Screen name="MyShifts" component={MyShiftsScreen} />
+    {/* Lịch hoạt động dùng chung với y tá; truyền role để tô màu nâu hộ lý (§25). */}
+    <Stack.Screen name="Activities" component={ActivityScheduleScreen} initialParams={{ role: 'caregiver' }} />
     <Stack.Screen name="LeaveRequests" component={LeaveRequestScreen} />
     <Stack.Screen name="DietPlans" component={DietPlansScreen} />
     <Stack.Screen name="RehabSchedule" component={RehabilitationScheduleScreen} />

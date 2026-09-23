@@ -15,19 +15,13 @@ import { CareNoteHistoryScreen } from '../screens/nurse/CareNoteHistoryScreen';
 import { IncidentScreen } from '../screens/nurse/IncidentScreen';
 import { VitalSignsScreen } from '../screens/nurse/VitalSignsScreen';
 import { MyShiftsScreen } from '../screens/nurse/MyShiftsScreen';
-import { NurseLeaveRequestScreen } from '../screens/nurse/NurseLeaveRequestScreen';
 import { CareTasksScreen } from '../screens/nurse/CareTasksScreen';
 import { ActivityScheduleScreen } from '../screens/nurse/ActivityScheduleScreen';
 import { MealPlansScreen } from '../screens/nurse/MealPlansScreen';
 import { NutritionReportsScreen } from '../screens/nurse/NutritionReportsScreen';
-import { ServicePackagesScreen } from '../screens/nurse/ServicePackagesScreen';
-import { ServicePackageDetailScreen } from '../screens/nurse/ServicePackageDetailScreen';
-import { AdmissionListScreen } from '../screens/nurse/AdmissionListScreen';
-import { AdmissionDetailScreen } from '../screens/nurse/AdmissionDetailScreen';
 import { InitialHealthRecordScreen } from '../screens/nurse/InitialHealthRecordScreen';
 import { DrugAllergiesScreen } from '../screens/nurse/DrugAllergiesScreen';
 import { ShiftReportScreen } from '../screens/nurse/ShiftReportScreen';
-import { CareAppointmentsScreen } from '../screens/nurse/CareAppointmentsScreen';
 import { VisitApprovalsScreen } from '../screens/nurse/VisitApprovalsScreen';
 import { SupportRequestsScreen } from '../screens/nurse/SupportRequestsScreen';
 import { SupportThreadScreen } from '../screens/shared/SupportThreadScreen';
@@ -49,21 +43,15 @@ const DashboardStack = () => (
   <DashStack.Navigator screenOptions={{ headerShown: false }}>
     <DashStack.Screen name="DashboardMain" component={NurseDashboardScreen} />
     <DashStack.Screen name="MyShifts" component={MyShiftsScreen} />
-    <DashStack.Screen name="LeaveRequests" component={NurseLeaveRequestScreen} />
     <DashStack.Screen name="CareTasks" component={CareTasksScreen} />
     <DashStack.Screen name="Vitals" component={VitalSignsScreen} />
     <DashStack.Screen name="Activities" component={ActivityScheduleScreen} />
     <DashStack.Screen name="MealPlans" component={MealPlansScreen} />
     <DashStack.Screen name="NutritionReports" component={NutritionReportsScreen} />
-    <DashStack.Screen name="ServicePackages" component={ServicePackagesScreen} />
-    <DashStack.Screen name="ServicePackageDetail" component={ServicePackageDetailScreen} />
-    <DashStack.Screen name="Admissions" component={AdmissionListScreen} />
-    <DashStack.Screen name="AdmissionDetail" component={AdmissionDetailScreen} />
     <DashStack.Screen name="InitialHealthRecord" component={InitialHealthRecordScreen} />
     <DashStack.Screen name="DrugAllergies" component={DrugAllergiesScreen} />
     <DashStack.Screen name="IncidentScreen" component={IncidentScreen} />
     <DashStack.Screen name="ShiftReport" component={ShiftReportScreen} />
-    <DashStack.Screen name="CareAppointments" component={CareAppointmentsScreen} />
     <DashStack.Screen name="VisitApprovals" component={VisitApprovalsScreen} />
     <DashStack.Screen name="SupportRequests" component={SupportRequestsScreen} />
     <DashStack.Screen name="SupportThread" component={SupportThreadScreen} />

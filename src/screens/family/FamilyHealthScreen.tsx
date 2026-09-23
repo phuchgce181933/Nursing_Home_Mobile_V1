@@ -23,7 +23,6 @@ export const FamilyHealthScreen: React.FC<{ navigation: any }> = ({ navigation }
     { route: 'MedicationHistory', label: t(`${NS}.shortcutMedicationHistory`), icon: 'history' },
     { route: 'DailyCare', label: t(`${NS}.shortcutDailyCare`), icon: 'calendar-heart' },
     { route: 'Activities', label: t(`${NS}.shortcutActivities`), icon: 'run' },
-    { route: 'Photos', label: t(`${NS}.shortcutPhotos`), icon: 'image-multiple-outline' },
     { route: 'Appointments', label: t(`${NS}.shortcutAppointments`), icon: 'calendar-check-outline' },
   ] as const;
 

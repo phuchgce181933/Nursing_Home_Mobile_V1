@@ -92,10 +92,14 @@ const DetailRow: React.FC<{
   </View>
 );
 
-export const ActivityScheduleScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
+export const ActivityScheduleScreen: React.FC<{ navigation: any; route?: any }> = ({ navigation, route }) => {
   const toast = useToast();
   const { t } = useTranslation();
-  const { colors, roleColor } = useAppTheme('nurse');
+  // Màn hoạt động dùng chung cho y tá và hộ lý (backend cho phép cả hai:
+  // GET /api/admin/activities + record-result). Vai trò lấy từ route param để
+  // tô đúng màu thương hiệu (§25) — mặc định 'nurse' nên bản của y tá không đổi.
+  const role = (route?.params?.role as 'nurse' | 'caregiver') ?? 'nurse';
+  const { colors, roleColor } = useAppTheme(role);
   const styles = useMemo(() => createStyles(colors), [colors]);
   const categoryLabel = useActivityCategoryLabel();
 

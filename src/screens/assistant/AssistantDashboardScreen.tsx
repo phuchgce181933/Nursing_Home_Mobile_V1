@@ -9,6 +9,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useCaregiverTasks } from '../../hooks/useTasks';
+import { useNotifications } from '../../hooks/useNotifications';
 import { getStatusEntry, useStatusLabel } from '../../utils/statusMap';
 import { useAppTheme } from '../../theme/useAppTheme';
 import type { AppColors } from '../../constants/theme';
@@ -26,19 +27,6 @@ const today = () => formatLocalDate(new Date());
  */
 const OPEN_STATUSES = ['pending', 'in_progress'];
 
-const FEATURES = [
-  { icon: 'clock-outline', labelKey: 'featureShifts', screen: 'MyShifts', color: '#1565C0' },
-  { icon: 'calendar-remove-outline', labelKey: 'featureLeave', screen: 'LeaveRequests', color: '#E65100' },
-  { icon: 'account-group-outline', labelKey: 'featureResidents', screen: 'AssignedResidents', color: '#2E7D32' },
-  { icon: 'food-apple-outline', labelKey: 'featureDietPlans', screen: 'DietPlans', color: '#F57F17' },
-  { icon: 'run', labelKey: 'featureRehab', screen: 'RehabSchedule', color: '#6A1B9A' },
-  { icon: 'door-open', labelKey: 'featureRoomStatus', screen: 'RoomStatus', color: '#00838F' },
-  { icon: 'heart-pulse', labelKey: 'featureVitals', screen: 'Vitals', color: '#C62828' },
-  { icon: 'notebook-outline', labelKey: 'featureCareNotes', screen: 'CareNotes', color: '#00796B' },
-  { icon: 'chat-outline', labelKey: 'featureMessages', screen: 'Messages', color: '#00695C' },
-  { icon: 'bell-outline', labelKey: 'featureNotifications', screen: 'Notifications', color: '#5D4037' },
-];
-
 export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navigation }) => {
   const { user } = useAuth();
   const { t } = useTranslation();
@@ -48,10 +36,33 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
   const tasksQ = useCaregiverTasks({ workDate: today() });
   const tasks = tasksQ.data?.data ?? tasksQ.data ?? [];
 
+  // Chuông thông báo (§24): số chưa đọc lấy từ dữ liệu thật, cùng mẫu với các vai
+  // trò khác. Không còn thẻ "Thông báo" trong lưới chức năng.
+  const unreadQ = useNotifications({ isRead: false, limit: 50 });
+  const unreadCount = (unreadQ.data?.items ?? unreadQ.data?.data ?? []).length;
+
   const totalCount = tasks.length;
   const completedCount = tasks.filter((tk: any) => tk.status === 'completed').length;
   const remainingCount = tasks.filter((tk: any) => OPEN_STATUSES.includes(tk.status)).length;
   const progress = totalCount > 0 ? completedCount / totalCount : 0;
+
+  /**
+   * Đúng 9 chức năng theo luồng nghiệp vụ hộ lý trên Web (routes/index.jsx dòng
+   * 264-279). Màu icon chỉ mang tính trang trí; màu ngữ nghĩa (đỏ sự cố) được giữ
+   * nguyên theo §25. Các chức năng nằm ở tab khác được điều hướng lồng nhau.
+   */
+  const FEATURES = [
+    { icon: 'account-group-outline', label: t(`${NS}.featureAssignedResidents`), color: '#2E7D32', go: () => navigation?.navigate('AssignedResidents') },
+    { icon: 'clock-outline', label: t(`${NS}.featureMyShifts`), color: '#1565C0', go: () => navigation?.navigate('MyShifts') },
+    { icon: 'clipboard-list-outline', label: t(`${NS}.featureDailyCareSchedule`), color: '#00796B', go: () => navigation?.navigate('TaskList') },
+    { icon: 'calendar-star', label: t(`${NS}.featureActivitySchedule`), color: '#6A1B9A', go: () => navigation?.navigate('Activities') },
+    { icon: 'silverware-fork-knife', label: t(`${NS}.featureMealIntake`), color: '#F57F17', go: () => navigation?.navigate('Care', { screen: 'MealSupport' }) },
+    { icon: 'food-apple-outline', label: t(`${NS}.featureDietPlans`), color: '#EF6C00', go: () => navigation?.navigate('DietPlans') },
+    { icon: 'shower', label: t(`${NS}.featureHygiene`), color: '#0097A7', go: () => navigation?.navigate('Care', { screen: 'Hygiene' }) },
+    { icon: 'emoticon-outline', label: t(`${NS}.featureDailyBehaviors`), color: '#455A64', go: () => navigation?.navigate('Care', { screen: 'DailyBehavior' }) },
+    // Đỏ = màu ngữ nghĩa của sự cố, giữ nguyên theo §25.
+    { icon: 'alert-outline', label: t(`${NS}.featureIncidents`), color: '#991B1B', go: () => navigation?.navigate('Incidents') },
+  ];
 
   return (
     <View style={styles.flex}>
@@ -64,6 +75,8 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
           { value: remainingCount, label: t(`${NS}.remaining`), icon: 'clock-outline' },
         ]}
         roleColor={roleColor}
+        unreadCount={unreadCount}
+        onPressNotifications={() => navigation?.navigate('Notifications')}
       />
 
       <ScreenLayout
@@ -78,7 +91,7 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
           data={tasks}
           keyExtractor={(item: any) => item._id}
           contentContainerStyle={styles.list}
-          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={tasksQ.refetch} tintColor={roleColor} />}
+          refreshControl={<RefreshControl refreshing={tasksQ.isFetching} onRefresh={() => { tasksQ.refetch(); unreadQ.refetch(); }} tintColor={roleColor} />}
           ListHeaderComponent={
             <View>
               <View style={styles.progressSection}>
@@ -91,12 +104,11 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
               <SectionHeader title={t(`${NS}.featuresTitle`)} roleColor={roleColor} />
               <View style={styles.grid}>
                 {FEATURES.map(f => (
-                  <Pressable key={f.screen} style={styles.featureCard}
-                    onPress={() => navigation?.navigate(f.screen)}>
+                  <Pressable key={f.label} style={styles.featureCard} onPress={f.go}>
                     <View style={[styles.featureIcon, { backgroundColor: f.color + '15' }]}>
                       <MaterialCommunityIcons name={f.icon as any} size={26} color={f.color} />
                     </View>
-                    <Text style={styles.featureLabel}>{t(`${NS}.${f.labelKey}`)}</Text>
+                    <Text style={styles.featureLabel}>{f.label}</Text>
                   </Pressable>
                 ))}
               </View>

@@ -12,11 +12,8 @@ import { FamilyInvoicesScreen } from '../screens/family/FamilyInvoicesScreen';
 import { FamilyWalletScreen } from '../screens/family/FamilyWalletScreen';
 import { FamilyAdmissionsScreen } from '../screens/family/FamilyAdmissionsScreen';
 import { FamilyToursScreen } from '../screens/family/FamilyToursScreen';
-import { FamilyVisitsScreen } from '../screens/family/FamilyVisitsScreen';
 import { FamilyResidentProfileScreen } from '../screens/family/FamilyResidentProfileScreen';
-import { FamilySupportScreen } from '../screens/family/FamilySupportScreen';
 import { FamilySupportChatScreen } from '../screens/family/FamilySupportChatScreen';
-import { SupportThreadScreen } from '../screens/shared/SupportThreadScreen';
 import { NotificationsScreen } from '../screens/shared/NotificationsScreen';
 import { NotificationSettingsScreen } from '../screens/shared/NotificationSettingsScreen';
 import { AdmissionDetailScreen } from '../screens/family/AdmissionDetailScreen';
@@ -28,7 +25,6 @@ import { FamilyMedicationsScreen } from '../screens/family/FamilyMedicationsScre
 import { FamilyMedicationHistoryScreen } from '../screens/family/FamilyMedicationHistoryScreen';
 import { FamilyDailyCareScreen } from '../screens/family/FamilyDailyCareScreen';
 import { FamilyActivitiesScreen } from '../screens/family/FamilyActivitiesScreen';
-import { FamilyPhotosScreen } from '../screens/family/FamilyPhotosScreen';
 import { FamilyAppointmentsScreen } from '../screens/family/FamilyAppointmentsScreen';
 import { ProfileScreen } from '../screens/shared/ProfileScreen';
 import { EditProfileScreen } from '../screens/shared/EditProfileScreen';
@@ -46,10 +42,7 @@ const HomeStack = () => (
     <HomeNavStack.Screen name="Admissions" component={FamilyAdmissionsScreen} />
     <HomeNavStack.Screen name="AdmissionDetail" component={AdmissionDetailScreen} />
     <HomeNavStack.Screen name="Tours" component={FamilyToursScreen} />
-    <HomeNavStack.Screen name="Visits" component={FamilyVisitsScreen} />
     <HomeNavStack.Screen name="ResidentProfile" component={FamilyResidentProfileScreen} />
-    <HomeNavStack.Screen name="Support" component={FamilySupportScreen} />
-    <HomeNavStack.Screen name="SupportThread" component={SupportThreadScreen} />
     <HomeNavStack.Screen name="Messages" component={FamilySupportChatScreen} />
     <HomeNavStack.Screen name="Notifications" component={NotificationsScreen} />
     <HomeNavStack.Screen name="NotificationSettings" component={NotificationSettingsScreen} />
@@ -79,7 +72,6 @@ const HealthStack = () => (
     <HealthNavStack.Screen name="MedicationHistory" component={FamilyMedicationHistoryScreen} />
     <HealthNavStack.Screen name="DailyCare" component={FamilyDailyCareScreen} />
     <HealthNavStack.Screen name="Activities" component={FamilyActivitiesScreen} />
-    <HealthNavStack.Screen name="Photos" component={FamilyPhotosScreen} />
     <HealthNavStack.Screen name="Appointments" component={FamilyAppointmentsScreen} />
   </HealthNavStack.Navigator>
 );
