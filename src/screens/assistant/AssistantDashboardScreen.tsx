@@ -79,13 +79,15 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
         onPressNotifications={() => navigation?.navigate('Notifications')}
       />
 
+      {/* Không truyền isEmpty vào ScreenLayout: lưới 9 chức năng nằm trong ListHeaderComponent,
+          nếu để ScreenLayout thay toàn bộ danh sách bằng empty-state thì lưới chức năng biến mất
+          khi hôm nay không có nhiệm vụ, khiến 7/9 chức năng không thể truy cập. Thông báo "không
+          có nhiệm vụ" chuyển xuống ListEmptyComponent để lưới luôn hiển thị. */}
       <ScreenLayout
         loading={tasksQ.isLoading}
         // Không in message của axios ra màn hình — đó là chuỗi kỹ thuật tiếng Anh.
         error={tasksQ.error ? t(`${NS}.loadError`) : null}
         onRetry={tasksQ.refetch}
-        isEmpty={tasks.length === 0}
-        emptyMessage={t(`${NS}.empty`)}
       >
         <FlatList
           data={tasks}
@@ -114,6 +116,12 @@ export const AssistantDashboardScreen: React.FC<{ navigation?: any }> = ({ navig
               </View>
 
               <SectionHeader title={t(`${NS}.tasksTitle`)} roleColor={roleColor} />
+            </View>
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyTasks}>
+              <MaterialCommunityIcons name="inbox-outline" size={40} color={colors.textMuted} />
+              <Text style={styles.emptyTasksText}>{t(`${NS}.empty`)}</Text>
             </View>
           }
           renderItem={({ item }) => {
@@ -172,6 +180,8 @@ const createStyles = (c: AppColors) => StyleSheet.create({
     marginBottom: 8,
     gap: 10,
   },
+  emptyTasks: { alignItems: 'center', paddingVertical: 32 },
+  emptyTasksText: { fontSize: 14, color: c.textMuted, marginTop: 12, textAlign: 'center' },
   taskInfo: { flex: 1 },
   // Nhãn loại nhiệm vụ đã là tiếng Việt viết hoa đúng chuẩn -> không 'capitalize'.
   taskTitle: { fontSize: 14, fontWeight: '500', color: c.text },

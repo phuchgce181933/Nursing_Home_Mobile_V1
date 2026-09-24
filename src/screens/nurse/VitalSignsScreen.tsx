@@ -52,7 +52,8 @@ export const VitalSignsScreen: React.FC<{ route?: any; navigation?: any }> = ({ 
   const caregiverResidentQ = useCaregiverResidentDetail(selectedId, { enabled: isCaregiver });
   const residentQ = isCaregiver ? caregiverResidentQ : nurseResidentQ;
   const vitalsQ = useResidentVitals(selectedId);
-  const resident = residentQ.data?.data ?? residentQ.data;
+  // Nurse detail endpoint returns { resident }, caregiver endpoint returns { data } — unwrap both.
+  const resident = residentQ.data?.resident ?? residentQ.data?.data ?? residentQ.data;
   const vitals = vitalsQ.data?.data ?? vitalsQ.data ?? [];
   const latest = Array.isArray(vitals) ? vitals[0] : vitals;
 

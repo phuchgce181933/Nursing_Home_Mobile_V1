@@ -11,10 +11,13 @@ import { handleNotificationNavigation } from '../navigation/navigationRef';
 // throws immediately. So the module is required lazily and only outside Expo Go (real
 // dev/production builds are unaffected); a static top-level `import` would run that
 // registration before this check ever executes.
-const isExpoGo = Constants.appOwnership === 'expo';
+// Web (Expo Web) does not support remote push either: expo-notifications loads but methods
+// such as getLastNotificationResponseAsync / getExpoPushTokenAsync throw UnavailabilityError.
+// Treat web like Expo Go so every guard below short-circuits and no unsupported web call runs.
+const pushUnavailable = Constants.appOwnership === 'expo' || Platform.OS === 'web';
 /* eslint-disable @typescript-eslint/no-require-imports -- must stay lazy; a static import would run expo-notifications' registration in Expo Go and crash (see comment above) */
-const Notifications = isExpoGo ? null : (require('expo-notifications') as typeof import('expo-notifications'));
-const Device = isExpoGo ? null : (require('expo-device') as typeof import('expo-device'));
+const Notifications = pushUnavailable ? null : (require('expo-notifications') as typeof import('expo-notifications'));
+const Device = pushUnavailable ? null : (require('expo-device') as typeof import('expo-device'));
 /* eslint-enable @typescript-eslint/no-require-imports */
 
 if (Notifications) {

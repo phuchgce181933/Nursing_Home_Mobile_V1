@@ -39,7 +39,8 @@ export const InitialHealthRecordScreen: React.FC<{ route?: any; navigation?: any
   const allResidents = Array.isArray(residentsQ.data) ? residentsQ.data : (residentsQ.data?.data ?? []);
 
   const residentQ = useResidentDetail(selectedId);
-  const resident = residentQ.data?.data ?? residentQ.data;
+  // Nurse detail endpoint returns { resident } — unwrap that first.
+  const resident = residentQ.data?.resident ?? residentQ.data?.data ?? residentQ.data;
 
   const openForm = () => {
     setBloodType(resident?.bloodType || 'unknown');
