@@ -37,7 +37,6 @@ export default {
     carePlans: 'Kế hoạch',
     visits: 'Lịch thăm',
     support: 'Hỗ trợ',
-    photos: 'Ảnh',
     incidents: 'Sự cố',
   },
   auth: {

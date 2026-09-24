@@ -37,7 +37,6 @@ export default {
     carePlans: 'Care Plans',
     visits: 'Visits',
     support: 'Support',
-    photos: 'Photos',
     incidents: 'Incidents',
   },
   auth: {

@@ -81,8 +81,6 @@ export const CAREGIVER = {
   // Chỉ các phòng có cư dân được phân công cho hộ lý đang đăng nhập.
   ROOMS: '/api/caregiver/residents/rooms',
   RESIDENT_DETAIL: (id: string) => `/api/caregiver/residents/${id}`,
-  RESIDENT_PHOTOS: (residentId: string) => `/api/caregiver/residents/${residentId}/photos`,
-  RESIDENT_PHOTO_DELETE: (residentId: string, photoId: string) => `/api/caregiver/residents/${residentId}/photos/${photoId}`,
   HYGIENE: '/api/caregiver/hygiene-activities',
   HYGIENE_DETAIL: (id: string) => `/api/caregiver/hygiene-activities/${id}`,
   HYGIENE_CONTEXT: '/api/caregiver/hygiene-activities/context',

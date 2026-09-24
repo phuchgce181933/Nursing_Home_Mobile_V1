@@ -10,7 +10,6 @@ import { HygieneScreen } from '../screens/assistant/HygieneScreen';
 import { MealSupportScreen } from '../screens/assistant/MealSupportScreen';
 import { DailyBehaviorScreen } from '../screens/assistant/DailyBehaviorScreen';
 import { CarePlansScreen } from '../screens/assistant/CarePlansScreen';
-import { PhotoUploadScreen } from '../screens/assistant/PhotoUploadScreen';
 import { MyShiftsScreen } from '../screens/assistant/MyShiftsScreen';
 import { LeaveRequestScreen } from '../screens/assistant/LeaveRequestScreen';
 import { DietPlansScreen } from '../screens/assistant/DietPlansScreen';
@@ -100,14 +99,6 @@ export const AssistantNavigator: React.FC = () => {
         options={{
           tabBarLabel: t('navigation.carePlans'),
           tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="clipboard-text-outline" size={size} color={color} />,
-        }}
-      />
-      <Tab.Screen
-        name="Photos"
-        component={PhotoUploadScreen}
-        options={{
-          tabBarLabel: t('navigation.photos'),
-          tabBarIcon: ({ color, size }) => <MaterialCommunityIcons name="image-multiple-outline" size={size} color={color} />,
         }}
       />
       <Tab.Screen
