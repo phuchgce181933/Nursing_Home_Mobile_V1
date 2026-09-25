@@ -64,8 +64,24 @@ export const GuestChatWidget: React.FC<{ navigation: any }> = ({ navigation }) =
   }, []);
 
   const createMut = useCreateGuestConversation();
-  const messagesQ = useGuestMessages(conversationId ?? undefined);
+  // Chỉ poll khi panel đang mở (xem useGuestMessages) — widget này được render sẵn trên các
+  // màn công khai nên poll nền sẽ chạy dù người dùng chưa mở chat.
+  const messagesQ = useGuestMessages(conversationId ?? undefined, visible);
   const sendMut = useSendGuestMessage(conversationId ?? undefined);
+
+  // Cuộc trò chuyện đã lưu có thể không còn tồn tại trên server (bị xóa, hoặc được tạo ở một
+  // database khác). Server trả 404/403 xác định — thử lại không bao giờ đổi kết quả. Dọn bản
+  // lưu cục bộ và đưa khách về form liên hệ để bắt đầu lại, thay vì lặp mãi một lỗi mà UI
+  // không hề hiển thị. Đây là xử lý lỗi thật, không phải giả lập thành công.
+  const staleStatus = (messagesQ.error as any)?.response?.status;
+  useEffect(() => {
+    if (staleStatus !== 404 && staleStatus !== 403) return;
+    AsyncStorage.removeItem(STORAGE_KEY);
+    setConversationId(null);
+    setLocalGuestMsgs([]);
+    setBotMsgs([]);
+    setShowSuggestions(false);
+  }, [staleStatus]);
 
   // Backend wraps paginated responses as { success, data: { items, ... } } — reading
   // `messagesQ.data?.items` directly always missed the nested `.data`, so real guest

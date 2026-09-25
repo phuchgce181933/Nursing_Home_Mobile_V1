@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import api, { setLogoutCallback } from '../api/axiosInstance';
 import { AUTH } from '../api/endpoints';
 import { unregisterPushToken } from '../hooks/usePushNotifications';
+import socketService from '../hooks/useSocket';
 
 export type AppUser = {
   _id: string;
@@ -52,6 +53,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Must run before clearing the stored token — the request interceptor reads it from
     // AsyncStorage on every call, so unregistering after removal would go out unauthenticated.
     await unregisterPushToken();
+    // Socket.IO là singleton ở tầng module và `connect()` trả về ngay instance đã có, nên nếu
+    // không ngắt ở đây thì kết nối vẫn sống sau khi đăng xuất VỚI TOKEN CỦA NGƯỜI DÙNG CŨ —
+    // và lần đăng nhập sau sẽ tái sử dụng đúng socket đó, khiến tài khoản mới nhận sự kiện
+    // realtime dưới danh tính tài khoản cũ (rò rỉ phiên trên máy dùng chung).
+    socketService.disconnect();
     await AsyncStorage.removeItem('token');
     setToken(null);
     setUser(null);

@@ -99,9 +99,17 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
     return String(t(`${NS}.${key}`, data.params ?? {}));
   };
 
+  /**
+   * Trả tiền bằng ví làm thay đổi cả ba thứ, nên phải bỏ cache cả ba: hoá đơn,
+   * số dư ví và sổ giao dịch. Thiếu 'familyWalletTransactions' thì giao dịch vừa
+   * ghi không hiện ra cho tới khi hết staleTime (30s). Chỉ invalidate để React
+   * Query lấy lại từ server — không tự sửa số dư hay mảng giao dịch trong cache,
+   * backend luôn là nguồn đúng duy nhất.
+   */
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ['familyInvoices'] });
     qc.invalidateQueries({ queryKey: ['familyWallet'] });
+    qc.invalidateQueries({ queryKey: ['familyWalletTransactions'] });
   };
 
   const requestOtp = async (invoiceIds: string[], amount: number) => {

@@ -11,15 +11,24 @@ export const useCreateGuestConversation = () => {
   });
 };
 
-export const useGuestMessages = (conversationId?: string) => {
+/**
+ * `active` = panel chat đang MỞ. Trước đây query này chạy ngay khi widget mount và poll
+ * 3 giây/lần vô điều kiện, kể cả khi người dùng chưa bao giờ bấm vào FAB chat — widget được
+ * render sẵn trên Welcome/Services/Living nên mọi màn công khai đều nã request nền. Kết hợp
+ * với một `conversationId` cũ còn nằm trong AsyncStorage nhưng đã không còn trong DB (server
+ * trả 404 "Không tìm thấy cuộc trò chuyện"), nó tạo ra đúng vòng lặp 404 lặp vô hạn quan sát
+ * được: 3 giây/lần × 3 request (retry) mà UI không hề báo lỗi.
+ */
+export const useGuestMessages = (conversationId?: string, active = true) => {
   return useQuery({
     queryKey: ['guestMessages', conversationId],
     queryFn: async () => {
       const res = await api.get(CONVERSATIONS.GUEST_MESSAGES(conversationId!));
       return res.data;
     },
-    enabled: !!conversationId,
-    refetchInterval: 3000,
+    enabled: !!conversationId && active,
+    // Chỉ poll khi panel đang mở; đóng panel là dừng hẳn thay vì poll nền mãi mãi.
+    refetchInterval: active ? 3000 : false,
   });
 };
 

@@ -16,6 +16,7 @@ import { IncidentScreen } from '../screens/nurse/IncidentScreen';
 import { VitalSignsScreen } from '../screens/nurse/VitalSignsScreen';
 import { MyShiftsScreen } from '../screens/nurse/MyShiftsScreen';
 import { CareTasksScreen } from '../screens/nurse/CareTasksScreen';
+import { CareAppointmentsScreen } from '../screens/nurse/CareAppointmentsScreen';
 import { ActivityScheduleScreen } from '../screens/nurse/ActivityScheduleScreen';
 import { MealPlansScreen } from '../screens/nurse/MealPlansScreen';
 import { NutritionReportsScreen } from '../screens/nurse/NutritionReportsScreen';
@@ -44,6 +45,11 @@ const DashboardStack = () => (
     <DashStack.Screen name="DashboardMain" component={NurseDashboardScreen} />
     <DashStack.Screen name="MyShifts" component={MyShiftsScreen} />
     <DashStack.Screen name="CareTasks" component={CareTasksScreen} />
+    {/* navigationRef.ts khai báo đích push của điều dưỡng là `Dashboard > CareAppointments`
+        nhưng route này chưa từng được đăng ký, nên chạm vào push "CareAppointment" chỉ sinh ra
+        cảnh báo "action NAVIGATE was not handled" rồi im lặng (không throw nên khối catch
+        fallback cũng không chạy). Đăng ký đúng route đã được khai báo. */}
+    <DashStack.Screen name="CareAppointments" component={CareAppointmentsScreen} />
     <DashStack.Screen name="Vitals" component={VitalSignsScreen} />
     <DashStack.Screen name="Activities" component={ActivityScheduleScreen} />
     <DashStack.Screen name="MealPlans" component={MealPlansScreen} />

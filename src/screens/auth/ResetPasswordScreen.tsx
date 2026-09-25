@@ -8,25 +8,36 @@ import { AUTH } from '../../api/endpoints';
 
 const COLOR = '#1B3A6B';
 const NS = 'resetPassword';
+const CODE_LENGTH = 6;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 /**
- * ResetPasswordScreen
+ * ResetPasswordScreen — đặt lại mật khẩu NGAY TRONG APP, không đẩy người dùng ra Web.
  *
- * Hỗ trợ 3 cách nhận token (giống Web):
- *  1. Từ deep-link: navigation open từ Linking (URL chứa ?token=...). Backend gửi link theo
- *     FRONTEND_URL (mặc định Web). Mobile app đăng ký scheme `nursinghomemobile://reset-password?token=`
- *     và token sẽ được truyền qua route.params.token (xem RootNavigator linking config).
- *  2. Từ state nội bộ khi user điền hướng từ ForgotPasswordScreen nhấn "Đã có mã đặt lại?".
- *  3. Nhập tay trong trường "Mã đặt lại mật khẩu" — dành cho case user copy token từ email/web.
+ * Đường chính: email + MÃ 6 SỐ nhận qua email (backend gửi email loại "mobile" khi
+ * ForgotPasswordScreen gửi `client: 'mobile'`). Người dùng copy mã trong hộp thư rồi
+ * quay lại dán vào đây; `email` được ForgotPasswordScreen truyền sẵn qua route params
+ * (email không phải dữ liệu bí mật), vẫn cho sửa vì người dùng có thể vào thẳng màn
+ * này từ nút "Nhập mã đặt lại mật khẩu".
  *
- * Tất cả cùng một contract backend: { token, newPassword } → POST /api/auth/reset-password
+ * Đường phụ: nếu màn hình được mở bằng deep-link có `?token=` (scheme
+ * `nursinghomemobile://reset-password` đã khai báo sẵn ở RootNavigator), thì dùng luôn
+ * token đó thay cho email + mã. Backend nhận cả hai loại credential trên cùng một
+ * endpoint nên không có luồng đổi mật khẩu nào bị nhân bản.
+ *
+ * Mã/token KHÔNG được ghi log và KHÔNG lưu vào AsyncStorage — chỉ nằm trong state
+ * của màn hình, mất khi rời màn.
  */
 export const ResetPasswordScreen: React.FC<{ navigation: any; route?: any }> = ({ navigation, route }) => {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
-  // route.params?.token được truyền từ deep-link hoặc từ ForgotPasswordScreen.
   const paramToken: string = route?.params?.token ? String(route.params.token) : '';
-  const [token, setToken] = useState(paramToken);
+  const paramEmail: string = route?.params?.email ? String(route.params.email) : '';
+  /** Mở từ deep-link kèm token Web thì không cần hỏi email + mã nữa. */
+  const fromWebLink = !!paramToken;
+
+  const [email, setEmail] = useState(paramEmail);
+  const [code, setCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -34,14 +45,27 @@ export const ResetPasswordScreen: React.FC<{ navigation: any; route?: any }> = (
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const codeRef = useRef<RNTextInput>(null);
   const newPasswordRef = useRef<RNTextInput>(null);
   const confirmPasswordRef = useRef<RNTextInput>(null);
 
   const handleSubmit = async () => {
-    const trimmedToken = token.trim();
-    if (!trimmedToken) {
-      setError(t(`${NS}.warnTokenRequired`));
-      return;
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedCode = code.trim();
+
+    if (!fromWebLink) {
+      if (!trimmedEmail) {
+        setError(t(`${NS}.warnEmailRequired`));
+        return;
+      }
+      if (!EMAIL_REGEX.test(trimmedEmail)) {
+        setError(t(`${NS}.warnInvalidEmail`));
+        return;
+      }
+      if (trimmedCode.length !== CODE_LENGTH) {
+        setError(t(`${NS}.warnCodeRequired`, { length: CODE_LENGTH }));
+        return;
+      }
     }
     if (newPassword.length < 6) {
       setError(t(`${NS}.warnPasswordTooShort`));
@@ -54,10 +78,18 @@ export const ResetPasswordScreen: React.FC<{ navigation: any; route?: any }> = (
     setError('');
     setLoading(true);
     try {
-      await api.post(AUTH.RESET_PASSWORD, { token: trimmedToken, newPassword });
+      await api.post(
+        AUTH.RESET_PASSWORD,
+        fromWebLink
+          ? { token: paramToken, newPassword }
+          : { email: trimmedEmail, code: trimmedCode, newPassword },
+      );
       setSuccess(true);
     } catch (err: any) {
       const status = err.response?.status;
+      // Backend cố tình trả CÙNG MỘT lỗi cho mọi lý do mã không dùng được (sai,
+      // hết hạn, đã dùng, nhập sai quá nhiều lần) để không tiết lộ email có tồn
+      // tại hay không, nên ở đây cũng chỉ có một câu tương ứng.
       if (status === 400) setError(t(`${NS}.errorInvalidToken`));
       else if (status === 429) setError(t(`${NS}.errorRateLimited`));
       else setError(t(`${NS}.errorGeneric`));
@@ -91,23 +123,46 @@ export const ResetPasswordScreen: React.FC<{ navigation: any; route?: any }> = (
             </>
           ) : (
             <>
-              <Text style={styles.subtitle}>{t(`${NS}.subtitle`)}</Text>
+              <Text style={styles.subtitle}>
+                {t(fromWebLink ? `${NS}.subtitleFromLink` : `${NS}.subtitle`)}
+              </Text>
 
-              <TextInput
-                label={t(`${NS}.tokenLabel`)}
-                mode="outlined"
-                value={token}
-                onChangeText={setToken}
-                autoCapitalize="none"
-                autoCorrect={false}
-                multiline
-                placeholder={t(`${NS}.tokenPlaceholder`)}
-                left={<TextInput.Icon icon="key-outline" />}
-                style={styles.input}
-                returnKeyType="next"
-                submitBehavior="submit"
-                onSubmitEditing={() => newPasswordRef.current?.focus()}
-              />
+              {fromWebLink ? null : (
+                <>
+                  <TextInput
+                    label={t(`${NS}.emailLabel`)}
+                    mode="outlined"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    left={<TextInput.Icon icon="email-outline" />}
+                    style={styles.input}
+                    returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => codeRef.current?.focus()}
+                  />
+
+                  <TextInput
+                    ref={codeRef}
+                    label={t(`${NS}.codeLabel`)}
+                    mode="outlined"
+                    value={code}
+                    onChangeText={(v) => setCode(v.replace(/\D/g, ''))}
+                    keyboardType="number-pad"
+                    maxLength={CODE_LENGTH}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    placeholder={t(`${NS}.codePlaceholder`)}
+                    left={<TextInput.Icon icon="key-outline" />}
+                    style={styles.input}
+                    returnKeyType="next"
+                    submitBehavior="submit"
+                    onSubmitEditing={() => newPasswordRef.current?.focus()}
+                  />
+                </>
+              )}
 
               <TextInput
                 ref={newPasswordRef}

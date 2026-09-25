@@ -4,6 +4,7 @@ import { LogBox, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import type { AxiosError } from 'axios';
 import { PaperProvider } from 'react-native-paper';
 import { AuthProvider } from './src/auth/AuthContext';
 import { RootNavigator } from './src/navigation/RootNavigator';
@@ -45,10 +46,24 @@ if (Platform.OS === 'web') {
   };
 }
 
+// Retry chỉ có ý nghĩa với lỗi TẠM THỜI (mất mạng, 5xx, 408 timeout, 429 quá tải). Một
+// lỗi 4xx xác định (400/401/403/404/422) là câu trả lời cuối cùng của server: thử lại
+// không bao giờ đổi kết quả, chỉ nhân số request lên gấp 3 và biến một lỗi đơn lẻ thành
+// một chuỗi lỗi lặp trong console/logcat (rõ nhất ở query có refetchInterval).
+// KHÔNG tắt retry toàn cục: 5xx/timeout/mất mạng vẫn được thử lại 2 lần đúng như trước.
+const RETRYABLE_4XX = [408, 429];
+const retryUnlessClientError = (failureCount: number, error: unknown) => {
+  const status = (error as AxiosError)?.response?.status;
+  if (typeof status === 'number' && status >= 400 && status < 500 && !RETRYABLE_4XX.includes(status)) {
+    return false;
+  }
+  return failureCount < 2;
+};
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 2,
+      retry: retryUnlessClientError,
       staleTime: 30_000,
       refetchOnWindowFocus: false,
     },
@@ -59,7 +74,11 @@ const queryClient = new QueryClient({
 // inside AuthProvider (needs useAuth) and QueryClientProvider (needs useQueryClient).
 const PushNotificationsGate: React.FC = () => {
   const { user, token } = useAuth();
-  usePushNotifications(user, token);
+  // `role` là tham số BẮT BUỘC trên thực tế: handleNotificationNavigation() thoát sớm khi
+  // thiếu role (`if (!navigationRef.isReady() || !role) return;`), nên nếu không truyền thì
+  // chạm vào push sẽ không điều hướng đi đâu cả. Role lấy từ phiên đăng nhập (server-side
+  // trust), không lấy từ payload push.
+  usePushNotifications(user, token, user?.role);
   return null;
 };
 
