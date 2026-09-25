@@ -10,6 +10,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { StatusBadge } from '../../components/shared/StatusBadge';
 import { useWalletOtpPayment } from '../../components/family/WalletOtpDialog';
 import { useToast } from '../../utils/toast';
+import { releaseActiveFocus } from '../../utils/focus';
 
 const COLOR = '#2E7D32';
 const NS = 'family.invoices';
@@ -80,18 +81,23 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
   });
 
   const payOneWithWallet = (invoice: any) => {
+    // Nhả focus khỏi nút vừa bấm TRƯỚC khi ẩn hộp thoại chọn phương thức, nếu không
+    // cây con của hộp thoại bị đặt aria-hidden trong khi vẫn chứa nút đang focus → cảnh báo.
+    releaseActiveFocus();
     setPayMode('single');
     setPayInvoice(null);
     startWalletOtp([invoice._id], invoice.totalAmount ?? invoice.amount ?? 0);
   };
 
   const paySelectedWithWallet = () => {
+    releaseActiveFocus();
     setPayMode('batch');
     setShowBatchConfirm(false);
     startWalletOtp(Array.from(selectedIds), selectedTotal);
   };
 
   const handlePayOnline = async (invoiceId: string) => {
+    releaseActiveFocus();
     setPayInvoice(null);
     try {
       const res = await api.get(FAMILY.PAYMENT_URL(activeId, invoiceId));
@@ -214,7 +220,7 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
             </Button>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setPayInvoice(null)}>{t('common.cancel')}</Button>
+            <Button onPress={() => { releaseActiveFocus(); setPayInvoice(null); }}>{t('common.cancel')}</Button>
           </Dialog.Actions>
         </Dialog>
 
@@ -226,7 +232,7 @@ export const FamilyInvoicesScreen: React.FC<{ navigation?: any }> = ({ navigatio
             </Text>
           </Dialog.Content>
           <Dialog.Actions>
-            <Button onPress={() => setShowBatchConfirm(false)}>{t('common.cancel')}</Button>
+            <Button onPress={() => { releaseActiveFocus(); setShowBatchConfirm(false); }}>{t('common.cancel')}</Button>
             <Button mode="contained" buttonColor={COLOR} onPress={paySelectedWithWallet}
               loading={otpStarting} disabled={otpStarting}>{t('common.confirm')}</Button>
           </Dialog.Actions>

@@ -3,6 +3,8 @@
 // Brand color stays the project's existing green; nothing here changes branding,
 // only makes the existing values consistent and reusable across screens.
 
+import { Platform } from 'react-native';
+
 export const SPACING = {
   xs: 4,
   sm: 8,
@@ -45,24 +47,31 @@ export const TYPE = {
   caption: { fontSize: 12, fontWeight: '500' as const },
 };
 
-// react-native's `shadow*` style props (used here) work on both iOS and Android
-// via the Paper/RN Elements interop already relied on elsewhere in this app;
-// `elevation` covers plain Android Views that don't go through Paper.
+// Bóng đổ theo nền tảng. React Native Web (RN 0.79+) đã bỏ các prop `shadow*` và
+// cảnh báo "shadow* style props are deprecated. Use boxShadow." nên trên web ta
+// dùng `boxShadow`; còn iOS/Android vẫn dùng `shadow*` + `elevation` như cũ
+// (boxShadow chưa được hỗ trợ đầy đủ trên native). Màu #0F2A12 = rgb(15,42,18).
+const shadow = (
+  boxShadow: string,
+  native: { shadowOpacity: number; shadowRadius: number; shadowOffset: { width: number; height: number }; elevation: number },
+) =>
+  Platform.OS === 'web'
+    ? { boxShadow }
+    : { shadowColor: '#0F2A12', ...native };
+
 export const SHADOW = {
-  card: {
-    shadowColor: '#0F2A12',
+  card: shadow('0px 4px 12px rgba(15,42,18,0.06)', {
     shadowOpacity: 0.06,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 },
     elevation: 2,
-  },
-  floating: {
-    shadowColor: '#0F2A12',
+  }),
+  floating: shadow('0px 8px 20px rgba(15,42,18,0.12)', {
     shadowOpacity: 0.12,
     shadowRadius: 20,
     shadowOffset: { width: 0, height: 8 },
     elevation: 6,
-  },
+  }),
 } as const;
 
 export const BUTTON_HEIGHT = 52;

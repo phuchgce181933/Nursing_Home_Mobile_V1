@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useQueryClient } from '@tanstack/react-query';
 import api from '../../api/axiosInstance';
 import { FAMILY } from '../../api/endpoints';
+import { releaseActiveFocus } from '../../utils/focus';
 
 const COLOR = '#2E7D32';
 /** Chuỗi hiển thị dùng chung cho mọi nơi thanh toán ví bằng OTP. */
@@ -148,12 +149,15 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
     try {
       await api.post(FAMILY.WALLET_PAYMENT_VERIFY, { otpId, code: code.trim() });
       refresh();
+      // Nhả focus khỏi nút "Xác nhận" trước khi ẩn hộp thoại (tránh cảnh báo aria-hidden).
+      releaseActiveFocus();
       setVisible(false);
       onSuccess(intent?.amount ?? 0);
     } catch (e: any) {
       // Hoá đơn đã được trả ở nơi khác → đóng hộp thoại và làm mới dữ liệu.
       if (e?.response?.data?.errorCode === 'INVOICE_ALREADY_PAID') {
         refresh();
+        releaseActiveFocus();
         setVisible(false);
         onError(t(`${NS}.errInvoiceAlreadyPaid`));
       } else {
@@ -182,7 +186,7 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
           </Button>
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={() => setVisible(false)} disabled={verifying}>{t('common.cancel')}</Button>
+          <Button onPress={() => { releaseActiveFocus(); setVisible(false); }} disabled={verifying}>{t('common.cancel')}</Button>
           <Button mode="contained" buttonColor={COLOR} onPress={handleVerify}
             loading={verifying} disabled={verifying || code.trim().length < 6}>
             {t(`${NS}.otpVerify`)}

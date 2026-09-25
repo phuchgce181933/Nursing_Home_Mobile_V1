@@ -267,10 +267,16 @@ const styles = StyleSheet.create({
     padding: 24,
     alignItems: 'center',
     elevation: 4,
-    shadowColor: COLOR,
-    shadowOpacity: 0.12,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
+    // Web (RN 0.79+) đã bỏ prop `shadow*` và cảnh báo dùng `boxShadow`; native giữ `shadow*`.
+    ...Platform.select({
+      web: { boxShadow: '0px 8px 16px rgba(0,6,102,0.12)' },
+      default: {
+        shadowColor: COLOR,
+        shadowOpacity: 0.12,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+      },
+    }),
   },
   badgeCircle: {
     width: 60, height: 60, borderRadius: 30,
