@@ -75,6 +75,17 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
     return () => clearTimeout(id);
   }, [cooldown]);
 
+  /**
+   * Đóng hộp thoại và dừng ngay đồng hồ đếm ngược "Gửi lại mã": đặt cooldown về 0
+   * để vòng setTimeout ở trên không còn chạy nền sau khi hộp thoại đã đóng /
+   * xác thực xong (không rò rỉ timer).
+   */
+  const closeDialog = () => {
+    releaseActiveFocus();
+    setVisible(false);
+    setCooldown(0);
+  };
+
   /** Dịch lỗi backend sang một câu tiếng Việt dễ hiểu cho người nhà. */
   const errorMessage = (e: any, fallbackKey: string): string => {
     if (!e?.response) return t(`${NS}.errNetwork`);
@@ -149,16 +160,15 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
     try {
       await api.post(FAMILY.WALLET_PAYMENT_VERIFY, { otpId, code: code.trim() });
       refresh();
-      // Nhả focus khỏi nút "Xác nhận" trước khi ẩn hộp thoại (tránh cảnh báo aria-hidden).
-      releaseActiveFocus();
-      setVisible(false);
+      // Nhả focus + dừng đồng hồ đếm ngược trước khi ẩn hộp thoại (tránh cảnh báo
+      // aria-hidden và không để timer chạy nền sau khi thanh toán xong).
+      closeDialog();
       onSuccess(intent?.amount ?? 0);
     } catch (e: any) {
       // Hoá đơn đã được trả ở nơi khác → đóng hộp thoại và làm mới dữ liệu.
       if (e?.response?.data?.errorCode === 'INVOICE_ALREADY_PAID') {
         refresh();
-        releaseActiveFocus();
-        setVisible(false);
+        closeDialog();
         onError(t(`${NS}.errInvoiceAlreadyPaid`));
       } else {
         setError(errorMessage(e, 'errPaymentFailed'));
@@ -170,7 +180,7 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
 
   const dialog = (
     <Portal>
-      <Dialog visible={visible} onDismiss={() => setVisible(false)} dismissable={false} style={{ borderRadius: 16 }}>
+      <Dialog visible={visible} onDismiss={closeDialog} dismissable={false} style={{ borderRadius: 16 }}>
         <Dialog.Title>{t(`${NS}.otpTitle`)}</Dialog.Title>
         <Dialog.Content>
           <Text style={{ fontSize: 13, color: '#6B7280', marginBottom: 12 }}>
@@ -184,9 +194,14 @@ export const useWalletOtpPayment = ({ onSuccess, onError }: Options) => {
             disabled={resending || verifying || cooldown > 0} style={{ alignSelf: 'flex-end', marginTop: 4 }}>
             {cooldown > 0 ? t(`${NS}.otpResendCooldown`, { seconds: cooldown }) : t(`${NS}.otpResend`)}
           </Button>
+          {/* Đợt chờ 30s CHỈ chặn việc gửi LẠI mã; mã đã nhận trước đó vẫn dùng được
+              (hết hạn sau 10 phút), nên trấn an để người dùng cứ nhập mã cũ. */}
+          {cooldown > 0 ? (
+            <Text style={{ color: '#6B7280', fontSize: 12, marginTop: 2 }}>{t(`${NS}.otpPrevStillValid`)}</Text>
+          ) : null}
         </Dialog.Content>
         <Dialog.Actions>
-          <Button onPress={() => { releaseActiveFocus(); setVisible(false); }} disabled={verifying}>{t('common.cancel')}</Button>
+          <Button onPress={closeDialog} disabled={verifying}>{t('common.cancel')}</Button>
           <Button mode="contained" buttonColor={COLOR} onPress={handleVerify}
             loading={verifying} disabled={verifying || code.trim().length < 6}>
             {t(`${NS}.otpVerify`)}

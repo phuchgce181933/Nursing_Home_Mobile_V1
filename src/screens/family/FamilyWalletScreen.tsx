@@ -12,8 +12,8 @@ import { FAMILY } from '../../api/endpoints';
 import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { useToast } from '../../utils/toast';
-import { WalletTopupQrView, PAYMENT_METHOD_NAMES } from './WalletTopupQrView';
-import type { TopupResult, PaymentMethod } from './WalletTopupQrView';
+import { WalletTopupQrView } from './WalletTopupQrView';
+import type { TopupResult } from './WalletTopupQrView';
 import type { WalletQrExportCardHandle } from './WalletQrExportCard';
 import { AppCard } from '../../components/ui/AppCard';
 import { SummaryCard } from '../../components/ui/SummaryCard';
@@ -267,24 +267,6 @@ export const FamilyWalletScreen: React.FC<{ navigation?: any }> = ({ navigation 
     }
   };
 
-  const openPaymentApp = async (method: PaymentMethod) => {
-    const name = method.nameKey ? t(method.nameKey) : PAYMENT_METHOD_NAMES[method.id];
-    if (!method.scheme) {
-      toast(t(`${NS}.toastOpenBankQr`), 'warning');
-      return;
-    }
-    try {
-      const canOpen = await Linking.canOpenURL(method.scheme);
-      if (canOpen) {
-        await Linking.openURL(method.scheme);
-      } else {
-        toast(t(`${NS}.toastAppNotFound`, { name }), 'warning');
-      }
-    } catch {
-      toast(t(`${NS}.toastAppOpenError`, { name }), 'error');
-    }
-  };
-
   const wallet = walletQ.data;
   const amount = selectedAmount ?? (customAmount ? Number(customAmount) : 0);
 
@@ -333,7 +315,6 @@ export const FamilyWalletScreen: React.FC<{ navigation?: any }> = ({ navigation 
         savingQr={savingQr}
         onCancel={cancelTopup}
         onSaveQr={saveQrToGallery}
-        onOpenPaymentApp={openPaymentApp}
       />
     );
   }

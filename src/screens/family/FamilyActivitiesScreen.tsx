@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, FlatList, StyleSheet, RefreshControl, ScrollView, Pressable } from 'react-native';
 import { Text, Card, Button } from 'react-native-paper';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import api from '../../api/axiosInstance';
@@ -15,6 +16,17 @@ import { BackHeader } from '../../components/layout/BackHeader';
 
 const COLOR = '#2E7D32';
 const NS = 'family.activities';
+
+// `scheduledAt` là Date đầy đủ (models/activity.js). Hiển thị "giờ · ngày" cho gọn;
+// dữ liệu thiếu/hỏng thì trả '' để không bao giờ lộ "Invalid Date".
+const formatWhen = (iso?: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const time = d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+  const date = d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return `${time} · ${date}`;
+};
 
 export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigation }) => {
   const showToast = useToast();
@@ -87,22 +99,37 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
               (typeof id === 'string' ? id : id?._id) === activeId) : false;
             const isDisabled = !activeId || (!isRegistered && ['cancelled', 'completed'].includes(item.status)) || (isRegistered && item.status === 'completed');
 
+            const whenText = formatWhen(item.scheduledAt);
+
             return (
               <Card style={styles.card} mode="outlined">
                 <Card.Content style={styles.cardContent}>
                   <View style={styles.headerRow}>
-                    <Text style={styles.title}>{item.title}</Text>
+                    <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
                     <View style={styles.badgeWrap}>
-                      <StatusBadge status={item.status} size="md" />
+                      <StatusBadge status={item.status} size="sm" />
                     </View>
                   </View>
                   {item.category ? <Text style={styles.category}>{categoryLabel(item.category)}</Text> : null}
                   {item.description ? <Text style={styles.desc} numberOfLines={2}>{item.description}</Text> : null}
-                  <Text style={styles.meta}>
-                    {item.scheduledAt ? new Date(item.scheduledAt).toLocaleString('vi-VN') : ''}
-                    {item.location ? ` · ${item.location}` : ''}
-                  </Text>
-                  <Text style={styles.meta}>{t(`${NS}.participantCount`, { count: item.participantResidentIds?.length ?? 0 })}</Text>
+
+                  {whenText ? (
+                    <View style={styles.metaRow}>
+                      <MaterialCommunityIcons name="clock-outline" size={15} color="#6B7280" />
+                      <Text style={styles.metaText}>{whenText}</Text>
+                    </View>
+                  ) : null}
+                  {item.location ? (
+                    <View style={styles.metaRow}>
+                      <MaterialCommunityIcons name="map-marker-outline" size={15} color="#6B7280" />
+                      <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
+                    </View>
+                  ) : null}
+                  <View style={styles.metaRow}>
+                    <MaterialCommunityIcons name="account-group-outline" size={15} color="#6B7280" />
+                    <Text style={styles.metaText}>{t(`${NS}.participantCount`, { count: item.participantResidentIds?.length ?? 0 })}</Text>
+                  </View>
+
                   <Button
                     mode={isRegistered ? 'outlined' : 'contained'}
                     disabled={isDisabled}
@@ -127,12 +154,14 @@ export const FamilyActivitiesScreen: React.FC<{ navigation: any }> = ({ navigati
 
 const styles = StyleSheet.create({
   flex: { flex: 1, backgroundColor: '#F5F5F5' },
-  filterScroll: { flexGrow: 0, marginBottom: 8 },
+  // marginTop tách hàng lọc khỏi mép dưới header xanh — khi chỉ có 1 người thân,
+  // ResidentSwitcher trả null nên hàng lọc nằm sát header nếu không có khoảng cách này.
+  filterScroll: { flexGrow: 0, marginTop: 12, marginBottom: 8 },
   filterRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
   filterChip: {
-    height: 40,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    height: 34,
+    paddingHorizontal: 14,
+    borderRadius: 17,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -140,15 +169,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   filterChipText: { fontSize: 13, fontWeight: '500', color: '#374151' },
-  list: { padding: 16, paddingTop: 0, paddingBottom: 32 },
-  card: { borderRadius: 12, marginBottom: 12, backgroundColor: '#fff' },
-  cardContent: { padding: 20, gap: 8 },
-  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 },
-  title: { fontSize: 20, fontWeight: '600', color: '#111827', flex: 1, flexShrink: 1, lineHeight: 26 },
+  list: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 24 },
+  card: { borderRadius: 12, marginBottom: 10, backgroundColor: '#fff' },
+  cardContent: { padding: 14, gap: 6 },
+  headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10 },
+  title: { fontSize: 16, fontWeight: '700', color: '#111827', flex: 1, lineHeight: 21 },
   badgeWrap: { flexShrink: 0 },
-  category: { fontSize: 16, fontWeight: '500', color: '#2E7D32' },
-  desc: { fontSize: 14, color: '#6B7280', lineHeight: 20 },
-  meta: { fontSize: 14, color: '#6B7280' },
-  registerBtn: { marginTop: 16, borderRadius: 24, width: '100%' },
-  registerBtnContent: { height: 48 },
+  category: { fontSize: 12, fontWeight: '600', color: '#2E7D32' },
+  desc: { fontSize: 13, color: '#6B7280', lineHeight: 18 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  metaText: { fontSize: 13, color: '#6B7280', flex: 1 },
+  registerBtn: { marginTop: 10, borderRadius: 20, width: '100%' },
+  registerBtnContent: { height: 42 },
 });

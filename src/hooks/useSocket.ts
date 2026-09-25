@@ -17,7 +17,11 @@ const connect = (): Promise<Socket> => {
   if (connectingPromise) return connectingPromise;
   connectingPromise = (async () => {
     const token = await AsyncStorage.getItem('token');
-    socket = io(api.defaults.baseURL as string, { auth: { token }, transports: ['websocket'] });
+    // Cho phép cả 'polling' làm phương án dự phòng: nếu nâng cấp WebSocket (wss) bị
+    // reverse-proxy chặn/không upgrade được, engine.io vẫn kết nối được qua HTTP
+    // long-polling qua cùng một socket duy nhất — không tạo socket thứ hai, không
+    // trùng lặp thông báo. auth.token giữ nguyên (token không nằm trên query string).
+    socket = io(api.defaults.baseURL as string, { auth: { token }, transports: ['websocket', 'polling'] });
     connectingPromise = null;
     return socket;
   })();

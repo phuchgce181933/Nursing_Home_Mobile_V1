@@ -48,13 +48,21 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
   // Số lần poll trả về PENDING liên tiếp trước khi coi là hết hạn (~5 phút @3s).
   const pollTicksRef = useRef(0);
   const MAX_POLL_TICKS = 100;
+  // Chốt "đã xử lý thành công" đúng MỘT lần: kể cả khi có nhịp poll trùng hoặc
+  // request verify về PAID hai lần, điều hướng quay lại chỉ chạy một lần.
+  const successHandledRef = useRef(false);
+  const successNavTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopPolling = () => {
     if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
   };
 
-  // Dọn interval khi rời màn hình để tránh rò rỉ / gọi API sau khi unmount.
-  useEffect(() => () => stopPolling(), []);
+  // Dọn interval + timer khi rời màn hình để tránh rò rỉ / gọi API / điều hướng
+  // sau khi unmount.
+  useEffect(() => () => {
+    stopPolling();
+    if (successNavTimerRef.current) { clearTimeout(successNavTimerRef.current); successNavTimerRef.current = null; }
+  }, []);
 
   const invalidateInvoiceQueries = () => {
     qc.invalidateQueries({ queryKey: ['familyInvoices'] });
@@ -70,9 +78,19 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
         const res = await api.post(FAMILY.INVOICE_PAYOS_VERIFY(residentId, invoice._id));
         const status = String(res.data?.data?.status ?? res.data?.status ?? '').toUpperCase();
         if (status === 'PAID') {
+          // Chỉ backend xác nhận PAID mới được coi là thành công; xử lý đúng một lần.
+          if (successHandledRef.current) return;
+          successHandledRef.current = true;
           stopPolling();
           setPayosStatus('success');
           invalidateInvoiceQueries();
+          // Hiện màn "Thanh toán thành công" khoảng 1.5s rồi tự quay lại danh sách
+          // hoá đơn (đã làm mới) — không để người dùng kẹt ở màn QR. goBack() gỡ
+          // InvoiceDetail khỏi stack nên nút Back cũng không quay lại màn QR cũ.
+          successNavTimerRef.current = setTimeout(() => {
+            successNavTimerRef.current = null;
+            navigation.goBack();
+          }, 1500);
         } else if (status === 'CANCELLED' || status === 'EXPIRED') {
           stopPolling();
           setPayosStatus('failed');
@@ -126,6 +144,8 @@ export const InvoiceDetailScreen: React.FC<{ route: any; navigation: any }> = ({
 
   const closePayosView = () => {
     stopPolling();
+    if (successNavTimerRef.current) { clearTimeout(successNavTimerRef.current); successNavTimerRef.current = null; }
+    successHandledRef.current = false;
     setPayosData(null);
     setPayosStatus('polling');
   };

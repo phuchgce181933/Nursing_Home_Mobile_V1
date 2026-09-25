@@ -1,35 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, StyleSheet, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet } from 'react-native';
 import { Text, Card, Button, ActivityIndicator } from 'react-native-paper';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Animated, { FadeIn, FadeInUp } from 'react-native-reanimated';
 import { useTranslation } from 'react-i18next';
 import QRCode from 'react-native-qrcode-svg';
-import { SectionHeader } from '../../components/layout/SectionHeader';
 import { BackHeader } from '../../components/layout/BackHeader';
 import { WalletQrExportCard, type WalletQrExportCardHandle } from './WalletQrExportCard';
 
 const COLOR = '#2E7D32';
 const NS = 'family.wallet';
-
-export type PaymentMethod = {
-  id: string;
-  nameKey: string;
-  icon: string;
-  scheme: string;
-  color: string;
-};
-
-// Real MoMo/ZaloPay/VNPay logo artwork isn't something this codebase has the rights or
-// asset files for, so these use recognizable Material icons tinted with each brand's
-// actual color as a tasteful stand-in rather than a fabricated "official" logo.
-export const PAYMENT_METHODS: PaymentMethod[] = [
-  { id: 'bank', nameKey: `${NS}.bankName`, icon: 'bank', scheme: '', color: '#1565C0' },
-  { id: 'momo', nameKey: '', icon: 'wallet', scheme: 'momo://', color: '#A50064' },
-  { id: 'zalopay', nameKey: '', icon: 'wallet-outline', scheme: 'zalopay://', color: '#008FE5' },
-  { id: 'vnpay', nameKey: '', icon: 'credit-card', scheme: 'vnpay://', color: '#D62027' },
-];
-export const PAYMENT_METHOD_NAMES: Record<string, string> = { momo: 'MoMo', zalopay: 'ZaloPay', vnpay: 'VNPay' };
 
 export type TopupResult = {
   checkoutUrl?: string;
@@ -56,7 +36,6 @@ type Props = {
   savingQr: boolean;
   onCancel: () => void;
   onSaveQr: () => void;
-  onOpenPaymentApp: (method: PaymentMethod) => void;
 };
 
 const StatusPill: React.FC<{ status: Props['pollingStatus'] }> = ({ status }) => {
@@ -78,7 +57,6 @@ export const WalletTopupQrView: React.FC<Props> = ({
   savingQr,
   onCancel,
   onSaveQr,
-  onOpenPaymentApp,
 }) => {
   const { t } = useTranslation();
   const exportQrSvgRef = useRef<any>(null);
@@ -172,18 +150,6 @@ export const WalletTopupQrView: React.FC<Props> = ({
           {savingQr ? t(`${NS}.savingQr`) : t(`${NS}.saveQr`)}
         </Button>
 
-        <SectionHeader title={t(`${NS}.selectPaymentMethod`)} roleColor={COLOR} />
-        <View style={styles.methodGrid}>
-          {PAYMENT_METHODS.map((m) => (
-            <Pressable key={m.id} style={({ pressed }) => [styles.methodCard, pressed && styles.methodCardPressed]} onPress={() => onOpenPaymentApp(m)}>
-              <View style={[styles.methodIcon, { backgroundColor: m.color + '18' }]}>
-                <MaterialCommunityIcons name={m.icon as any} size={26} color={m.color} />
-              </View>
-              <Text style={styles.methodName}>{m.nameKey ? t(m.nameKey) : PAYMENT_METHOD_NAMES[m.id]}</Text>
-            </Pressable>
-          ))}
-        </View>
-
         <StatusPill status={pollingStatus} />
 
         <Button mode="text" textColor="#991B1B" onPress={onCancel} style={styles.cancelBtn}>
@@ -235,21 +201,6 @@ const styles = StyleSheet.create({
 
   saveBtn: { borderRadius: 24, borderColor: COLOR, borderWidth: 1.5, width: '100%', marginBottom: 8 },
   saveBtnContent: { height: 48 },
-
-  methodGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginTop: 4 },
-  methodCard: {
-    width: 84,
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#F0F0F0',
-  },
-  methodCardPressed: { opacity: 0.7, backgroundColor: '#FAFAFA' },
-  methodIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center' },
-  methodName: { fontSize: 12, fontWeight: '600', color: '#374151', textAlign: 'center' },
 
   pollingRow: {
     flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 20,
