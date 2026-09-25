@@ -11,6 +11,7 @@ import { FamilyHealthScreen } from '../screens/family/FamilyHealthScreen';
 import { FamilyInvoicesScreen } from '../screens/family/FamilyInvoicesScreen';
 import { FamilyWalletScreen } from '../screens/family/FamilyWalletScreen';
 import { FamilyAdmissionsScreen } from '../screens/family/FamilyAdmissionsScreen';
+import { FamilyAdmissionCreateScreen } from '../screens/family/FamilyAdmissionCreateScreen';
 import { FamilyToursScreen } from '../screens/family/FamilyToursScreen';
 import { FamilyResidentProfileScreen } from '../screens/family/FamilyResidentProfileScreen';
 import { FamilySupportChatScreen } from '../screens/family/FamilySupportChatScreen';
@@ -40,6 +41,7 @@ const HomeStack = () => (
   <HomeNavStack.Navigator screenOptions={{ headerShown: false }}>
     <HomeNavStack.Screen name="DashboardMain" component={FamilyDashboardScreen} />
     <HomeNavStack.Screen name="Admissions" component={FamilyAdmissionsScreen} />
+    <HomeNavStack.Screen name="AdmissionCreate" component={FamilyAdmissionCreateScreen} />
     <HomeNavStack.Screen name="AdmissionDetail" component={AdmissionDetailScreen} />
     <HomeNavStack.Screen name="Tours" component={FamilyToursScreen} />
     <HomeNavStack.Screen name="ResidentProfile" component={FamilyResidentProfileScreen} />

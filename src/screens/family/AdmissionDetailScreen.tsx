@@ -10,6 +10,7 @@ import { ScreenLayout } from '../../components/layout/ScreenLayout';
 import { SectionHeader } from '../../components/layout/SectionHeader';
 import { useToast } from '../../utils/toast';
 import { BackHeader } from '../../components/layout/BackHeader';
+import { formatRelationship, formatAdmissionReason, formatGender } from '../../utils/admissionOptions';
 
 const COLOR = '#2E7D32';
 const NS = 'family.admissions';
@@ -107,9 +108,9 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
                   <InfoRow label={t(`${NS}.fullName`)} value={item.applicant?.fullName} />
-                  <InfoRow label={t(`${NS}.relationship`)} value={item.applicant?.relationshipToRequester} />
+                  <InfoRow label={t(`${NS}.relationship`)} value={formatRelationship(item.applicant?.relationshipToRequester) || null} />
                   <InfoRow label={t(`${NS}.dob`)} value={item.applicant?.dateOfBirth ? new Date(item.applicant.dateOfBirth).toLocaleDateString('vi-VN') : null} />
-                  <InfoRow label={t(`${NS}.gender`)} value={item.applicant?.gender === 'male' ? t(`${NS}.male`) : item.applicant?.gender === 'female' ? t(`${NS}.female`) : item.applicant?.gender} />
+                  <InfoRow label={t(`${NS}.gender`)} value={formatGender(item.applicant?.gender) || null} />
                   <InfoRow label={t(`${NS}.citizenId`)} value={item.applicant?.citizenId} />
                   <InfoRow label={t(`${NS}.bloodType`)} value={item.applicant?.bloodType} />
                   <InfoRow label={t(`${NS}.address`)} value={item.applicant?.personalAddress} />
@@ -123,7 +124,7 @@ export const AdmissionDetailScreen: React.FC<{ route: any; navigation: any }> = 
               <Card style={styles.card} mode="outlined">
                 <Card.Content>
                   <InfoRow label={t(`${NS}.preferredDate`)} value={item.preferredAdmissionDate ? new Date(item.preferredAdmissionDate).toLocaleDateString('vi-VN') : null} />
-                  <InfoRow label={t(`${NS}.reason`)} value={item.reasonForAdmission} />
+                  <InfoRow label={t(`${NS}.reason`)} value={formatAdmissionReason(item.reasonForAdmission) || null} />
                   <InfoRow label={t(`${NS}.contactPhone`)} value={item.requestedByPhone} />
                   <InfoRow label={t(`${NS}.notes`)} value={item.notes} />
                   <InfoRow label={t(`${NS}.consultationNotes`)} value={item.consultationNotes} />
