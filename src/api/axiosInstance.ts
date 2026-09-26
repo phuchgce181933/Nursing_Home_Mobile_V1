@@ -22,7 +22,8 @@ const resolveBaseUrl = (): string => {
     // "Không thể kết nối tới máy chủ" thay vì âm thầm gọi sai địa chỉ (PART 1).
     console.error(
       '[axiosInstance] EXPO_PUBLIC_API_URL phải là URL HTTPS công khai trong bản release ' +
-        '(ví dụ https://api.annhiencarehome.vn). Hiện chưa cấu hình → không thể kết nối backend.'
+        '(backend production: https://api.annhien.io.vn, khai báo trong .env.production). ' +
+        'Hiện chưa cấu hình → không thể kết nối backend.'
     );
     return '';
   }

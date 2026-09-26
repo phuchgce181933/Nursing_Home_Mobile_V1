@@ -128,7 +128,11 @@ export const RootNavigator: React.FC = () => {
           Login: 'login',
           ForgotPassword: 'forgot-password',
           ResetPassword: 'reset-password',
-          Register: 'register',
+          // KHÔNG khai báo `Register` ở đây: luồng đăng ký dựa trên POST /api/auth/register-otp
+          // và /api/auth/register-verify, hai endpoint này chưa tồn tại trên backend. Không có
+          // chỗ nào trong app điều hướng tới RegisterScreen, nên trước đây `nursinghomemobile://register`
+          // là đường vào duy nhất và nó dẫn thẳng vào một luồng chắc chắn lỗi. Bỏ mapping khiến
+          // deep link đó không còn được xử lý; màn hình vẫn giữ nguyên cho tới khi backend có API.
           Welcome: '',
         },
       },
